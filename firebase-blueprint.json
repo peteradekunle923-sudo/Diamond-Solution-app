@@ -1,0 +1,232 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "App user profile including roles and affiliate data",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "institutionalName": { "type": "string" },
+        "phone": { "type": "string" },
+        "role": { "type": "string", "enum": ["student", "admin", "moderator"] },
+        "department": { "type": "string" },
+        "level": { "type": "string" },
+        "referralCode": { "type": "string" },
+        "referredBy": { "type": "string" },
+        "referredByUid": { "type": "string" },
+        "affiliateStatus": { "type": "string", "enum": ["none", "pending", "active", "approved"] },
+        "hasPaidAffiliateFee": { "type": "boolean" },
+        "bankDetails": {
+          "type": "object",
+          "properties": {
+            "bankName": { "type": "string" },
+            "accountNumber": { "type": "string" },
+            "accountName": { "type": "string" },
+            "bankCode": { "type": "string" }
+          }
+        },
+        "balance": { "type": "number" },
+        "currency": { "type": "string", "enum": ["NGN", "USD"] },
+        "language": { "type": "string", "enum": ["en", "fr"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "isVerified": { "type": "boolean" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Course": {
+      "title": "Course",
+      "description": "Educational course content",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "department": { "type": "string" },
+        "level": { "type": "string" },
+        "price": { "type": "number" },
+        "thumbnail": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "StudyContent": {
+      "title": "StudyContent",
+      "description": "Questions and explanatory answers for a course",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "courseId": { "type": "string" },
+        "question": { "type": "string" },
+        "options": { 
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "correctAnswer": { "type": "number", "minimum": 0, "maximum": 4 },
+        "explanation": { "type": "string" },
+        "order": { "type": "number" }
+      }
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "Record of course purchase",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "courseId": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "completed", "failed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "AffiliateTransaction": {
+      "title": "AffiliateTransaction",
+      "description": "Tracking referral commissions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "referrerId": { "type": "string" },
+        "referrerName": { "type": "string" },
+        "referredUid": { "type": "string" },
+        "referredName": { "type": "string" },
+        "paymentAmount": { "type": "number" },
+        "paymentCurrency": { "type": "string" },
+        "commissionAmount": { "type": "number" },
+        "commissionCurrency": { "type": "string" },
+        "commissionRate": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "approved"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Chat message between user and admin",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "System notification",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Quote": {
+      "title": "Quote",
+      "description": "Daily motivational quote",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "text": { "type": "string" },
+        "author": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "StudyProgress": {
+      "title": "StudyProgress",
+      "description": "User progress tracker for a specific course",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "courseId": { "type": "string" },
+        "currentIndex": { "type": "number" },
+        "score": {
+          "type": "object",
+          "properties": {
+            "correct": { "type": "number" },
+            "total": { "type": "number" }
+          }
+        },
+        "isSubmitted": { "type": "boolean" },
+        "selectedAnswer": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "DailyPractice": {
+      "title": "DailyPractice",
+      "description": "User's daily practice statistics",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "date": { "type": "string" },
+        "attempted": { "type": "number" },
+        "correct": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "lastNotificationCheck": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Faculty": {
+      "title": "Faculty",
+      "description": "Custom institution faculty/department overrides or additions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "AdminToken": {
+      "title": "Admin Token",
+      "description": "Security token for sensitive admin actions",
+      "type": "object",
+      "properties": {
+        "token": { "type": "string" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "targetId": { "type": "string" },
+        "action": { "type": "string", "enum": ["delete", "update"] },
+        "adminEmail": { "type": "string", "format": "email" }
+      }
+    },
+    "Setting": {
+      "title": "System Setting",
+      "description": "Global institutional parameters and social links",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["social", "contact", "general"] },
+        "telegram": { "type": "string" },
+        "whatsapp": { "type": "string" },
+        "facebook": { "type": "string" },
+        "twitter": { "type": "string" },
+        "instagram": { "type": "string" },
+        "supportEmail": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": "User", "description": "Users collection" },
+    "/courses/{courseId}": { "schema": "Course", "description": "Courses collection" },
+    "/courses/{courseId}/content/{contentId}": { "schema": "StudyContent", "description": "Course questions and answers" },
+    "/payments/{paymentId}": { "schema": "Payment", "description": "Course payments" },
+    "/affiliates/{affId}": { "schema": "AffiliateTransaction", "description": "Referral earnings" },
+    "/chats/{chatId}/messages/{msgId}": { "schema": "Message", "description": "Chat messages" },
+    "/notifications/{notifId}": { "schema": "Notification", "description": "System notifications" },
+    "/quotes/{quoteId}": { "schema": "Quote", "description": "Motivational quotes" },
+    "/studyProgress/{progressId}": { "schema": "StudyProgress", "description": "User study progress records" },
+    "/dailyPractice/{practiceId}": { "schema": "DailyPractice", "description": "User daily practice stats" },
+    "/faculties/{facultyId}": { "schema": "Faculty", "description": "Custom faculties and pricing" },
+    "/admin_tokens/{tokenId}": { "schema": "AdminToken", "description": "Security tokens for sensitive actions" },
+    "/settings/{settingId}": { "schema": "Setting", "description": "Global institutional settings" }
+  }
+}

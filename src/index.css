@@ -1,0 +1,52 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-serif: "Playfair Display", serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  
+  --color-navy: #07101F;
+  --color-navy-mid: #0C1929;
+  --color-navy-card: #0F2036;
+  --color-navy-high: #162B46;
+  --color-navy-border: #1E3A5A;
+
+  --color-gold: #C9930A;
+  --color-gold-light: #E5AC1F;
+  --color-gold-pale: #F0C84A;
+  
+  --color-text-1: #EDE8E1;
+  --color-text-2: #8DA8C2;
+  --color-text-3: #45647E;
+}
+
+@layer base {
+  body {
+    @apply font-sans bg-navy text-text-1 antialiased;
+  }
+}
+
+@layer components {
+  .diamond-gradient {
+    background: linear-gradient(135deg, #C9930A 0%, #E5AC1F 100%);
+  }
+  .diamond-mark {
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  }
+  .card-luxury {
+    @apply bg-navy-card border border-gold/15 rounded-2xl overflow-hidden shadow-2xl;
+  }
+  .glass-panel {
+    @apply bg-navy-mid/60 backdrop-blur-xl border border-gold/10;
+  }
+}
+
+@layer utilities {
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

@@ -1,0 +1,227 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. GLOBAL SAFETY NET
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. GLOBAL HELPERS
+    function isSignedIn() { return request.auth != null; }
+    function isVerified() { return isSignedIn(); }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\.]+$'); }
+    
+    // Admin check: Hardcoded SuperAdmin + Admins collection lookup
+    function isAdmin() { 
+      return isSignedIn() && (
+        (request.auth.token.email != null && request.auth.token.email.lower() == 'peteradekunle923@gmail.com') ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // 3. VALIDATION BLUEPRINTS
+    
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+             data.uid == request.auth.uid &&
+             data.role in ['student', 'admin', 'moderator'] &&
+             data.email is string && data.email.size() <= 255 &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 100)) &&
+             (!('institutionalName' in data) || (data.institutionalName is string && data.institutionalName.size() <= 150)) &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() <= 40)) &&
+             (!('department' in data) || (data.department is string && data.department.size() <= 100)) &&
+             (!('level' in data) || (data.level is string && data.level.size() <= 20)) &&
+             (!('balance' in data) || (data.balance is number && data.balance >= 0)) &&
+             (!('affiliateStatus' in data) || data.affiliateStatus in ['none', 'pending', 'active', 'approved', 'declined']) &&
+             (!('hasPaidAffiliateFee' in data) || data.hasPaidAffiliateFee is bool) &&
+             (!('isPartner' in data) || data.isPartner is bool) &&
+             (!('hasSeenTour' in data) || data.hasSeenTour is bool) &&
+             (!('lastStudyDate' in data) || (data.lastStudyDate is string || data.lastStudyDate == request.time)) &&
+             (!('createdAt' in data) || (data.createdAt is string || data.createdAt == request.time)) &&
+             (!('updatedAt' in data) || (data.updatedAt is string || data.updatedAt == request.time)) &&
+             (!('bankDetails' in data) || (data.bankDetails is map)) &&
+             (!('currency' in data) || data.currency in ['NGN', 'USD']);
+    }
+
+    function isValidPayment(data) {
+      return data.keys().hasAll(['userId', 'amount', 'status']) &&
+             data.userId == request.auth.uid &&
+             data.status in ['pending', 'success', 'failed'] &&
+             data.amount is number && data.amount > 0 &&
+             (!('courseId' in data) || isValidId(data.courseId)) &&
+             (!('dept_name' in data) || (data.dept_name is string && data.dept_name.size() <= 100)) &&
+             (!('department' in data) || (data.department is string && data.department.size() <= 100));
+    }
+
+    function isValidWithdrawal(data) {
+      return data.keys().hasAll(['userId', 'amount', 'status', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.amount is number && data.amount >= 1000 &&
+             data.status == 'pending' &&
+             (data.createdAt is string || data.createdAt == request.time);
+    }
+
+    function isValidPractice(data) {
+      return (data.userId == request.auth.uid || (!('userId' in data) && existing().userId == request.auth.uid)) &&
+             (!('date' in data) || data.date is string) &&
+             (!('attempted' in data) || data.attempted is number) &&
+             (!('correct' in data) || data.correct is number) &&
+             (!('studyDuration' in data) || data.studyDuration is number) &&
+             (!('lastStudyDate' in data) || (data.lastStudyDate is string || data.lastStudyDate == request.time)) &&
+             (!('lastNotificationCheck' in data) || (data.lastNotificationCheck is string || data.lastNotificationCheck == request.time)) &&
+             (!('createdAt' in data) || (data.createdAt is string || data.createdAt == request.time)) &&
+             (!('updatedAt' in data) || (data.updatedAt is string || data.updatedAt == request.time));
+    }
+
+    function isValidStudyProgress(data) {
+      return (data.userId == request.auth.uid || (!('userId' in data) && existing().userId == request.auth.uid)) &&
+             (!('courseId' in data) || isValidId(data.courseId)) &&
+             (!('currentIndex' in data) || data.currentIndex is number) &&
+             (!('completed' in data) || data.completed is bool) &&
+             (!('score' in data) || (data.score is map)) &&
+             (!('isSubmitted' in data) || data.isSubmitted is bool) &&
+             (!('selectedAnswer' in data) || (data.selectedAnswer is string || data.selectedAnswer == null)) &&
+             (!('updatedAt' in data) || (data.updatedAt is string || data.updatedAt == request.time));
+    }
+
+    // 4. COLLECTION RULES
+
+    // --- Users ---
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isAdmin() || (isSignedIn() && (
+        // Allow users to see their referrals
+        resource.data.referredByUid == request.auth.uid ||
+        // Allow public leaderboard (reading other student profiles basically)
+        (resource.data.role == 'student')
+      ));
+      
+      allow create: if isOwner(userId) && isValidUser(incoming()) && 
+                    incoming().role == 'student' && 
+                    incoming().balance == 0 &&
+                    incoming().affiliateStatus in ['none', 'active'] &&
+                    (incoming().createdAt is string || incoming().createdAt == request.time);
+      
+      allow update: if (isOwner(userId) && isValidUser(incoming()) && (
+        // Action 1: Basic Profile Update
+        (incoming().diff(existing()).affectedKeys().hasOnly([
+          'displayName', 'institutionalName', 'phone', 'department', 'level', 
+          'currency', 'language', 'updatedAt', 'hasSeenTour', 'bankDetails'
+        ]) &&
+        incoming().role == existing().role &&
+        incoming().balance == existing().balance &&
+        incoming().affiliateStatus == existing().affiliateStatus)
+      ) && (!('email' in incoming()) || (incoming().email == existing().email))) || 
+      isAdmin();
+    }
+
+    // --- Payments ---
+    match /payments/{paymentId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isVerified() && isValidPayment(incoming()) && 
+                    (incoming().status == 'pending' || incoming().status == 'success') &&
+                    (!('courseId' in incoming()) || exists(/databases/$(database)/documents/courses/$(incoming().courseId)));
+      allow update: if isAdmin();
+    }
+
+    // --- Withdrawals ---
+    match /withdrawals/{withdrawalId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isVerified() && isValidWithdrawal(incoming()) &&
+                    // Enforce balance check implicitly by requiring Admin approval for actual payout
+                    incoming().status == 'pending';
+      allow update, delete: if isAdmin();
+    }
+
+    // --- Courses & Content ---
+    match /courses/{courseId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+
+      match /content/{contentId} {
+        // Master Gate: Check payment or admin status
+        allow read: if isAdmin() || (isSignedIn() && (
+          // Option 1: Legacy Course-Specific Payment
+          (exists(/databases/$(database)/documents/payments/$(request.auth.uid + "_" + courseId)) &&
+           get(/databases/$(database)/documents/payments/$(request.auth.uid + "_" + courseId)).data.status == "success") ||
+          // Option 2: Modern Department-Based Payment (using faculty name from course)
+          (exists(/databases/$(database)/documents/payments/$( "dept_pay_" + request.auth.uid + "_" + get(/databases/$(database)/documents/courses/$(courseId)).data.department)) &&
+           get(/databases/$(database)/documents/payments/$( "dept_pay_" + request.auth.uid + "_" + get(/databases/$(database)/documents/courses/$(courseId)).data.department)).data.status == "success")
+        ));
+        allow write: if isAdmin();
+      }
+    }
+
+    // --- Daily Practice ---
+    match /dailyPractice/{practiceId} {
+      allow get, list: if isSignedIn();
+      allow write: if isSignedIn() && (practiceId.startsWith(request.auth.uid) || isAdmin()) && isValidPractice(incoming());
+    }
+
+    // --- Global Settings ---
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // --- Notifications ---
+    match /notifications/{notifId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow update: if isOwner(resource.data.userId) && 
+                    incoming().diff(existing()).affectedKeys().hasOnly(['read', 'updatedAt']);
+      allow create: if isAdmin() || isSignedIn(); // Allow users to notify each other for commissions
+      allow delete: if isAdmin() || isOwner(resource.data.userId);
+    }
+    
+    // --- System Logs ---
+    match /system_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+    }
+
+    // --- Quotes ---
+    match /quotes/{quoteId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // --- Faculties ---
+    match /faculties/{facultyId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // --- Admins ---
+    match /admins/{adminId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // --- Chats ---
+    match /chats/{userId} {
+      match /messages/{messageId} {
+        allow read, write: if isAdmin() || isOwner(userId);
+      }
+    }
+
+    // --- Affiliates ---
+    match /affiliates/{affId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.referrerUid == request.auth.uid);
+      allow create: if isSignedIn() && incoming().referredUid == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // --- Study Progress ---
+    match /studyProgress/{progressId} {
+      allow read: if isAdmin() || (isSignedIn() && (progressId.startsWith(request.auth.uid) || resource.data.userId == request.auth.uid));
+      allow write: if isSignedIn() && (progressId.startsWith(request.auth.uid) || isAdmin()) && isValidStudyProgress(incoming());
+    }
+    // --- Admin Tokens ---
+    match /admin_tokens/{tokenId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}
