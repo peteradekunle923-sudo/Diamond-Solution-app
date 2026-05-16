@@ -5,7 +5,7 @@ import {
   Shield, LayoutDashboard, Users, Link as LinkIcon, CreditCard, Wallet,
   BarChart2, Building2, FileText, Bell, Quote, LogOut, Search, 
   Filter, Plus, Edit3, Trash2, CheckCircle2, AlertCircle, XCircle, ArrowRight,
-  Layers, X, Download, MessageCircle, Check, Target, ShieldAlert, Clock
+  Layers, X, Download, MessageCircle, Check, Target, ShieldAlert, Clock, Menu
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { downloadCSV } from '../lib/csvUtils';
@@ -21,6 +21,7 @@ type Tab = 'dashboard' | 'users' | 'affiliates' | 'withdrawals' | 'payments' | '
 export default function AdminDashboard() {
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [selectedDeptFilter, setSelectedDeptFilter] = useState<string | null>(null);
   const [stats, setStats] = useState({
     totalStudents: 0,
@@ -170,34 +171,42 @@ export default function AdminDashboard() {
       {/* Sidebar and Main Content ... */}
       {/* ... existing code ... */}
       {/* Sidebar */}
-      <aside className="w-60 min-h-screen bg-[#111420] border-r border-[#1e2540] flex flex-col fixed top-0 left-0 z-50">
-        <div className="p-7 flex items-center gap-3 border-b border-[#1e2540]">
-          <div className="w-8 h-8 bg-gold flex-shrink-0" style={{ clipPath: 'polygon(50% 0%, 100% 35%, 80% 100%, 20% 100%, 0% 35%)' }}></div>
-          <div className="font-serif font-extrabold text-sm leading-tight text-white uppercase tracking-tighter">
-            Diamond<br />
-            <span className="text-gold">Solution</span>
+      <aside className={cn(
+        "w-60 min-h-screen bg-[#111420] border-r border-[#1e2540] flex flex-col fixed top-0 left-0 z-50 transition-transform duration-300",
+        isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
+        <div className="p-7 flex items-center justify-between border-b border-[#1e2540]">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gold flex-shrink-0" style={{ clipPath: 'polygon(50% 0%, 100% 35%, 80% 100%, 20% 100%, 0% 35%)' }}></div>
+            <div className="font-serif font-extrabold text-sm leading-tight text-white uppercase tracking-tighter">
+              Diamond<br />
+              <span className="text-gold">Solution</span>
+            </div>
           </div>
+          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-gray-500 hover:text-white">
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         <nav className="flex-1 py-4 overflow-y-auto no-scrollbar">
           <div className="px-4 py-2 text-[10px] font-black text-gray-500 uppercase tracking-widest mt-2">{t('admin.main')}</div>
-          <NavItem active={activeTab === 'dashboard'} icon={LayoutDashboard} label={t('admin.dashboard')} onClick={() => setActiveTab('dashboard')} />
-          <NavItem active={activeTab === 'users'} icon={Users} label={t('admin.users')} onClick={() => setActiveTab('users')} />
-          <NavItem active={activeTab === 'affiliates'} icon={LinkIcon} label={t('admin.affiliates')} onClick={() => setActiveTab('affiliates')} badge={stats.pendingCommissions} />
-          <NavItem active={activeTab === 'withdrawals'} icon={Wallet} label={t('admin.withdrawals')} onClick={() => setActiveTab('withdrawals')} badge={stats.pendingWithdrawals} />
+          <NavItem active={activeTab === 'dashboard'} icon={LayoutDashboard} label={t('admin.dashboard')} onClick={() => { setActiveTab('dashboard'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} />
+          <NavItem active={activeTab === 'users'} icon={Users} label={t('admin.users')} onClick={() => { setActiveTab('users'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} />
+          <NavItem active={activeTab === 'affiliates'} icon={LinkIcon} label={t('admin.affiliates')} onClick={() => { setActiveTab('affiliates'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} badge={stats.pendingCommissions} />
+          <NavItem active={activeTab === 'withdrawals'} icon={Wallet} label={t('admin.withdrawals')} onClick={() => { setActiveTab('withdrawals'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} badge={stats.pendingWithdrawals} />
 
           <div className="px-4 py-2 text-[10px] font-black text-gray-500 uppercase tracking-widest mt-4">{t('admin.finance')}</div>
-          <NavItem active={activeTab === 'payments'} icon={CreditCard} label={t('admin.payments')} onClick={() => setActiveTab('payments')} />
-          <NavItem active={activeTab === 'analytics'} icon={BarChart2} label={t('admin.analytics')} onClick={() => setActiveTab('analytics')} />
+          <NavItem active={activeTab === 'payments'} icon={CreditCard} label={t('admin.payments')} onClick={() => { setActiveTab('payments'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} />
+          <NavItem active={activeTab === 'analytics'} icon={BarChart2} label={t('admin.analytics')} onClick={() => { setActiveTab('analytics'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} />
 
           <div className="px-4 py-2 text-[10px] font-black text-gray-500 uppercase tracking-widest mt-4">{t('admin.content')}</div>
-          <NavItem active={activeTab === 'departments'} icon={Building2} label={t('admin.departments')} onClick={() => setActiveTab('departments')} />
-          <NavItem active={activeTab === 'questions'} icon={FileText} label={t('admin.questions')} onClick={() => setActiveTab('questions')} />
-          <NavItem active={activeTab === 'notifications'} icon={Bell} label={t('admin.notifications')} onClick={() => setActiveTab('notifications')} />
-          <NavItem active={activeTab === 'quotes'} icon={Quote} label={t('admin.quotes')} onClick={() => setActiveTab('quotes')} />
-          <NavItem active={activeTab === 'support'} icon={MessageCircle} label={t('admin.support')} onClick={() => setActiveTab('support')} />
-          <NavItem active={activeTab === 'logs'} icon={FileText} label="System Logs" onClick={() => setActiveTab('logs')} />
-          <NavItem active={activeTab === 'settings'} icon={ShieldAlert} label={t('admin.settings')} onClick={() => setActiveTab('settings')} />
+          <NavItem active={activeTab === 'departments'} icon={Building2} label={t('admin.departments')} onClick={() => { setActiveTab('departments'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} />
+          <NavItem active={activeTab === 'questions'} icon={FileText} label={t('admin.questions')} onClick={() => { setActiveTab('questions'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} />
+          <NavItem active={activeTab === 'notifications'} icon={Bell} label={t('admin.notifications')} onClick={() => { setActiveTab('notifications'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} />
+          <NavItem active={activeTab === 'quotes'} icon={Quote} label={t('admin.quotes')} onClick={() => { setActiveTab('quotes'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} />
+          <NavItem active={activeTab === 'support'} icon={MessageCircle} label={t('admin.support')} onClick={() => { setActiveTab('support'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} />
+          <NavItem active={activeTab === 'logs'} icon={FileText} label="System Logs" onClick={() => { setActiveTab('logs'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} />
+          <NavItem active={activeTab === 'settings'} icon={ShieldAlert} label={t('admin.settings')} onClick={() => { setActiveTab('settings'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} />
         </nav>
 
         <div className="p-4 border-t border-[#1e2540] flex items-center gap-3">
@@ -218,9 +227,20 @@ export default function AdminDashboard() {
       </aside>
 
       {/* Main Content */}
-      <main className="ml-60 flex-1 flex flex-col min-h-screen">
+      <main className={cn(
+        "flex-1 flex flex-col min-h-screen transition-all duration-300",
+        isSidebarOpen ? "lg:ml-60" : "ml-0"
+      )}>
         <header className="sticky top-0 bg-[#0a0c10]/80 backdrop-blur-md border-b border-[#1e2540] px-8 py-4 flex items-center justify-between z-40">
-          <h1 className="font-serif font-bold text-xl text-white capitalize">{activeTab === 'dashboard' ? t('admin.overview') : t(`admin.${activeTab}` as any)}</h1>
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="text-gray-400 hover:text-gold transition-colors"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <h1 className="font-serif font-bold text-xl text-white capitalize hidden sm:block">{activeTab === 'dashboard' ? t('admin.overview') : t(`admin.${activeTab}` as any)}</h1>
+          </div>
           <div className="flex items-center gap-3">
             <button className="bg-[#161b2e] border border-[#1e2540] text-[#e8eaf0] px-4 py-2 rounded-lg text-[13px] font-medium flex items-center gap-2 hover:border-gold/50 transition-all">
               <Bell className="w-4 h-4 text-gold" />

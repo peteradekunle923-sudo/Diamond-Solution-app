@@ -57,18 +57,10 @@ async function getFirestore() {
   try {
     const app = getApp();
     // In AI Studio, enterprise databases must be explicitly targeted by ID.
-    // However, if the config is stale, the named database might not exist in the current project.
     let db: any;
     if (databaseId) {
-      try {
-        db = getFirestoreSDK(app, databaseId);
-        // Connectivity check - will fallback if named db is missing/permissions fail
-        await db.collection("system_logs").limit(1).get();
-        console.log(`[Firestore] Verified target database: ${databaseId}`);
-      } catch (e: any) {
-        console.warn(`[Firestore] Access to ${databaseId} failed: ${e.message}. Reverting to (default).`);
-        db = getFirestoreSDK(app);
-      }
+      db = getFirestoreSDK(app, databaseId);
+      console.log(`[Firestore] Target database specified: ${databaseId}`);
     } else {
       db = getFirestoreSDK(app);
     }

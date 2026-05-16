@@ -99,6 +99,46 @@ export default function Dashboard() {
       }));
 
       setWeeklyData(weekStats);
+      
+      // Calculate Inactivity and Goals
+      let daysSince = 0;
+      if (profile?.lastStudyDate) {
+        daysSince = differenceInDays(startOfDay(new Date()), startOfDay(new Date(profile.lastStudyDate)));
+        if (daysSince < 0) daysSince = 0;
+      }
+
+      // Calculate monthly goal days and total precision
+      const now = new Date();
+      const currentDay = now.getDate();
+      const monthDates = Array.from({ length: currentDay }, (_, i) => {
+        const d = subDays(now, i);
+        return format(d, 'yyyy-MM-dd');
+      });
+      
+      let metGoalDays = 0;
+      let monthAttempted = 0;
+      let monthCorrect = 0;
+
+      await Promise.all(monthDates.map(async (dateString) => {
+        const practiceId = `${user.uid}_${dateString}`;
+        const snap = await getDoc(doc(db, 'dailyPractice', practiceId));
+        if (snap.exists()) {
+           const data = snap.data();
+           if ((data.attempted || 0) >= 50) metGoalDays++;
+           monthAttempted += (data.attempted || 0);
+           monthCorrect += (data.correct || 0);
+        }
+      }));
+
+      const monthlyAccuracy = monthAttempted > 0 ? Math.round((monthCorrect / monthAttempted) * 100) : 0;
+
+      setInactivityStats({
+        daysSinceStudy: daysSince,
+        monthlyGoalDays: metGoalDays
+      });
+      
+      // Update stats with monthly accuracy so it isn't 0 if they haven't studied today
+      setStats(prev => ({ ...prev, avgScore: monthlyAccuracy }));
     };
 
     fetchWeeklyStats();
@@ -112,15 +152,19 @@ export default function Dashboard() {
         const data = snap.data();
         const attempted = data.attempted || 0;
         const correct = data.correct || 0;
-        const avgScore = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
         
-        setStats(prev => ({
-          ...prev,
-          attempted,
-          correct,
-          avgScore,
-          studyDuration: data.studyDuration || 0
-        }));
+        setStats(prev => {
+          // We only override avgScore if they actually attempted something today,
+          // otherwise we keep the monthly accuracy we just calculated.
+          const newAvg = attempted > 0 ? Math.round((correct / attempted) * 100) : prev.avgScore;
+          return {
+            ...prev,
+            attempted,
+            correct,
+            avgScore: newAvg,
+            studyDuration: data.studyDuration || 0
+          };
+        });
 
         // Notification Check (Every 3 hours if < 50 questions)
         const now = new Date();
