@@ -236,6 +236,11 @@ async function startServer() {
     const secretKey = process.env.PAYSTACK_SECRET_KEY;
 
     try {
+      if (bankCode === 'INTL') {
+        console.log(`[Payout] INTL payout requested for ${accountName} using ${accountNumber}`);
+        return res.json({ success: true, message: "International payout logged for manual processing", reference, isManual: true });
+      }
+
       if (!secretKey || secretKey === 'sk_test_placeholder') {
         console.warn("[Payout] Payout simulated - no secret key.");
         return res.json({ success: true, message: "Payout simulated", reference });

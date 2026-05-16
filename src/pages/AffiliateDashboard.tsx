@@ -113,6 +113,7 @@ export default function AffiliateDashboard() {
         email: user.email,
         accountName: profile.displayName || 'Unnamed Scholar',
         amount: amount,
+        currency: userCurrency,
         bankDetails: profile.bankDetails,
         status: 'pending',
         createdAt: new Date().toISOString()
@@ -411,56 +412,98 @@ export default function AffiliateDashboard() {
               </div>
 
               <form onSubmit={saveBankDetails} className="space-y-6">
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-text-3 uppercase tracking-widest ml-1">{t('affiliate.financial_institution')}</label>
-                  <select 
-                    required
-                    value={bankDetails.bankCode}
-                    onChange={(e) => {
-                      const selectedBank = e.target.options[e.target.selectedIndex].text;
-                      setBankDetails({...bankDetails, bankCode: e.target.value, bankName: selectedBank});
-                    }}
-                    className="w-full bg-navy-high/50 border border-gold/20 rounded-2xl px-6 py-4 text-[13px] text-white focus:border-gold outline-none transition-all"
-                  >
-                    <option value="">{t('affiliate.select_hub')}</option>
-                    <option value="044">Access Bank</option>
-                    <option value="058">Guaranty Trust Bank (GTB)</option>
-                    <option value="011">First Bank</option>
-                    <option value="057">Zenith Bank</option>
-                    <option value="033">United Bank for Africa (UBA)</option>
-                    <option value="032">Union Bank</option>
-                    <option value="070">Fidelity Bank</option>
-                    <option value="214">First City Monument Bank (FCMB)</option>
-                    <option value="50211">Kuda Bank</option>
-                    <option value="999992">OPay Digital Services</option>
-                    <option value="999991">PalmPay</option>
-                  </select>
-                </div>
+                {userCurrency === 'USD' ? (
+                  <>
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black text-text-3 uppercase tracking-widest ml-1">Payout Method</label>
+                      <select 
+                        required
+                        value={bankDetails.bankName}
+                        onChange={(e) => setBankDetails({...bankDetails, bankName: e.target.value, bankCode: 'INTL'})}
+                        className="w-full bg-navy-high/50 border border-gold/20 rounded-2xl px-6 py-4 text-[13px] text-white focus:border-gold outline-none transition-all"
+                      >
+                        <option value="">Select Method</option>
+                        <option value="PayPal">PayPal</option>
+                        <option value="USDT TRC20">USDT (TRC20)</option>
+                        <option value="Wire Transfer">International Wire</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black text-text-3 uppercase tracking-widest ml-1">Address / Account Details</label>
+                      <input 
+                        type="text" 
+                        required
+                        value={bankDetails.accountNumber}
+                        onChange={(e) => setBankDetails({...bankDetails, accountNumber: e.target.value})}
+                        placeholder="e.g. paypal@email.com or TRC20 Address"
+                        className="w-full bg-navy-high/50 border border-gold/20 rounded-2xl px-6 py-4 text-[13px] text-white focus:border-gold outline-none transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black text-text-3 uppercase tracking-widest ml-1">Full Name / Beneficiary</label>
+                      <input 
+                        type="text" 
+                        required
+                        value={bankDetails.accountName}
+                        onChange={(e) => setBankDetails({...bankDetails, accountName: e.target.value.toUpperCase()})}
+                        className="w-full bg-navy-high/50 border border-gold/20 rounded-2xl px-6 py-4 text-[13px] text-white focus:border-gold outline-none transition-all uppercase font-bold"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black text-text-3 uppercase tracking-widest ml-1">{t('affiliate.financial_institution')}</label>
+                      <select 
+                        required
+                        value={bankDetails.bankCode}
+                        onChange={(e) => {
+                          const selectedBank = e.target.options[e.target.selectedIndex].text;
+                          setBankDetails({...bankDetails, bankCode: e.target.value, bankName: selectedBank});
+                        }}
+                        className="w-full bg-navy-high/50 border border-gold/20 rounded-2xl px-6 py-4 text-[13px] text-white focus:border-gold outline-none transition-all"
+                      >
+                        <option value="">{t('affiliate.select_hub')}</option>
+                        <option value="044">Access Bank</option>
+                        <option value="058">Guaranty Trust Bank (GTB)</option>
+                        <option value="011">First Bank</option>
+                        <option value="057">Zenith Bank</option>
+                        <option value="033">United Bank for Africa (UBA)</option>
+                        <option value="032">Union Bank</option>
+                        <option value="070">Fidelity Bank</option>
+                        <option value="214">First City Monument Bank (FCMB)</option>
+                        <option value="50211">Kuda Bank</option>
+                        <option value="999992">OPay Digital Services</option>
+                        <option value="999991">PalmPay</option>
+                      </select>
+                    </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-text-3 uppercase tracking-widest ml-1">{t('affiliate.acc_no')}</label>
-                  <input 
-                    required
-                    type="text"
-                    maxLength={10}
-                    placeholder="0000000000"
-                    value={bankDetails.accountNumber}
-                    onChange={(e) => setBankDetails({...bankDetails, accountNumber: e.target.value})}
-                    className="w-full bg-navy-high/50 border border-gold/20 rounded-2xl px-6 py-4 text-[13px] text-white focus:border-gold outline-none transition-all font-mono tracking-widest placeholder:opacity-20"
-                  />
-                </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black text-text-3 uppercase tracking-widest ml-1">{t('affiliate.acc_no')}</label>
+                      <input 
+                        required
+                        type="text"
+                        maxLength={10}
+                        placeholder="0000000000"
+                        value={bankDetails.accountNumber}
+                        onChange={(e) => setBankDetails({...bankDetails, accountNumber: e.target.value})}
+                        className="w-full bg-navy-high/50 border border-gold/20 rounded-2xl px-6 py-4 text-[13px] text-white focus:border-gold outline-none transition-all font-mono tracking-widest placeholder:opacity-20"
+                      />
+                    </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-text-3 uppercase tracking-widest ml-1">{t('affiliate.beneficiary')}</label>
-                  <input 
-                    required
-                    type="text"
-                    placeholder="JOHN DOE"
-                    value={bankDetails.accountName}
-                    onChange={(e) => setBankDetails({...bankDetails, accountName: e.target.value.toUpperCase()})}
-                    className="w-full bg-navy-high/50 border border-gold/20 rounded-2xl px-6 py-4 text-[13px] text-white focus:border-gold outline-none transition-all uppercase font-bold placeholder:opacity-20"
-                  />
-                </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black text-text-3 uppercase tracking-widest ml-1">{t('affiliate.beneficiary')}</label>
+                      <input 
+                        required
+                        type="text"
+                        placeholder="JOHN DOE"
+                        value={bankDetails.accountName}
+                        onChange={(e) => setBankDetails({...bankDetails, accountName: e.target.value.toUpperCase()})}
+                        className="w-full bg-navy-high/50 border border-gold/20 rounded-2xl px-6 py-4 text-[13px] text-white focus:border-gold outline-none transition-all uppercase font-bold placeholder:opacity-20"
+                      />
+                    </div>
+                  </>
+                )}
 
                 <button 
                   type="submit"

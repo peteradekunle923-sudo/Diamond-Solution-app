@@ -570,7 +570,7 @@ function DashboardOverview({ stats }: { stats: any }) {
                         <div className="text-[11px] text-gray-500">{p.email || 'no-email'}</div>
                       </td>
                       <td className="px-6 py-5 text-[13px] text-gray-400">{p.dept_name || '—'}</td>
-                      <td className="px-6 py-5 text-[13.5px] font-mono font-bold text-[#3ddba5]">₦{p.amount?.toLocaleString()}</td>
+                      <td className="px-6 py-5 text-[13.5px] font-mono font-bold text-[#3ddba5]">{p.currency === 'USD' ? '$' : '₦'}{p.amount?.toLocaleString()}</td>
                       <td className="px-6 py-5">
                         <span className={cn(
                           "px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider font-mono",
@@ -950,6 +950,7 @@ function AffiliateManager({ requestClearance }: { requestClearance: any }) {
                     const earned = affiliates.filter(a => a.referrerUid === p.id).reduce((acc, curr) => acc + (curr.commissionAmount || 0), 0);
                     const paid = payouts.filter(w => w.userId === p.id && w.status !== 'failed').reduce((acc, curr) => acc + (curr.amount || 0), 0);
                     const bal = Math.max(0, earned - paid);
+                    const currIcon = p.currency === 'USD' ? '$' : '₦';
                     return (
                       <tr key={p.id} className="hover:bg-white/[0.01] group transition-all">
                         <td className="px-6 py-6 text-nowrap">
@@ -959,9 +960,9 @@ function AffiliateManager({ requestClearance }: { requestClearance: any }) {
                         <td className="px-6 py-6">
                           <span className="bg-gold/10 text-gold px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-gold/20">{p.referralCode}</span>
                         </td>
-                        <td className="px-6 py-6 text-[14px] font-mono font-bold text-white">₦{earned.toLocaleString()}</td>
-                        <td className="px-6 py-6 text-[14px] font-mono font-bold text-emerald-500">₦{paid.toLocaleString()}</td>
-                        <td className="px-6 py-6 text-[14px] font-mono font-black text-gold">₦{bal.toLocaleString()}</td>
+                        <td className="px-6 py-6 text-[14px] font-mono font-bold text-white">{currIcon}{earned.toLocaleString()}</td>
+                        <td className="px-6 py-6 text-[14px] font-mono font-bold text-emerald-500">{currIcon}{paid.toLocaleString()}</td>
+                        <td className="px-6 py-6 text-[14px] font-mono font-black text-gold">{currIcon}{bal.toLocaleString()}</td>
                       </tr>
                     );
                   })
@@ -1072,7 +1073,8 @@ function AnalyticsDashboard({ stats }: { stats: any }) {
         if (data.status === 'success' && data.paidAt) {
           const date = new Date(data.paidAt);
           if (date.getFullYear() === new Date().getFullYear()) {
-            monthly[date.getMonth()] += data.amount || 0;
+            const amount = data.currency === 'USD' ? (data.amount || 0) * 1500 : (data.amount || 0);
+            monthly[date.getMonth()] += amount;
           }
         }
       });
@@ -1085,10 +1087,11 @@ function AnalyticsDashboard({ stats }: { stats: any }) {
       const monthly = new Array(12).fill(0);
       snap.docs.forEach(doc => {
         const data = doc.data();
-        if (data.status === 'completed' && data.processedAt) {
+        if (data.status === 'success' && data.processedAt) {
           const date = new Date(data.processedAt);
           if (date.getFullYear() === new Date().getFullYear()) {
-            monthly[date.getMonth()] += data.amount || 0;
+            const amount = data.currency === 'USD' ? (data.amount || 0) * 1500 : (data.amount || 0);
+            monthly[date.getMonth()] += amount;
           }
         }
       });
@@ -2730,7 +2733,11 @@ function WithdrawalsManager({ requestClearance }: { requestClearance: any }) {
           paystackResponse: result
         });
 
-        alert('Withdrawal processed successfully via Paystack.');
+        if (result.isManual) {
+           alert('International withdrawal marked as success. Please ensure you manually transfer the funds via their requested method.');
+        } else {
+           alert('Withdrawal processed successfully via Paystack.');
+        }
       } catch (err: any) {
         console.error(err);
         alert('Withdrawal failed: ' + err.message);
@@ -2777,7 +2784,7 @@ function WithdrawalsManager({ requestClearance }: { requestClearance: any }) {
                       <div className="text-[11px] text-gray-500 font-mono tracking-widest">{w.bankDetails?.accountNumber}</div>
                       <div className="text-[9px] text-gray-600 uppercase font-black tracking-widest">{w.bankDetails?.accountName}</div>
                     </td>
-                    <td className="px-6 py-6 text-[14.5px] font-black text-[#3ddba5] font-mono">₦{w.amount.toLocaleString()}</td>
+                    <td className="px-6 py-6 text-[14.5px] font-black text-[#3ddba5] font-mono">{w.currency === 'USD' ? '$' : '₦'}{w.amount?.toLocaleString() || 0}</td>
                     <td className="px-6 py-6">
                       <span className={cn(
                         "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border",
