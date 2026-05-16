@@ -65,7 +65,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <MessageCircle className="w-5 h-5" />
           </NavLink>
           <NavLink to="/profile" className="w-10 h-10 rounded-full diamond-gradient flex items-center justify-center font-black text-navy text-xs shadow-lg shadow-gold/20">
-            DS
+            <User className="w-5 h-5" />
           </NavLink>
         </div>
       </header>

@@ -242,17 +242,6 @@ export default function AdminDashboard() {
             <h1 className="font-serif font-bold text-xl text-white capitalize hidden sm:block">{activeTab === 'dashboard' ? t('admin.overview') : t(`admin.${activeTab}` as any)}</h1>
           </div>
           <div className="flex items-center gap-3">
-            <button className="bg-[#161b2e] border border-[#1e2540] text-[#e8eaf0] px-4 py-2 rounded-lg text-[13px] font-medium flex items-center gap-2 hover:border-gold/50 transition-all">
-              <Bell className="w-4 h-4 text-gold" />
-              <span>{t('admin.broadcastProtocol')}</span>
-            </button>
-            <button 
-              onClick={() => window.location.reload()}
-              className="bg-gold text-navy px-4 py-2 rounded-lg text-[13px] font-bold flex items-center gap-2 hover:bg-gold-light transition-all shadow-lg shadow-gold/10"
-            >
-              <Plus className="w-4 h-4" />
-              <span>{t('admin.refreshArchives')}</span>
-            </button>
           </div>
         </header>
 
