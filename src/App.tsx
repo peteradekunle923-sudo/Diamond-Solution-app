@@ -2,10 +2,10 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
+import Login from './pages/Login';
 
 // Pages - to be created
 const Splash = React.lazy(() => import('./pages/Splash'));
-const Login = React.lazy(() => import('./pages/Login'));
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const CourseList = React.lazy(() => import('./pages/CourseList'));
 const CourseDetail = React.lazy(() => import('./pages/CourseDetail'));

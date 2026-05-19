@@ -18,13 +18,13 @@ interface TourStep {
 export default function OnboardingTour() {
   const { profile, user } = useAuth();
   const [isVisible, setIsVisible] = useState(false);
-  const [hasFinishedSession, setHasFinishedSession] = useState(false);
+  const [hasFinishedSession, setHasFinishedSession] = useState(sessionStorage.getItem('diamond_onboard_shown') === 'true');
   const [step, setStep] = useState(0);
   const { t } = useLanguage();
 
   useEffect(() => {
-    // Show once per session for new users or those who haven't finished it
-    if (profile && !profile.hasSeenProfessionalTour && !isVisible && !hasFinishedSession) {
+    // Show on every new session (once per tab session)
+    if (profile && !isVisible && !hasFinishedSession) {
       const timer = setTimeout(() => setIsVisible(true), 300);
       return () => clearTimeout(timer);
     }
@@ -68,18 +68,10 @@ export default function OnboardingTour() {
     }
   ];
 
-  const handleFinish = async () => {
+  const handleFinish = () => {
     setIsVisible(false);
     setHasFinishedSession(true);
-    if (user) {
-      try {
-        await setDoc(doc(db, 'users', user.uid), {
-          hasSeenProfessionalTour: true
-        }, { merge: true });
-      } catch (err) {
-        console.error("Failed to update tour status:", err);
-      }
-    }
+    sessionStorage.setItem('diamond_onboard_shown', 'true');
   };
 
   const handleNext = () => {

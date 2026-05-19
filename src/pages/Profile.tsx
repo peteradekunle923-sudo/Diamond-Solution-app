@@ -16,6 +16,7 @@ export default function Profile() {
 
   const handleLogout = async () => {
     await signOut(auth);
+    sessionStorage.removeItem('diamond_onboard_shown');
     navigate('/login');
   };
 

@@ -201,6 +201,8 @@ export default function Login() {
     try {
       if (isLogin) {
         await signInWithEmailAndPassword(auth, email, password);
+        // Clear session tour flag on explicit login as requested
+        sessionStorage.removeItem('diamond_onboard_shown');
         navigate('/dashboard');
       } else {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
