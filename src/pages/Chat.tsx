@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { collection, onSnapshot, query, orderBy, addDoc, limit } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc, limit, setDoc, doc, increment } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import Layout from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
@@ -11,11 +11,19 @@ import { cn } from '../lib/utils';
 import { useLanguage } from '../context/LanguageContext';
 
 export default function Chat() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { t } = useLanguage();
   const [messages, setMessages] = useState<any[]>([]);
   const [inputText, setInputText] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (user && messages.length > 0) {
+      // Reset unread count when messages change (user is active in chat)
+      setDoc(doc(db, 'chats', user.uid), { unreadCount: 0 }, { merge: true })
+        .catch(err => console.error("Error resetting unread count:", err));
+    }
+  }, [user, messages.length]);
 
   useEffect(() => {
     if (user) {
@@ -40,6 +48,14 @@ export default function Chat() {
     setInputText('');
 
     try {
+      // Ensure the parent chat document exists so it shows up in admin list
+      await setDoc(doc(db, 'chats', user.uid), {
+        lastMessageAt: new Date().toISOString(),
+        userId: user.uid,
+        userName: profile?.displayName || user.displayName || 'Scholar',
+        adminUnreadCount: increment(1)
+      }, { merge: true });
+
       await addDoc(collection(db, 'chats', user.uid, 'messages'), {
         senderId: user.uid,
         text,

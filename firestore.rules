@@ -39,6 +39,7 @@ service cloud.firestore {
              (!('hasPaidAffiliateFee' in data) || data.hasPaidAffiliateFee is bool) &&
              (!('isPartner' in data) || data.isPartner is bool) &&
              (!('hasSeenTour' in data) || data.hasSeenTour is bool) &&
+             (!('hasSeenProfessionalTour' in data) || data.hasSeenProfessionalTour is bool) &&
              (!('lastStudyDate' in data) || (data.lastStudyDate is string || data.lastStudyDate == request.time)) &&
              (!('createdAt' in data) || (data.createdAt is string || data.createdAt == request.time)) &&
              (!('updatedAt' in data) || (data.updatedAt is string || data.updatedAt == request.time)) &&
@@ -109,7 +110,7 @@ service cloud.firestore {
         // Action 1: Basic Profile Update
         (incoming().diff(existing()).affectedKeys().hasOnly([
           'displayName', 'institutionalName', 'phone', 'department', 'level', 
-          'currency', 'language', 'updatedAt', 'hasSeenTour', 'bankDetails'
+          'currency', 'language', 'updatedAt', 'hasSeenTour', 'hasSeenProfessionalTour', 'bankDetails'
         ]) &&
         incoming().role == existing().role &&
         incoming().balance == existing().balance &&
@@ -202,6 +203,7 @@ service cloud.firestore {
 
     // --- Chats ---
     match /chats/{userId} {
+      allow read, write: if isAdmin() || isOwner(userId);
       match /messages/{messageId} {
         allow read, write: if isAdmin() || isOwner(userId);
       }

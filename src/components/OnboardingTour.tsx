@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, ArrowRight, ArrowLeft, Trophy, Target, BookOpen, GraduationCap, Sparkles } from 'lucide-react';
+import { X, ArrowRight, ArrowLeft, Trophy, Target, BookOpen, GraduationCap, Sparkles, ShieldCheck, Diamond } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
 interface TourStep {
@@ -12,6 +12,7 @@ interface TourStep {
   description: string;
   icon: any;
   color: string;
+  accent: string;
 }
 
 export default function OnboardingTour() {
@@ -22,54 +23,59 @@ export default function OnboardingTour() {
   const { t } = useLanguage();
 
   useEffect(() => {
-    // Show once per session
-    if (profile && !isVisible && !hasFinishedSession) {
-      const timer = setTimeout(() => setIsVisible(true), 1500);
+    // Show once per session for new users or those who haven't finished it
+    if (profile && !profile.hasSeenProfessionalTour && !isVisible && !hasFinishedSession) {
+      const timer = setTimeout(() => setIsVisible(true), 300);
       return () => clearTimeout(timer);
     }
   }, [profile, isVisible, hasFinishedSession]);
 
   const steps: TourStep[] = [
     {
-      title: "Welcome to Diamond Solution",
-      description: "You've just joined the most elite circle of clinical excellence. Let's show you how to master your exams.",
+      title: "Welcome to the Elite Circle",
+      description: "You've successfully integrated into the Diamond Solution protocol. Prepare to redefine your clinical mastery.",
       icon: GraduationCap,
-      color: "bg-gold/80 text-black"
+      color: "from-gold/20 to-gold/5",
+      accent: "text-gold"
     },
     {
-      title: "Daily Practice Goal",
-      description: "Aim for at least 50 questions every day. This consistency is what separates the average from the top 1%.",
+      title: "The 50-Question Protocol",
+      description: "Top-tier scholars maintain a daily regimen of 50 targeted questions. Consistency is the foundation of excellence.",
       icon: Target,
-      color: "bg-emerald-500/80 text-white"
+      color: "from-emerald-500/20 to-emerald-500/5",
+      accent: "text-emerald-400"
     },
     {
-      title: "Earn $DL (Diamond Links)",
-      description: "Excel in your studies and refer colleagues to earn $DL. Convert them to real currency when you reach your milestones.",
+      title: "Asset Redistribution ($DL)",
+      description: "Excel in your assessments to accumulate $DL. These institutional assets can be redistributed for exclusive benefits.",
       icon: Sparkles,
-      color: "bg-amber-500/80 text-white"
+      color: "from-amber-500/20 to-amber-500/5",
+      accent: "text-amber-400"
     },
     {
-      title: "Hall of Fame",
-      description: "Monitor the Leaderboards and challenge the top scholars. Clinical accuracy is your passport to the leaderboard.",
+      title: "Institutional Leaderboard",
+      description: "Climb the hierarchy of scholars. Your clinical accuracy is your primary credential for status in the Diamond archives.",
       icon: Trophy,
-      color: "bg-blue-500/80 text-white"
+      color: "from-blue-500/20 to-blue-500/5",
+      accent: "text-blue-400"
     },
     {
-      title: "Your Journey Starts Now",
-      description: "Explore your courses, track your progress, and reach out to support if you need guidance.",
-      icon: BookOpen,
-      color: "bg-purple-500/80 text-white"
+      title: "Secure Support Channels",
+      description: "Should you encounter any systemic anomalies, our administrative support is available via secure institutional chat.",
+      icon: ShieldCheck,
+      color: "from-purple-500/20 to-purple-500/5",
+      accent: "text-purple-400"
     }
   ];
 
   const handleFinish = async () => {
-    setIsVisible(false); // Hide immediately
-    setHasFinishedSession(true); // Don't show again this session
+    setIsVisible(false);
+    setHasFinishedSession(true);
     if (user) {
       try {
-        await updateDoc(doc(db, 'users', user.uid), {
-          hasSeenTour: true
-        });
+        await setDoc(doc(db, 'users', user.uid), {
+          hasSeenProfessionalTour: true
+        }, { merge: true });
       } catch (err) {
         console.error("Failed to update tour status:", err);
       }
@@ -91,94 +97,119 @@ export default function OnboardingTour() {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
+      <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-navy/95 backdrop-blur-xl">
         <motion.div 
-          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          initial={{ opacity: 0, scale: 0.9, y: 30 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="relative w-full max-w-lg overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] rounded-[40px] border border-white/10"
+          exit={{ opacity: 0, scale: 0.9, y: 30 }}
+          className="relative w-full max-w-xl overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)] rounded-[48px] border border-gold/20 bg-[#0c0f1a]"
         >
-          {/* Background Image */}
-          <div 
-            className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
-            style={{ 
-              backgroundImage: 'url("/tour-bg.jpg")' 
-            }}
-          />
-          {/* Overlay to ensure text is readable */}
-          <div className="absolute inset-0 z-0 bg-[#0a0c14]/80 backdrop-blur-[2px]" />
+          {/* Animated Background Gradients */}
+          <div className="absolute inset-0 z-0 overflow-hidden">
+            <div className={`absolute top-0 left-0 w-full h-full bg-gradient-to-b ${currentStepData.color} transition-colors duration-1000 opacity-30`} />
+            <motion.div 
+              animate={{ 
+                rotate: [0, 360],
+                scale: [1, 1.2, 1]
+              }}
+              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+              className="absolute -top-1/2 -right-1/2 w-[600px] h-[600px] bg-gold/5 rounded-full blur-[120px]" 
+            />
+            <motion.div 
+              animate={{ 
+                rotate: [360, 0],
+                scale: [1, 1.3, 1]
+              }}
+              transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+              className="absolute -bottom-1/2 -left-1/2 w-[600px] h-[600px] bg-blue-500/5 rounded-full blur-[120px]" 
+            />
+          </div>
 
-          <div className="relative z-10 w-full h-full flex flex-col">
-            {/* Header Graphic */}
-            <div className={cn("h-48 flex items-center justify-center relative overflow-hidden transition-colors duration-500", currentStepData.color)}>
-              <div className="absolute inset-0 opacity-20 pointer-events-none">
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-white rounded-full blur-[100px]" />
+          <div className="relative z-10 w-full flex flex-col h-full min-h-[500px]">
+            {/* Top Branding */}
+            <div className="pt-12 pb-8 px-12 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 diamond-gradient flex items-center justify-center p-1.5 shadow-lg shadow-gold/20 rotate-45">
+                   <Diamond className="w-full h-full text-navy -rotate-45" />
+                </div>
+                <span className="font-serif font-black text-white uppercase tracking-tighter text-sm">Diamond Solution</span>
               </div>
-              <motion.div
-                key={step}
-                initial={{ scale: 0.5, rotate: -20, opacity: 0 }}
-                animate={{ scale: 1, rotate: 0, opacity: 1 }}
-                transition={{ type: "spring", damping: 10 }}
-              >
-                <Icon className="w-24 h-24" />
-              </motion.div>
+              <div className="text-[10px] font-black text-gold/40 uppercase tracking-[0.4em]">Protocol Version 3.1</div>
             </div>
 
-            <div className="p-10 pt-12">
-              <div className="flex gap-2 mb-6">
-                {steps.map((_, i) => (
-                  <div key={i} className={cn(
-                    "h-1.5 rounded-full transition-all duration-300",
-                    i === step ? "w-8 bg-gold" : (i < step ? "w-4 bg-gold/30" : "w-1.5 bg-white/10")
-                  )} />
-                ))}
-              </div>
-
+            {/* Icon Display */}
+            <div className="px-12 flex flex-col items-center justify-center flex-1 py-4">
               <motion.div
                 key={step}
-                initial={{ x: 20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: -20, opacity: 0 }}
-                className="space-y-4"
+                initial={{ scale: 0.5, rotate: -15, opacity: 0 }}
+                animate={{ scale: 1, rotate: 0, opacity: 1 }}
+                whileHover={{ scale: 1.1, rotate: 5 }}
+                className={cn("w-32 h-32 rounded-[2.5rem] bg-navy-mid/60 border border-gold/10 flex items-center justify-center shadow-2xl relative group", currentStepData.accent)}
               >
-                <h2 className="text-3xl font-black text-white leading-tight drop-shadow-md">{currentStepData.title}</h2>
-                <p className="text-gray-300 leading-relaxed font-medium drop-shadow-sm">{currentStepData.description}</p>
+                <div className="absolute inset-0 bg-current opacity-5 blur-2xl rounded-full" />
+                <Icon className="w-14 h-14 relative z-10 drop-shadow-[0_0_15px_currentColor]" />
               </motion.div>
 
-              <div className="mt-12 flex items-center justify-between">
-                <button 
-                  onClick={handleFinish}
-                  className="text-sm font-bold text-gray-300 hover:text-white transition-colors drop-shadow-sm"
-                >
-                  Skip Tour
-                </button>
-                
-                <div className="flex gap-4">
-                  {step > 0 && (
-                    <button 
-                      onClick={() => setStep(s => s - 1)}
-                      className="p-4 rounded-2xl bg-white/10 border border-white/20 hover:bg-white/20 transition-colors backdrop-blur-md"
-                    >
-                      <ArrowLeft className="w-5 h-5" />
-                    </button>
-                  )}
-                  <button 
-                    onClick={handleNext}
-                    className="px-8 py-4 rounded-2xl bg-gold text-black font-black text-sm flex items-center gap-2 hover:scale-105 active:scale-95 transition-all shadow-xl shadow-gold/20"
-                  >
-                    {step === steps.length - 1 ? "Let's Begin" : "Next Milestone"}
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
+              <div className="mt-12 text-center space-y-6 max-w-sm mx-auto">
+                <div className="flex justify-center gap-2 mb-2">
+                  {steps.map((_, i) => (
+                    <div key={i} className={cn(
+                      "h-1 rounded-full transition-all duration-500",
+                      i === step ? "w-10 bg-gold shadow-[0_0_10px_rgba(240,192,64,0.5)]" : (i < step ? "w-3 bg-gold/40" : "w-1.5 bg-white/10")
+                    )} />
+                  ))}
                 </div>
+
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={step}
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: -20, opacity: 0 }}
+                    transition={{ duration: 0.4, ease: "circOut" }}
+                    className="space-y-4"
+                  >
+                    <h2 className="text-3xl font-serif font-black text-white leading-tight">{currentStepData.title}</h2>
+                    <p className="text-gray-400 leading-relaxed font-medium text-sm px-4">{currentStepData.description}</p>
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="p-12 pt-8 flex items-center justify-between border-t border-white/5 bg-white/[0.02]">
+              <button 
+                onClick={handleFinish}
+                className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] hover:text-white transition-colors"
+              >
+                Skip Induction
+              </button>
+              
+              <div className="flex gap-4">
+                {step > 0 && (
+                  <button 
+                    onClick={() => setStep(s => s - 1)}
+                    className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-all active:scale-95"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
+                )}
+                <button 
+                  onClick={handleNext}
+                  className="px-10 py-5 rounded-2xl bg-gold text-navy font-black text-[11px] uppercase tracking-[0.2em] flex items-center gap-3 hover:bg-gold-light active:scale-95 transition-all shadow-2xl shadow-gold/20"
+                >
+                  {step === steps.length - 1 ? "Initiate Study" : "Next Segment"}
+                  <ArrowRight className="w-4 h-4" />
+                </button>
               </div>
             </div>
           </div>
 
           <button 
             onClick={handleFinish}
-            className="absolute top-6 right-6 z-20 w-10 h-10 rounded-full bg-black/40 flex items-center justify-center hover:bg-black/60 transition-colors backdrop-blur-md"
+            className="absolute top-10 right-10 z-20 w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all border border-white/5 backdrop-blur-sm"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5 text-gray-500" />
           </button>
         </motion.div>
       </div>

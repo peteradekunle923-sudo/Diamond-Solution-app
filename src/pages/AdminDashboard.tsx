@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, addDoc, doc, updateDoc, query, orderBy, deleteDoc, where, limit, setDoc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, doc, updateDoc, query, orderBy, deleteDoc, where, limit, setDoc, getDoc, increment } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { 
   Shield, LayoutDashboard, Users, Link as LinkIcon, CreditCard, Wallet,
@@ -29,7 +29,9 @@ export default function AdminDashboard() {
     displayRevenue: '₦0',
     newStudents: 0,
     pendingCommissions: 0,
-    pendingWithdrawals: 0
+    pendingWithdrawals: 0,
+    pendingSupports: 0,
+    suspendedCount: 0
   });
 
   useEffect(() => {
@@ -71,11 +73,20 @@ export default function AdminDashboard() {
       setStats(prev => ({ ...prev, pendingWithdrawals: snap.size }));
     }, (err) => handleFirestoreError(err, OperationType.LIST, 'withdrawals'));
 
+    const unsubChats = onSnapshot(collection(db, 'chats'), (snap) => {
+      let totalUnread = 0;
+      snap.docs.forEach(d => {
+        totalUnread += (d.data().adminUnreadCount || 0);
+      });
+      setStats(prev => ({ ...prev, pendingSupports: totalUnread }));
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'chats'));
+
     return () => {
       unsubUsers();
       unsubAffiliates();
       unsubPayments();
       unsubWithdrawals();
+      unsubChats();
     };
   }, []);
 
@@ -204,7 +215,7 @@ export default function AdminDashboard() {
           <NavItem active={activeTab === 'questions'} icon={FileText} label={t('admin.questions')} onClick={() => { setActiveTab('questions'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} />
           <NavItem active={activeTab === 'notifications'} icon={Bell} label={t('admin.notifications')} onClick={() => { setActiveTab('notifications'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} />
           <NavItem active={activeTab === 'quotes'} icon={Quote} label={t('admin.quotes')} onClick={() => { setActiveTab('quotes'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} />
-          <NavItem active={activeTab === 'support'} icon={MessageCircle} label={t('admin.support')} onClick={() => { setActiveTab('support'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} />
+          <NavItem active={activeTab === 'support'} icon={MessageCircle} label={t('admin.support')} onClick={() => { setActiveTab('support'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} badge={stats.pendingSupports} />
           <NavItem active={activeTab === 'logs'} icon={FileText} label="System Logs" onClick={() => { setActiveTab('logs'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} />
           <NavItem active={activeTab === 'settings'} icon={ShieldAlert} label={t('admin.settings')} onClick={() => { setActiveTab('settings'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} />
         </nav>
@@ -524,12 +535,13 @@ function DashboardOverview({ stats }: { stats: any }) {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatCard label={t('admin.totalStudents')} value={stats.totalStudents.toLocaleString()} sub={`${(stats as any).suspendedCount || 0} suspended`} colorClass="text-gold" />
-        <StatCard label="Protocol Violation" value={((stats as any).suspendedCount || 0).toString()} sub="Total Suspended" colorClass="text-red-500" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <StatCard label={t('admin.totalStudents')} value={stats.totalStudents.toLocaleString()} sub={`${stats.suspendedCount || 0} suspended`} colorClass="text-gold" />
+        <StatCard label="Protocol Violation" value={(stats.suspendedCount || 0).toString()} sub="Total Suspended" colorClass="text-red-500" />
         <StatCard label={t('admin.totalRevenue')} value={stats.displayRevenue} sub="All time success" colorClass="text-[#3ddba5]" />
         <StatCard label={t('admin.pendingAffiliates')} value={stats.pendingCommissions.toString()} sub="Waiting for approval" colorClass="text-[#ff9a3c]" />
         <StatCard label={t('admin.pendingPayouts')} value={stats.pendingWithdrawals.toString()} sub="Withdrawal requests" colorClass="text-[#ff5a5a]" />
+        <StatCard label="Support Queries" value={stats.pendingSupports.toString()} sub="People lodged complaints" colorClass="text-blue-400" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -2538,18 +2550,41 @@ function QuotesManager() {
 
 function SupportManager() {
   const [users, setUsers] = useState<any[]>([]);
+  const [chats, setChats] = useState<any[]>([]);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [replyText, setReplyText] = useState('');
 
   useEffect(() => {
-    return onSnapshot(collection(db, 'users'), (snap) => {
+    const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
        setUsers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (err) => handleFirestoreError(err, OperationType.LIST, 'users'));
+
+    const unsubChats = onSnapshot(collection(db, 'chats'), (snap) => {
+      setChats(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'chats'));
+
+    return () => {
+      unsubUsers();
+      unsubChats();
+    };
   }, []);
+
+  const threads = chats.map(chat => {
+    const user = users.find(u => u.id === chat.id);
+    return {
+      ...(user || { displayName: chat.userName || `Scholar [${chat.id.substring(0, 5)}]`, department: 'Unknown Origin' }),
+      id: chat.id,
+      adminUnreadCount: chat.adminUnreadCount || 0
+    };
+  }).sort((a, b) => (b.adminUnreadCount || 0) - (a.adminUnreadCount || 0));
 
   useEffect(() => {
     if (selectedUser) {
+      // Clear unread count when admin views
+      setDoc(doc(db, 'chats', selectedUser.id), { adminUnreadCount: 0 }, { merge: true })
+        .catch(err => console.error("Error resetting admin unread count:", err));
+
       const q = query(collection(db, 'chats', selectedUser.id, 'messages'), orderBy('createdAt', 'asc'));
       return onSnapshot(q, (snap) => {
         setMessages(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -2569,6 +2604,13 @@ function SupportManager() {
         text: replyText,
         createdAt: new Date().toISOString()
       });
+
+      // Notify user by incrementing unreadCount
+      await setDoc(doc(db, 'chats', selectedUser.id), {
+        unreadCount: increment(1),
+        lastMessageAt: new Date().toISOString()
+      }, { merge: true });
+
       setReplyText('');
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, `chats/${selectedUser.id}/messages`);
@@ -2583,24 +2625,35 @@ function SupportManager() {
            <MessageCircle className="w-5 h-5 text-gold/40" />
         </div>
         <div className="flex-1 overflow-y-auto no-scrollbar">
-          {users.map(u => (
-            <button 
-              key={u.id}
-              onClick={() => setSelectedUser(u)}
-              className={cn(
-                "w-full p-6 text-left border-b border-[#1e2540] transition-all hover:bg-white/5 flex items-center gap-4 group",
-                selectedUser?.id === u.id ? "bg-gold/5 border-l-4 border-l-gold" : ""
-              )}
-            >
-              <div className="w-10 h-10 rounded-xl bg-[#1c2236] flex items-center justify-center font-serif font-black text-gold border border-gold/10 group-hover:scale-110 transition-transform">
-                {u.displayName?.charAt(0) || 'U'}
-              </div>
-              <div className="overflow-hidden">
-                <div className="font-bold text-[14px] truncate text-white">{u.displayName || 'Anonymous Scholar'}</div>
-                <div className="text-[10px] text-gray-500 font-mono italic truncate">{u.department || 'General Faculty'}</div>
-              </div>
-            </button>
-          ))}
+          {threads.length === 0 ? (
+            <div className="p-10 text-center text-gray-500 font-serif italic text-xs">
+              No active support archives found...
+            </div>
+          ) : (
+            threads.map((u: any) => (
+              <button 
+                key={u.id}
+                onClick={() => setSelectedUser(u)}
+                className={cn(
+                  "w-full p-6 text-left border-b border-[#1e2540] transition-all hover:bg-white/5 flex items-center gap-4 group",
+                  selectedUser?.id === u.id ? "bg-gold/5 border-l-4 border-l-gold" : ""
+                )}
+              >
+                <div className="w-10 h-10 rounded-xl bg-[#1c2236] flex items-center justify-center font-serif font-black text-gold border border-gold/10 group-hover:scale-110 transition-transform">
+                  {u.displayName?.charAt(0) || 'U'}
+                </div>
+                <div className="overflow-hidden flex-1">
+                  <div className="font-bold text-[14px] truncate text-white">{u.displayName || 'Anonymous Scholar'}</div>
+                  <div className="text-[10px] text-gray-500 font-mono italic truncate">{u.department || 'General Faculty'}</div>
+                </div>
+                {u.adminUnreadCount > 0 && (
+                  <div className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center animate-pulse shadow-lg shadow-red-500/40">
+                    {u.adminUnreadCount}
+                  </div>
+                )}
+              </button>
+            ))
+          )}
         </div>
       </div>
 
@@ -2640,7 +2693,7 @@ function SupportManager() {
                           "text-[8px] font-black uppercase tracking-widest mt-2 opacity-50",
                           isAdmin ? "text-navy" : "text-gold"
                         )}>
-                          {m.createdAt ? format(new Date(m.createdAt), 'hh:mm a') : '...'}
+                          {m.createdAt ? format(new Date(m.createdAt), 'hh:mm a') : 'Archive Record'}
                         </div>
                       </div>
                     </div>

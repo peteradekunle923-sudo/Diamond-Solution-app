@@ -1,7 +1,7 @@
 import React from 'react';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../lib/firebase';
-import { collection, addDoc, doc, setDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, setDoc, increment } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
 import { useNavigate, Link } from 'react-router-dom';
 import Layout from '../components/Layout';
@@ -98,6 +98,14 @@ export default function Profile() {
                    // Dispatch a message to admin chats
                    const chatId = user?.uid;
                    if (chatId) {
+                     // Ensure parent document exists
+                     await setDoc(doc(db, 'chats', chatId), {
+                       lastMessageAt: new Date().toISOString(),
+                       userId: chatId,
+                       userName: profile?.displayName || user?.email || 'Scholar',
+                       adminUnreadCount: increment(1)
+                     }, { merge: true });
+
                      await addDoc(collection(db, 'chats', chatId, 'messages'), {
                        senderId: user?.uid,
                        text: `### SECURITY CLEARANCE REQUEST ###\nScholar [${profile?.displayName || user?.email}] is requesting administrative elevation.`,

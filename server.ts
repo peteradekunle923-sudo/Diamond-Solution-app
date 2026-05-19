@@ -14,7 +14,12 @@ import { Resend } from "resend";
 let dbInstance: any = null;
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const genAI = process.env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) : null;
+const genAI = process.env.GEMINI_API_KEY ? new GoogleGenAI({ 
+  apiKey: process.env.GEMINI_API_KEY,
+  httpOptions: {
+    headers: { 'User-Agent': 'aistudio-build' }
+  }
+}) : null;
 
 async function getFirestore() {
   if (dbInstance) return dbInstance;
@@ -147,7 +152,10 @@ async function startServer() {
 
       const prompt = `Translate the following text or array of strings to ${targetLang}. Return ONLY the translation. If it's single string, return string. If array, return array in JSON format. Text: ${JSON.stringify(text)}`;
       
-      const result = await genAI.models.generateContent({ model: "gemini-2.5-flash", contents: prompt });
+      const result = await genAI.models.generateContent({ 
+        model: "gemini-3-flash-preview", 
+        contents: prompt 
+      });
       let translatedText = result.text.trim();
 
       // Clean up potential markdown code blocks

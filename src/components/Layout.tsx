@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Home, BookOpen, User, MessageCircle, TrendingUp, ShieldAlert, Send, Shield, Layers } from 'lucide-react';
 import axios from 'axios';
@@ -7,6 +7,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { sendEmailVerification } from 'firebase/auth';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, isAdmin, isVerified, profile } = useAuth();
@@ -14,6 +16,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const [resending, setResending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (user) {
+      return onSnapshot(doc(db, 'chats', user.uid), (doc) => {
+        if (doc.exists()) {
+          setUnreadCount(doc.data().unreadCount || 0);
+        } else {
+          setUnreadCount(0);
+        }
+      });
+    }
+  }, [user]);
 
   const pageTitles: Record<string, string> = {
     '/dashboard': t('nav.home'),
@@ -61,8 +76,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </h1>
         </div>
         <div className="flex items-center gap-4">
-          <NavLink to="/chat" className="w-10 h-10 rounded-xl bg-navy-high border border-gold/10 flex items-center justify-center text-gold-light hover:bg-gold/10 transition-all">
+          <NavLink to="/chat" className="w-10 h-10 rounded-xl bg-navy-high border border-gold/10 flex items-center justify-center text-gold-light hover:bg-gold/10 transition-all relative">
             <MessageCircle className="w-5 h-5" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-bounce shadow-lg shadow-red-500/50">
+                {unreadCount}
+              </span>
+            )}
           </NavLink>
           <NavLink to="/profile" className="w-10 h-10 rounded-full diamond-gradient flex items-center justify-center font-black text-navy text-xs shadow-lg shadow-gold/20">
             <User className="w-5 h-5" />
@@ -79,7 +99,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <Tab icon={Home} label={t('nav.home')} to="/dashboard" />
         <Tab icon={Layers} label={t('nav.study')} to="/courses" />
         <Tab icon={TrendingUp} label={t('nav.affiliate')} to="/affiliate" />
-        <Tab icon={MessageCircle} label={t('nav.chat')} to="/chat" />
+        <Tab icon={MessageCircle} label={t('nav.chat')} to="/chat" badge={unreadCount} />
         <Tab icon={User} label={t('nav.profile')} to="/profile" />
         {isAdmin && <Tab icon={Shield} label={t('nav.admin')} to="/admin" />}
       </nav>
@@ -87,7 +107,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Tab({ icon: Icon, label, to }: { icon: any, label: string, to: string }) {
+function Tab({ icon: Icon, label, to, badge }: { icon: any, label: string, to: string, badge?: number }) {
   const { t } = useLanguage();
   return (
     <NavLink 
@@ -105,7 +125,14 @@ function Tab({ icon: Icon, label, to }: { icon: any, label: string, to: string }
               className="absolute top-2 w-1.5 h-1.5 rounded-full bg-gold shadow-[0_0_8px_rgba(201,147,10,0.8)]"
             />
           )}
-          <Icon className={cn("w-6 h-6 transition-transform duration-300", isActive ? "scale-110" : "group-hover:scale-105")} />
+          <div className="relative">
+            <Icon className={cn("w-6 h-6 transition-transform duration-300", isActive ? "scale-110" : "group-hover:scale-105")} />
+            {badge !== undefined && badge > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center animate-bounce shadow-lg shadow-red-500/50">
+                {badge}
+              </span>
+            )}
+          </div>
           <span className="text-[10px] font-black uppercase tracking-[0.2em] mt-1.5">{label}</span>
         </>
       )}
