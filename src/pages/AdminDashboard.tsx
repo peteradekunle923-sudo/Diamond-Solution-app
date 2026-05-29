@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, addDoc, doc, updateDoc, query, orderBy, deleteDoc, where, limit, setDoc, getDoc, increment } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { getAuth as getSecondaryAuth, createUserWithEmailAndPassword, signOut as secondarySignOut } from 'firebase/auth';
+import { initializeFirestore } from 'firebase/firestore';
+import firebaseConfig from '../../firebase-applet-config.json';
 import { 
   Shield, LayoutDashboard, Users, Link as LinkIcon, CreditCard, Wallet,
   BarChart2, Building2, FileText, Bell, Quote, LogOut, Search, 
@@ -15,6 +19,7 @@ import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from '../context/LanguageContext';
 import { DEPARTMENTS, DEPARTMENT_STRUCTURE, DEPARTMENT_PRICES } from '../constants';
+import { useNavigate } from 'react-router-dom';
 
 type Tab = 'dashboard' | 'users' | 'affiliates' | 'withdrawals' | 'payments' | 'analytics' | 'departments' | 'questions' | 'notifications' | 'quotes' | 'support' | 'logs' | 'settings';
 
@@ -265,7 +270,7 @@ export default function AdminDashboard() {
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.25 }}
             >
-              {activeTab === 'dashboard' && <DashboardOverview stats={stats} />}
+              {activeTab === 'dashboard' && <DashboardOverview stats={stats} onViewLedger={() => setActiveTab('payments')} />}
               {activeTab === 'users' && <UsersManager requestClearance={requestSecurityClearance} />}
               {activeTab === 'affiliates' && (
                 <AffiliateManager requestClearance={requestSecurityClearance} />
@@ -284,7 +289,7 @@ export default function AdminDashboard() {
                   }} 
                 />
               )}
-              {activeTab === 'questions' && <QuestionsManager initialFilter={selectedDeptFilter} />}
+              {activeTab === 'questions' && <QuestionsManager initialFilter={selectedDeptFilter} requestClearance={requestSecurityClearance} />}
               {activeTab === 'notifications' && <NotificationsManager />}
               {activeTab === 'quotes' && <QuotesManager />}
               {activeTab === 'support' && <SupportManager />}
@@ -483,7 +488,7 @@ function StatCard({ label, value, sub, colorClass, currency }: { label: string, 
   );
 }
 
-function DashboardOverview({ stats }: { stats: any }) {
+function DashboardOverview({ stats, onViewLedger }: { stats: any; onViewLedger?: () => void }) {
   const { t } = useLanguage();
   const [recentPayments, setRecentPayments] = useState<any[]>([]);
   const [revenueBreakdown, setRevenueBreakdown] = useState<any[]>([]);
@@ -548,7 +553,7 @@ function DashboardOverview({ stats }: { stats: any }) {
         <div className="lg:col-span-2 bg-[#161b2e] border border-[#1e2540] rounded-2xl overflow-hidden shadow-xl">
           <div className="px-6 py-4 border-b border-[#1e2540] flex items-center justify-between">
             <h3 className="font-serif font-bold text-base">{t('admin.recentPayments')}</h3>
-            <button className="text-[12px] text-blue-400 font-medium hover:underline">{t('admin.viewLedger')} →</button>
+            <button onClick={onViewLedger} className="text-[12px] text-blue-400 font-medium hover:underline">{t('admin.viewLedger')} →</button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
@@ -618,15 +623,136 @@ function DashboardOverview({ stats }: { stats: any }) {
 
 function UsersManager({ requestClearance }: { requestClearance: any }) {
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const [users, setUsers] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [filterVerified, setFilterVerified] = useState<'all' | 'verified' | 'unverified' | 'suspended'>('all');
+
+  // Add User states
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newDisplayName, setNewDisplayName] = useState('');
+  const [newRole, setNewRole] = useState('student');
+  const [newDepartment, setNewDepartment] = useState('');
+  const [savingUser, setSavingUser] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [addSuccess, setAddSuccess] = useState<string | null>(null);
+
+  // Faculties options
+  const [faculties, setFaculties] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!showAddModal) {
+      setAddError(null);
+      setAddSuccess(null);
+    }
+  }, [showAddModal]);
 
   useEffect(() => {
     return onSnapshot(collection(db, 'users'), (snap) => {
       setUsers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (err) => handleFirestoreError(err, OperationType.LIST, 'users'));
   }, []);
+
+  useEffect(() => {
+    return onSnapshot(collection(db, 'faculties'), (snap) => {
+      setFaculties(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'faculties'));
+  }, []);
+
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddError(null);
+    setAddSuccess(null);
+
+    if (!newEmail || !newPassword) {
+      setAddError("Email and password are required.");
+      return;
+    }
+    setSavingUser(true);
+    let secondaryApp: any = null;
+    try {
+      // Create a secondary Firebase App in order to register the user without logging out the current admin
+      const secondaryAppName = "secondary-reg-" + Date.now();
+      secondaryApp = initializeApp(firebaseConfig, secondaryAppName);
+      
+      const secondaryAuth = getSecondaryAuth(secondaryApp);
+      const secondaryDb = initializeFirestore(secondaryApp, {
+        experimentalForceLongPolling: true,
+      }, (firebaseConfig as any).firestoreDatabaseId);
+
+      // Create user credentials in Auth table
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newEmail, newPassword);
+      const newUid = userCredential.user.uid;
+
+      // Prepare user document payload
+      const userDocRef = doc(secondaryDb, 'users', newUid);
+      const payload: any = {
+        uid: newUid,
+        email: newEmail.toLowerCase(),
+        displayName: newDisplayName || "Scholar",
+        role: "student", // Always starts as 'student' to satisfy basic 'allow create' security policies
+        department: newDepartment || "",
+        balance: 0,
+        affiliateStatus: "none",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      // Write user document to Firestore using secondary client
+      await setDoc(userDocRef, payload);
+
+      // If requested role is moderator or admin, update it using the primary Admin credentials
+      if (newRole !== "student") {
+        const primaryDocRef = doc(db, 'users', newUid);
+        await updateDoc(primaryDocRef, {
+          role: newRole,
+          updatedAt: new Date().toISOString()
+        });
+
+        if (newRole === "admin") {
+          const adminDocRef = doc(db, 'admins', newUid);
+          await setDoc(adminDocRef, {
+            uid: newUid,
+            email: newEmail.toLowerCase(),
+            displayName: newDisplayName || "Scholar",
+            createdAt: new Date().toISOString()
+          });
+        }
+      }
+
+      // Clean up the secondary application auth session
+      await secondarySignOut(secondaryAuth);
+
+      setAddSuccess("Scholar created successfully.");
+      setNewEmail('');
+      setNewPassword('');
+      setNewDisplayName('');
+      setNewRole('student');
+      setNewDepartment('');
+    } catch (err: any) {
+      console.error(err);
+      let errorMsg = err.message || err;
+      if (err.code === 'auth/email-already-in-use' || String(err).includes('email-already-in-use')) {
+        errorMsg = "This email address is already registered in the system. Please use a different email address or search for the existing scholar beneath.";
+      } else if (err.code === 'auth/weak-password' || String(err).includes('weak-password')) {
+        errorMsg = "The password is too weak. Please provide a password of at least 6 characters.";
+      } else if (err.code === 'auth/invalid-email' || String(err).includes('invalid-email')) {
+        errorMsg = "The email address is invalid. Please double check and enter a correct email format.";
+      }
+      setAddError(errorMsg);
+    } finally {
+      if (secondaryApp) {
+        try {
+          await deleteApp(secondaryApp);
+        } catch (e) {
+          console.error("Error deleting secondary app:", e);
+        }
+      }
+      setSavingUser(false);
+    }
+  };
 
   const filtered = users.filter(u => {
     const matchesSearch = u.displayName?.toLowerCase().includes(search.toLowerCase()) || 
@@ -669,7 +795,7 @@ function UsersManager({ requestClearance }: { requestClearance: any }) {
           <Download className="w-4 h-4" />
           {t('admin.export')}
         </button>
-        <button className="bg-gold text-navy px-6 py-2.5 rounded-xl text-[13px] font-black uppercase tracking-widest ml-auto shadow-2xl shadow-gold/20 hover:scale-105 active:scale-95 transition-all text-nowrap">+ {t('admin.addUser')}</button>
+        <button onClick={() => setShowAddModal(true)} className="bg-gold text-navy px-6 py-2.5 rounded-xl text-[13px] font-black uppercase tracking-widest ml-auto shadow-2xl shadow-gold/20 hover:scale-105 active:scale-95 transition-all text-nowrap">+ {t('admin.addUser')}</button>
       </div>
 
       <div className="bg-[#161b2e] border border-[#1e2540] rounded-2xl overflow-hidden shadow-2xl">
@@ -692,16 +818,22 @@ function UsersManager({ requestClearance }: { requestClearance: any }) {
                 const lastActive = u.lastStudyDate ? format(new Date(u.lastStudyDate), 'MMM d, p') : 'Never';
                 
                 const toggleSuspension = async () => {
-                  const targetAction = isSuspended ? 'update' : 'delete'; // use 'delete' as an alias for suspension for higher visibility label in email? 
-                  // No, let's keep it 'update' but maybe add a 'suspend' action type to OTP.
+                  const targetAction = isSuspended ? 'update' : 'delete'; 
                   
                   requestClearance(u.id, 'update', async () => {
-                    await setDoc(doc(db, 'users', u.id), {
-                      status: isSuspended ? 'active' : 'suspended',
-                      suspensionReason: isSuspended ? null : 'Suspended by Administrator',
-                      suspendedAt: isSuspended ? null : new Date().toISOString()
-                    }, { merge: true });
-                    alert(`User status successfully updated to ${isSuspended ? 'ACTIVE' : 'SUSPENDED'}.`);
+                    try {
+                      const updatePayload: any = {
+                        status: isSuspended ? 'active' : 'suspended',
+                        suspensionReason: isSuspended ? "" : 'Suspended by Administrator',
+                        suspendedAt: isSuspended ? "" : new Date().toISOString()
+                      };
+                      await updateDoc(doc(db, 'users', u.id), updatePayload);
+                      alert(`User status successfully updated to ${isSuspended ? 'ACTIVE' : 'SUSPENDED'}.`);
+                    } catch (err: any) {
+                      console.error("Error setting user status:", err);
+                      alert(`FAILED TO UPDATE STATUS: ${err.message || err}`);
+                      throw err;
+                    }
                   });
                 };
 
@@ -763,8 +895,6 @@ function UsersManager({ requestClearance }: { requestClearance: any }) {
                     </td>
                     <td className="px-6 py-5 text-nowrap">
                       <div className="flex items-center gap-2">
-                        <button className="bg-blue-500/10 text-blue-400 px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all hover:bg-blue-500/20 active:scale-95 shadow-sm">View</button>
-                        
                         {!u.isPartner && (
                           <button 
                             onClick={async () => {
@@ -805,6 +935,126 @@ function UsersManager({ requestClearance }: { requestClearance: any }) {
           </table>
         </div>
       </div>
+
+      {/* Add User Modal */}
+      <AnimatePresence>
+        {showAddModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowAddModal(false)}
+              className="absolute inset-0 bg-navy/90 backdrop-blur-xl"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-sm bg-[#161b2e] border border-gold/20 rounded-3xl p-8 shadow-[0_0_50px_rgba(212,175,55,0.1)]"
+            >
+              <h3 className="font-serif font-black text-xl text-gold mb-2 uppercase tracking-tight text-center">Add New Scholar</h3>
+              <p className="text-[11px] text-gray-400 text-center mb-6 leading-relaxed">
+                Register a new student, moderator, or admin directly.
+              </p>
+
+              {addError && (
+                <div className="bg-red-500/10 border border-red-500/25 text-red-400 p-3.5 rounded-xl text-[12px] text-center mb-5 break-words font-medium antialiased">
+                  {addError}
+                </div>
+              )}
+
+              {addSuccess && (
+                <div className="bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 p-3.5 rounded-xl text-[12px] text-center mb-5 font-medium antialiased">
+                  {addSuccess}
+                </div>
+              )}
+
+              <form onSubmit={handleAddUser} className="space-y-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest font-mono mb-1.5">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={newDisplayName}
+                    onChange={(e) => setNewDisplayName(e.target.value)}
+                    placeholder="e.g. John Doe"
+                    className="w-full bg-[#1e2540] border border-[#2d365e] rounded-xl px-4 py-2.5 text-[13px] text-white focus:outline-none focus:border-gold transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest font-mono mb-1.5">Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    placeholder="e.g. johndoe@gmail.com"
+                    className="w-full bg-[#1e2540] border border-[#2d365e] rounded-xl px-4 py-2.5 text-[13px] text-white focus:outline-none focus:border-gold transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest font-mono mb-1.5">Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="At least 6 characters"
+                    className="w-full bg-[#1e2540] border border-[#2d365e] rounded-xl px-4 py-2.5 text-[13px] text-white focus:outline-none focus:border-gold transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest font-mono mb-1.5">Institutional Role</label>
+                  <select
+                    value={newRole}
+                    onChange={(e) => setNewRole(e.target.value)}
+                    className="w-full bg-[#1e2540] border border-[#2d365e] rounded-xl px-4 py-2.5 text-[13px] text-white focus:outline-none focus:border-gold transition-all cursor-pointer"
+                  >
+                    <option value="student">student</option>
+                    <option value="moderator">moderator</option>
+                    <option value="admin">admin</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest font-mono mb-1.5">Department Access</label>
+                  <select
+                    value={newDepartment}
+                    onChange={(e) => setNewDepartment(e.target.value)}
+                    className="w-full bg-[#1e2540] border border-[#2d365e] rounded-xl px-4 py-2.5 text-[13px] text-white focus:outline-none focus:border-gold transition-all cursor-pointer"
+                  >
+                    <option value="">No Department Preset</option>
+                    {faculties.map((f) => (
+                      <option key={f.id} value={f.name}>{f.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddModal(false)}
+                    className="py-3 rounded-xl font-black text-[11px] uppercase tracking-widest text-gray-400 hover:text-white transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingUser}
+                    className="bg-gold hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none text-navy py-3 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl shadow-gold/10 transition-all font-mono"
+                  >
+                    {savingUser ? 'Creating...' : 'Register Scholar'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -1538,7 +1788,7 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
   );
 }
 
-function QuestionsManager({ initialFilter }: { initialFilter: string | null }) {
+function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: string | null; requestClearance?: any }) {
   const { t } = useLanguage();
   const [courses, setCourses] = useState<any[]>([]);
   const [activeCourse, setActiveCourse] = useState<any>(null);
@@ -1549,6 +1799,16 @@ function QuestionsManager({ initialFilter }: { initialFilter: string | null }) {
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [customFaculties, setCustomFaculties] = useState<any[]>([]);
+  const [courseSearch, setCourseSearch] = useState('');
+  const [questionSearch, setQuestionSearch] = useState('');
+  const [showEditCourse, setShowEditCourse] = useState(false);
+  const [editCourseData, setEditCourseData] = useState({ id: '', title: '', department: '', level: '', description: '' });
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [bulkDeleteConfirmText, setBulkDeleteConfirmText] = useState('');
+
+  useEffect(() => {
+    setQuestionSearch('');
+  }, [activeCourse]);
 
   useEffect(() => {
     return onSnapshot(collection(db, 'faculties'), (snap) => {
@@ -1595,6 +1855,11 @@ function QuestionsManager({ initialFilter }: { initialFilter: string | null }) {
   }, [customFaculties]);
 
   const filteredCourses = deptFilter ? courses.filter(c => c.department === deptFilter) : courses;
+
+  const searchedCourses = filteredCourses.filter(c => 
+    c.title.toLowerCase().includes(courseSearch.toLowerCase()) || 
+    c.level.toLowerCase().includes(courseSearch.toLowerCase())
+  );
 
   useEffect(() => {
     if (courses.length > 0) {
@@ -1761,6 +2026,16 @@ function QuestionsManager({ initialFilter }: { initialFilter: string | null }) {
     }
   }, [activeCourse]);
 
+  const filteredQuestionsList = questions.filter(q => {
+    if (!questionSearch) return true;
+    const term = questionSearch.toLowerCase();
+    const matchesText = q.question?.toLowerCase().includes(term);
+    const matchesExplanation = q.explanation?.toLowerCase().includes(term);
+    const matchesOptions = q.options?.some((opt: string) => opt?.toLowerCase().includes(term));
+    const matchesAnswer = q.answerText?.toLowerCase().includes(term);
+    return matchesText || matchesExplanation || matchesOptions || matchesAnswer;
+  });
+
   const handleAddCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -1781,6 +2056,72 @@ function QuestionsManager({ initialFilter }: { initialFilter: string | null }) {
       setNewCourse({ title: '', department: allDeptsList[0], level: '100L', description: '' });
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'courses');
+    }
+  };
+
+  const handleUpdateCourse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const courseRef = doc(db, 'courses', editCourseData.id);
+      await updateDoc(courseRef, {
+        title: editCourseData.title.trim(),
+        department: editCourseData.department,
+        level: editCourseData.level,
+        description: editCourseData.description.trim()
+      });
+      
+      // Update activeCourse state with the edited values
+      setActiveCourse({
+        ...activeCourse,
+        title: editCourseData.title.trim(),
+        department: editCourseData.department,
+        level: editCourseData.level,
+        description: editCourseData.description.trim()
+      });
+      
+      setShowEditCourse(false);
+      alert('Archive/Course details successfully synchronized.');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `courses/${editCourseData.id}`);
+    }
+  };
+
+  const handleBulkDeleteQuestions = () => {
+    if (!activeCourse) return;
+    if (questions.length === 0) {
+      alert("There are no questions in this archive to delete.");
+      return;
+    }
+    setBulkDeleteConfirmText('');
+    setShowBulkDeleteModal(true);
+  };
+
+  const executeBulkDeleteQuestions = async () => {
+    if (!activeCourse) return;
+    const count = questions.length;
+    if (count === 0) {
+      setShowBulkDeleteModal(false);
+      return;
+    }
+    if (bulkDeleteConfirmText !== 'DELETE ALL') {
+      alert('Verification aborted. Input does not match "DELETE ALL".');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const qIds = questions.map(q => q.id);
+      await Promise.all(
+        qIds.map(qId => deleteDoc(doc(db, 'courses', activeCourse.id, 'content', qId)))
+      );
+      setShowBulkDeleteModal(false);
+      setBulkDeleteConfirmText('');
+      alert(`Purge completed: All ${count} questions have been deleted from "${activeCourse.title}".`);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to complete bulk question deletion. Please retry.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1862,12 +2203,15 @@ function QuestionsManager({ initialFilter }: { initialFilter: string | null }) {
   };
 
   return (
-    <div className="space-y-8">
-       <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4 flex-1">
+    <div className="space-y-8 font-sans">
+       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gold/10 pb-6">
+          <div className="flex flex-wrap items-center gap-4 flex-1">
             <select 
               value={deptFilter || 'all'}
-              onChange={(e) => setDeptFilter(e.target.value === 'all' ? null : e.target.value)}
+              onChange={(e) => {
+                setDeptFilter(e.target.value === 'all' ? null : e.target.value);
+                setCourseSearch('');
+              }}
               className="bg-[#161b2e] border border-[#1e2540] rounded-xl px-4 py-2.5 text-[11px] font-bold uppercase tracking-widest text-gold outline-none hover:border-gold/30 transition-all cursor-pointer"
             >
               <option value="all">{t('admin.allDepts')}</option>
@@ -1879,42 +2223,58 @@ function QuestionsManager({ initialFilter }: { initialFilter: string | null }) {
                 <option key={`${d}-${i}`} value={d}>{d}</option>
               ))}
             </select>
-            <div className="flex flex-wrap gap-3 overflow-x-auto no-scrollbar max-w-full">
-               {filteredCourses.map(c => (
-                 <div key={c.id} className="relative group">
-                   <button
-                     onClick={() => setActiveCourse(c)}
-                     className={cn(
-                       "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap shadow-sm",
-                       activeCourse?.id === c.id 
-                         ? "bg-gold text-navy border-gold shadow-gold/20" 
-                         : "bg-[#161b2e] text-gray-500 border-[#1e2540] hover:border-gold/30 hover:text-gray-300"
-                     )}
-                   >
-                     {c.title} ({c.level})
-                   </button>
-                   <button 
-                    onClick={(e) => { 
-                      e.stopPropagation(); 
-                      setDeleteConfirmation({ type: 'course', id: c.id });
-                    }}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-20"
-                   >
-                    <X className="w-3 h-3" />
-                   </button>
-                 </div>
-               ))}
-               {filteredCourses.length === 0 && (
-                 <span className="text-[10px] text-gray-600 italic py-2">No archives discovered for this faculty...</span>
-               )}
+
+            <div className="relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <input 
+                type="text"
+                placeholder="Search series/courses..."
+                value={courseSearch}
+                onChange={(e) => setCourseSearch(e.target.value)}
+                className="bg-[#161b2e] border border-[#1e2540] rounded-xl pl-10 pr-4 py-2.5 text-[11px] font-bold tracking-wider text-white placeholder-gray-500 outline-none focus:border-gold/30 transition-all w-56 font-sans"
+              />
             </div>
           </div>
           <button 
             onClick={() => setShowAddCourse(true)}
-            className="p-3 bg-gold/10 text-gold border border-gold/20 rounded-xl hover:bg-gold/20 active:scale-95 transition-all text-nowrap"
+            className="p-3 bg-gold/10 text-gold border border-gold/20 rounded-xl hover:bg-gold/20 active:scale-95 transition-all text-nowrap self-end md:self-auto"
           >
             <Plus className="w-5 h-5" />
           </button>
+       </div>
+
+       {/* Course Selection Row */}
+       <div className="space-y-2">
+         <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Query Series Archives:</span>
+         <div className="flex flex-wrap gap-3 overflow-x-auto no-scrollbar max-w-full py-1">
+            {searchedCourses.map(c => (
+              <div key={c.id} className="relative group">
+                <button
+                  onClick={() => setActiveCourse(c)}
+                  className={cn(
+                    "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap shadow-sm",
+                    activeCourse?.id === c.id 
+                      ? "bg-gold text-navy border-gold shadow-gold/20" 
+                      : "bg-[#161b2e] text-gray-500 border-[#1e2540] hover:border-gold/30 hover:text-gray-300"
+                  )}
+                >
+                  {c.title} ({c.level})
+                </button>
+                <button 
+                 onClick={(e) => { 
+                   e.stopPropagation(); 
+                   setDeleteConfirmation({ type: 'course', id: c.id });
+                 }}
+                 className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-20"
+                >
+                 <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+            {searchedCourses.length === 0 && (
+              <span className="text-[10px] text-gray-600 italic py-2">No matching archives discovered...</span>
+            )}
+         </div>
        </div>
 
        {activeCourse ? (
@@ -1930,6 +2290,31 @@ function QuestionsManager({ initialFilter }: { initialFilter: string | null }) {
                   <span className="text-[9px] font-black bg-white/5 text-gray-400 px-3 py-1 rounded-full uppercase tracking-widest border border-white/10">
                     {activeCourse.level}
                   </span>
+                  <button
+                    onClick={() => {
+                      setEditCourseData({
+                        id: activeCourse.id,
+                        title: activeCourse.title || '',
+                        department: activeCourse.department || '',
+                        level: activeCourse.level || '',
+                        description: activeCourse.description || ''
+                      });
+                      setShowEditCourse(true);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gold/15 text-gold-light hover:bg-gold/25 text-[9px] font-black uppercase tracking-widest border border-gold/30 transition-all ml-2"
+                  >
+                    <Edit3 className="w-3 h-3" />
+                    Edit Details
+                  </button>
+                  {questions.length > 0 && (
+                    <button
+                      onClick={handleBulkDeleteQuestions}
+                      className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 text-[9px] font-black uppercase tracking-widest border border-rose-500/30 transition-all ml-2"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Bulk Delete ({questions.length})
+                    </button>
+                  )}
                 </div>
               </div>
               <div className="flex gap-4">
@@ -1988,6 +2373,19 @@ function QuestionsManager({ initialFilter }: { initialFilter: string | null }) {
             </div>
 
             <div className="space-y-6 relative z-10">
+              {questions.length > 0 && (
+                <div className="relative max-w-md">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <input 
+                    type="text"
+                    placeholder="Search queries, options, expected answer, or explanation..."
+                    value={questionSearch}
+                    onChange={(e) => setQuestionSearch(e.target.value)}
+                    className="bg-[#161b2e] border border-[#1e2540] rounded-xl pl-10 pr-4 py-2.5 text-[11px] font-bold tracking-wider text-white placeholder-gray-500 outline-none focus:border-gold/30 transition-all w-full font-sans"
+                  />
+                </div>
+              )}
+
               {questions.length === 0 ? (
                 <div className="text-center py-32 bg-white/[0.01] border-[2px] border-dashed border-[#1e2540] rounded-3xl flex flex-col items-center justify-center group hover:border-gold/20 transition-all">
                    <div className="w-16 h-16 bg-navy-high rounded-2xl flex items-center justify-center mb-6 border border-gold/5 shadow-inner transition-transform group-hover:scale-110">
@@ -1996,9 +2394,14 @@ function QuestionsManager({ initialFilter }: { initialFilter: string | null }) {
                    <h4 className="text-xs font-black text-gray-500 uppercase tracking-widest">No queries found in this archive</h4>
                    <p className="text-[10px] text-gray-600 mt-2 font-mono">Initialize secure data entry via 'New Query'</p>
                 </div>
+              ) : filteredQuestionsList.length === 0 ? (
+                <div className="text-center py-20 bg-white/[0.01] border-[2px] border-dashed border-[#1e2540] rounded-3xl flex flex-col items-center justify-center">
+                   <h4 className="text-xs font-black text-gray-500 uppercase tracking-widest">No matching results</h4>
+                   <p className="text-[10px] text-gray-600 mt-2 font-mono">Refine your search term to fetch record clearance</p>
+                </div>
               ) : (
                 <div className="grid gap-4">
-                  {questions.map((q, idx) => (
+                  {filteredQuestionsList.map((q, idx) => (
                     <div key={q.id} className="bg-navy-high/50 border border-[#1e2540] p-6 rounded-2xl flex items-start justify-between group hover:border-gold/20 transition-all">
                       <div className="space-y-4 flex-1">
                         <div className="flex items-center gap-4">
@@ -2104,9 +2507,31 @@ function QuestionsManager({ initialFilter }: { initialFilter: string | null }) {
                    Cancel
                  </button>
                  <button 
-                   onClick={() => {
-                    if (deleteConfirmation.type === 'course') deleteCourse(deleteConfirmation.id);
-                    else deleteQuestion(deleteConfirmation.id);
+                   onClick={async () => {
+                    const id = deleteConfirmation.id;
+                    const type = deleteConfirmation.type;
+                    setDeleteConfirmation(null);
+                    if (type === 'course' && requestClearance) {
+                      if (type === 'course') {
+                        await requestClearance(id, 'delete', async () => {
+                          await deleteDoc(doc(db, 'courses', id));
+                          if (activeCourse?.id === id) {
+                            setActiveCourse(null);
+                          }
+                          alert('SECURITY CLEARANCE GRANTED: Course successfully deleted.');
+                        });
+                      } else {
+                        await requestClearance(id, 'delete', async () => {
+                          if (activeCourse) {
+                            await deleteDoc(doc(db, 'courses', activeCourse.id, 'content', id));
+                            alert('SECURITY CLEARANCE GRANTED: Question successfully deleted.');
+                          }
+                        });
+                      }
+                    } else {
+                      if (type === 'course') deleteCourse(id);
+                      else deleteQuestion(id);
+                    }
                    }}
                    className="flex-1 px-6 py-3 rounded-xl bg-red-500 text-white font-bold uppercase tracking-widest text-[10px] hover:bg-red-600 transition-colors shadow-lg shadow-red-500/20"
                  >
@@ -2179,6 +2604,159 @@ function QuestionsManager({ initialFilter }: { initialFilter: string | null }) {
                    Execute Provisioning
                  </button>
                </form>
+             </motion.div>
+           </div>
+         )}
+       </AnimatePresence>
+
+       {/* Edit Course Modal */}
+       <AnimatePresence>
+         {showEditCourse && (
+           <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+             <motion.div 
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               className="fixed inset-0 bg-navy/80 backdrop-blur-md"
+               onClick={() => setShowEditCourse(false)}
+             />
+             <motion.div 
+               initial={{ opacity: 0, scale: 0.95, y: 20 }}
+               animate={{ opacity: 1, scale: 1, y: 0 }}
+               exit={{ opacity: 0, scale: 0.95, y: 20 }}
+               className="relative w-full max-w-md bg-[#161b2e] border border-gold/20 rounded-3xl p-8 shadow-2xl"
+             >
+               <div className="flex items-center justify-between mb-6">
+                 <h3 className="font-serif font-black text-2xl text-text-1">Edit Archive Details</h3>
+                 <button onClick={() => setShowEditCourse(false)} className="text-gray-400 hover:text-white transition-colors">
+                   <X className="w-5 h-5" />
+                 </button>
+               </div>
+               <form onSubmit={handleUpdateCourse} className="space-y-4">
+                 <div>
+                   <label className="text-[10px] font-black text-text-3 uppercase tracking-widest mb-2 block">Archive Title</label>
+                   <input 
+                    required
+                    value={editCourseData.title}
+                    onChange={e => setEditCourseData({ ...editCourseData, title: e.target.value })}
+                    placeholder="e.g., General Anatomy"
+                    className="w-full bg-navy border border-white/10 rounded-xl p-4 text-sm text-white focus:border-gold outline-none"
+                   />
+                 </div>
+                 <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[10px] font-black text-text-3 uppercase tracking-widest mb-2 block">Department</label>
+                      <select 
+                        value={editCourseData.department}
+                        onChange={e => {
+                          const newDept = e.target.value;
+                          const levelsArr = DEPARTMENT_STRUCTURE[newDept]?.levels || ['100L', '200L', '300L', '400L', '500L', '600L'];
+                          setEditCourseData({ ...editCourseData, department: newDept, level: levelsArr[0] });
+                        }}
+                        className="w-full bg-navy border border-white/10 rounded-xl p-4 text-[12px] text-white focus:border-gold outline-none animate-none"
+                      >
+                        {(() => {
+                          const activeCustomFaculties = customFaculties.filter(f => !f.isDeleted);
+                          const deletedStaticNames = customFaculties.filter(f => f.isDeleted).map(f => f.name);
+                          return Array.from(new Set([...DEPARTMENTS.filter(d => !deletedStaticNames.includes(d)), ...activeCustomFaculties.map(f => f.name)]));
+                        })().map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-text-3 uppercase tracking-widest mb-2 block">Level</label>
+                      <select 
+                        value={editCourseData.level}
+                        onChange={e => setEditCourseData({ ...editCourseData, level: e.target.value })}
+                        className="w-full bg-navy border border-white/10 rounded-xl p-4 text-sm text-white focus:border-gold outline-none"
+                      >
+                        {(DEPARTMENT_STRUCTURE[editCourseData.department]?.levels || ['100L', '200L', '300L', '400L', '500L', '600L']).map((l: string) => <option key={l} value={l}>{l}</option>)}
+                      </select>
+                    </div>
+                 </div>
+                 <div>
+                   <label className="text-[10px] font-black text-text-3 uppercase tracking-widest mb-2 block">Description (Optional)</label>
+                   <textarea 
+                    value={editCourseData.description}
+                    onChange={e => setEditCourseData({ ...editCourseData, description: e.target.value })}
+                    placeholder="Description of the course archive..."
+                    rows={3}
+                    className="w-full bg-navy border border-white/10 rounded-xl p-4 text-sm text-white focus:border-gold outline-none resize-none font-sans"
+                   />
+                 </div>
+                 <button type="submit" className="w-full bg-gold text-navy py-4 rounded-xl font-black text-[12px] uppercase tracking-[0.2em] shadow-2xl shadow-gold/20 hover:bg-gold-light transition-all active:scale-95">
+                   Save Changes
+                 </button>
+               </form>
+             </motion.div>
+           </div>
+         )}
+       </AnimatePresence>
+
+       {/* Bulk Delete Questions Modal */}
+       <AnimatePresence>
+         {showBulkDeleteModal && (
+           <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+             <motion.div 
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               className="fixed inset-0 bg-navy/80 backdrop-blur-md"
+               onClick={() => setShowBulkDeleteModal(false)}
+             />
+             <motion.div 
+               initial={{ opacity: 0, scale: 0.95, y: 20 }}
+               animate={{ opacity: 1, scale: 1, y: 0 }}
+               exit={{ opacity: 0, scale: 0.95, y: 20 }}
+               className="relative w-full max-w-md bg-[#161b2e] border border-red-500/30 rounded-3xl p-8 shadow-2xl"
+             >
+               <div className="flex items-center justify-between mb-6">
+                 <div className="flex items-center gap-2 text-rose-500">
+                   <AlertCircle className="w-5 h-5 animate-pulse" />
+                   <h3 className="font-serif font-black text-xl text-white">Bulk Purge Questions</h3>
+                 </div>
+                 <button onClick={() => setShowBulkDeleteModal(false)} className="text-gray-400 hover:text-white transition-colors">
+                   <X className="w-5 h-5" />
+                 </button>
+               </div>
+               
+               <div className="space-y-4">
+                 <p className="text-sm text-gray-300">
+                   WARNING: You are about to permanently delete <span className="font-bold text-rose-400">{questions.length} questions</span> from <span className="font-bold text-white">"{activeCourse?.title}"</span> once and for all.
+                 </p>
+                 <p className="text-xs text-gray-400">
+                   This action is highly destructive and cannot be undone. All structure, options, correct answers, and logical explanation data for these questions will be discarded.
+                 </p>
+                 
+                 <div className="pt-2">
+                   <label className="text-[10px] font-black text-text-3 uppercase tracking-widest mb-2 block">
+                     To proceed, type <span className="text-rose-400 font-bold select-all">DELETE ALL</span> below:
+                   </label>
+                   <input 
+                     required
+                     type="text"
+                     placeholder="Type DELETE ALL to confirm"
+                     value={bulkDeleteConfirmText}
+                     onChange={e => setBulkDeleteConfirmText(e.target.value)}
+                     className="w-full bg-navy border border-red-500/20 rounded-xl p-4 text-center text-sm font-bold text-white focus:border-red-500/60 outline-none uppercase tracking-widest"
+                   />
+                 </div>
+
+                 <div className="flex gap-4 pt-4">
+                   <button 
+                     onClick={() => setShowBulkDeleteModal(false)}
+                     className="flex-1 px-6 py-4 rounded-xl bg-white/5 text-gray-400 font-bold uppercase tracking-widest text-[10px] hover:bg-white/10 transition-colors"
+                   >
+                     Cancel
+                   </button>
+                   <button 
+                     onClick={executeBulkDeleteQuestions}
+                     disabled={bulkDeleteConfirmText !== 'DELETE ALL' || loading}
+                     className="flex-1 bg-rose-600 disabled:opacity-40 disabled:cursor-not-allowed text-white py-4 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl shadow-rose-950 hover:bg-rose-500 transition-all active:scale-95 flex items-center justify-center gap-2"
+                   >
+                     {loading ? 'Purging...' : 'Purge All'}
+                   </button>
+                 </div>
+               </div>
              </motion.div>
            </div>
          )}

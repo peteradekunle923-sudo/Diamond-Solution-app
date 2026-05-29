@@ -1,7 +1,6 @@
 import "dotenv/config";
 import express from "express";
 import path from "path";
-import { createServer as createViteServer } from "vite";
 import axios from "axios";
 import { initializeApp, getApp, getApps, type AppOptions } from "firebase-admin/app";
 import { getFirestore as getFirestoreSDK, FieldValue } from "firebase-admin/firestore";
@@ -244,6 +243,51 @@ async function startServer() {
     const secretKey = process.env.PAYSTACK_SECRET_KEY;
 
     try {
+      const db = await getFirestore();
+      const userRef = db.collection("users").doc(userId);
+      const userDoc = await userRef.get();
+      const userData = userDoc.exists ? userDoc.data() : null;
+
+      // Restrict payout to users who paid for a departmental course (excluding admin/moderators)
+      let hasPaidCourse = false;
+      if (userData) {
+        if (userData.role === 'admin' || userData.role === 'moderator' || userData.hasPaidCourse === true) {
+          hasPaidCourse = true;
+        } else {
+          // Double check database payments as backup
+          const paymentsSnap = await db.collection("payments")
+            .where("userId", "==", userId)
+            .get();
+          
+          hasPaidCourse = paymentsSnap.docs.some((doc: any) => {
+            const d = doc.data();
+            const isSuccess = d.status === 'success' || d.status === 'paid';
+            const isNotReactivation = d.purpose !== 'reactivation';
+            const hasDeptOrCourse = !!(
+              d.dept_name || 
+              d.department || 
+              d.courseId || 
+              d.type === 'department_access' || 
+              doc.id.startsWith('dept_pay_') || 
+              doc.id.includes('_course_')
+            );
+            return isSuccess && isNotReactivation && hasDeptOrCourse;
+          });
+        }
+      }
+
+      if (!hasPaidCourse) {
+        return res.status(403).json({ error: "Access Denied: You must purchase at least one departmental course to unlock affiliate payout privileges." });
+      }
+
+      const currency = userData?.currency || (amount >= 500 ? "NGN" : "USD");
+
+      if (currency === "USD" && amount < 10) {
+        return res.status(400).json({ error: "The minimum payout amount for USD is $10." });
+      } else if (currency === "NGN" && amount < 10000) {
+        return res.status(400).json({ error: "The minimum payout amount for NGN is ₦10,000." });
+      }
+
       if (bankCode === 'INTL') {
         console.log(`[Payout] INTL payout requested for ${accountName} using ${accountNumber}`);
         return res.json({ success: true, message: "International payout logged for manual processing", reference, isManual: true });
@@ -331,14 +375,47 @@ async function startServer() {
         createdAt: new Date().toISOString()
       }, { merge: true });
 
-      // 2. Handle Affiliate Commission
-      if (userData.referredByUid) {
-        const referrerId = userData.referredByUid;
-        const referrerRef = db.collection("users").doc(referrerId);
-        const referrerDoc = await referrerRef.get();
+      // Synchronize backend payment status immediately in the user profile of the system
+      batch.set(db.collection("users").doc(userId), {
+        hasPaidCourse: true,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
 
-        if (referrerDoc.exists) {
-          const referrerData = referrerDoc.data() || {};
+      // 2. Handle Affiliate Commission
+      let referrerId = userData.referredByUid;
+      let referrerSnapData = null;
+
+      if (!referrerId && userData.referredBy) {
+        let refCode = String(userData.referredBy).trim().toUpperCase();
+        if (refCode.startsWith('DS-')) {
+          // Standardized format
+        } else if (refCode.startsWith('DS')) {
+          refCode = 'DS-' + refCode.substring(2);
+        } else {
+          refCode = 'DS-' + refCode;
+        }
+
+        console.log(`[Affiliate Dynamic Match] User ${userId} has referredBy code: ${userData.referredBy}. Standardizing to: ${refCode}...`);
+        const referrerQuery = await db.collection("users").where("referralCode", "==", refCode).limit(1).get();
+        if (!referrerQuery.empty) {
+          referrerId = referrerQuery.docs[0].id;
+          referrerSnapData = referrerQuery.docs[0].data() || {};
+          console.log(`[Affiliate Dynamic Match] Resolved referrerId: ${referrerId}. Updating current user's referredByUid...`);
+          await db.collection("users").doc(userId).update({ referredByUid: referrerId });
+        }
+      }
+
+      let referrerEmail = "";
+      let referrerName = "";
+      let referrerCurrencySymbol = "₦";
+      let finalCommissionValue = 0;
+
+      if (referrerId) {
+        const referrerRef = db.collection("users").doc(referrerId);
+        const referrerDoc = referrerSnapData ? null : await referrerRef.get();
+        const referrerData = referrerSnapData || (referrerDoc ? referrerDoc.data() : null) || {};
+
+        if (referrerSnapData || (referrerDoc && referrerDoc.exists)) {
           const commissionInPayerCurrency = amount * 0.25;
           const referrerCurrency = referrerData.currency || "NGN";
           
@@ -367,10 +444,73 @@ async function startServer() {
             status: "success",
             createdAt: new Date().toISOString()
           }, { merge: true });
+
+          referrerEmail = referrerData.email || "";
+          referrerName = referrerData.displayName || "Diamond Partner";
+          referrerCurrencySymbol = referrerCurrency === 'USD' ? '$' : '₦';
+          finalCommissionValue = commissionAmount;
         }
       }
 
       await batch.commit();
+
+      // 3. Dispatch Emails (Upline & Admin)
+      if (resend) {
+        try {
+          // Send Admin Purchase Email
+          const adminEmail = 'peteradekunle923@gmail.com';
+          await resend.emails.send({
+            from: 'Diamond Solution <onboarding@resend.dev>',
+            to: adminEmail,
+            subject: `Course Purchase Alert: ${userData.displayName || "A user"} bought a course`,
+            html: `
+              <div style="font-family: sans-serif; padding: 25px; color: #0a0c10; max-width: 600px; margin: auto; border: 1px solid #C9930A; border-radius: 12px; background-color: #ffffff;">
+                <h2 style="color: #C9930A; border-bottom: 2px solid #C9930A; padding-bottom: 10px; margin-top: 0;">Course Purchase Notification</h2>
+                <p>Hello Administrator,</p>
+                <p>A student has successfully completed a course purchase on the platform. Here are the details:</p>
+                <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #C9930A;">
+                  <p style="margin: 0 0 10px 0;"><strong>Student Name:</strong> ${userData.displayName || "Scholar"}</p>
+                  <p style="margin: 0 0 10px 0;"><strong>Student Email:</strong> ${userData.email || "No email"}</p>
+                  <p style="margin: 0 0 10px 0;"><strong>Department:</strong> ${department || "N/A"}</p>
+                  <p style="margin: 0 0 10px 0;"><strong>Amount Paid:</strong> ${currency === "USD" ? "$" : "₦"}${amount.toLocaleString()}</p>
+                  <p style="margin: 0 0 10px 0;"><strong>Reference ID:</strong> ${reference || "N/A"}</p>
+                  <p style="margin: 0;"><strong>Referred By:</strong> ${referrerId ? `Yes (ID: ${referrerId})` : "No"}</p>
+                </div>
+                <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 25px 0;" />
+                <p style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 2px; text-align: center; margin: 0;">Administrator Control Board • Diamond Solution</p>
+              </div>
+            `
+          }).catch(err => console.error("Could not send admin path email:", err));
+
+          // Send Referrer Commission Email if referrerEmail exists
+          if (referrerId && referrerEmail) {
+            await resend.emails.send({
+              from: 'Diamond Solution <onboarding@resend.dev>',
+              to: referrerEmail,
+              subject: `Commission Earned: 25% Rewards Dispatched!`,
+              html: `
+                <div style="font-family: sans-serif; padding: 25px; color: #0a0c10; max-width: 600px; margin: auto; border: 1px solid #10b981; border-radius: 12px; background-color: #ffffff;">
+                  <h2 style="color: #10b981; border-bottom: 2px solid #10b981; padding-bottom: 10px; margin-top: 0;">New Reward Commission! 🎁</h2>
+                  <p>Dear ${referrerName},</p>
+                  <p>We are excited to inform you that a student you referred (<strong>${userData.displayName || "Scholar"}</strong>) has purchased a course in <strong>${department || "Department"}</strong>.</p>
+                  <p>As part of the Diamond Solution referral program, your 25% commission has been calculated and successfully credited to your affiliate wallet.</p>
+                  <div style="background-color: #f0fdf4; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #10b981; text-align: center;">
+                    <span style="font-size: 13px; color: #15803d; text-transform: uppercase; font-weight: bold; letter-spacing: 1px; display: block; margin-bottom: 5px;">Your Net Reward</span>
+                    <span style="font-size: 32px; font-weight: 900; color: #15803d;">${referrerCurrencySymbol}${finalCommissionValue.toLocaleString()}</span>
+                  </div>
+                  <p>Check your **Affiliate Terminal** in the app to view your net balance, update your payment authority details, and place withdrawal requests.</p>
+                  <p>Thank you for helping us grow!</p>
+                  <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 25px 0;" />
+                  <p style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 2px; text-align: center; margin: 0;">Secured Affiliate Engine • Diamond Solution</p>
+                </div>
+              `
+            }).catch(err => console.error("Could not send upline path email:", err));
+          }
+        } catch (emailErr: any) {
+          console.error("[Email Notification] Could not dispatch email notifications:", emailErr);
+        }
+      }
+
       res.json({ success: true });
     } catch (error: any) {
       console.error("[Course Payment] error:", error);
@@ -388,10 +528,21 @@ async function startServer() {
     const idToken = authHeader.split('Bearer ')[1];
     try {
       const decodedToken = await getAuth(getApp()).verifyIdToken(idToken);
-      const userRef = (await getFirestore()).collection("users").doc(decodedToken.uid);
-      const userDoc = await userRef.get();
+      const email = decodedToken.email || "";
+      const isHardcodedAdmin = email.toLowerCase() === 'peteradekunle923@gmail.com';
+
+      const db = await getFirestore();
       
-      if (!userDoc.exists || userDoc.data()?.role !== 'admin') {
+      // Check admins collection
+      const adminDoc = await db.collection("admins").doc(decodedToken.uid).get();
+      const isAdminInCollection = adminDoc.exists;
+
+      // Check users collection
+      const userRef = db.collection("users").doc(decodedToken.uid);
+      const userDoc = await userRef.get();
+      const isAdminByRole = userDoc.exists && userDoc.data()?.role === 'admin';
+
+      if (!isHardcodedAdmin && !isAdminInCollection && !isAdminByRole) {
          return res.status(403).json({ error: "Forbidden: Not an administrator" });
       }
       
@@ -439,8 +590,10 @@ async function startServer() {
     }
   });
 
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",

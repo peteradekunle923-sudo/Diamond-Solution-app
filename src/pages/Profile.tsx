@@ -91,47 +91,7 @@ export default function Profile() {
           </button>
         )}
 
-        {!isAdmin && (
-          <button 
-            onClick={async () => {
-              if (window.confirm('Initiate request for administrative access?')) {
-                try {
-                   // Dispatch a message to admin chats
-                   const chatId = user?.uid;
-                   if (chatId) {
-                     // Ensure parent document exists
-                     await setDoc(doc(db, 'chats', chatId), {
-                       lastMessageAt: new Date().toISOString(),
-                       userId: chatId,
-                       userName: profile?.displayName || user?.email || 'Scholar',
-                       adminUnreadCount: increment(1)
-                     }, { merge: true });
 
-                     await addDoc(collection(db, 'chats', chatId, 'messages'), {
-                       senderId: user?.uid,
-                       text: `### SECURITY CLEARANCE REQUEST ###\nScholar [${profile?.displayName || user?.email}] is requesting administrative elevation.`,
-                       createdAt: new Date().toISOString()
-                     });
-                     
-                     // Mark request in profile
-                     await setDoc(doc(db, 'users', user?.uid), {
-                       adminRequestPending: true,
-                       adminRequestedAt: new Date().toISOString()
-                     }, { merge: true });
-
-                     alert(t('profile.adminRequested'));
-                   }
-                } catch (e) {
-                  console.error(e);
-                }
-              }
-            }}
-            className="w-full bg-navy-mid border border-gold/20 p-6 rounded-2xl text-gold font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center space-x-4 hover:bg-gold/10 transition-all active:scale-[0.98] shadow-lg"
-          >
-            <Shield className="w-6 h-6" />
-            <span>{t('profile.requestAdmin')}</span>
-          </button>
-        )}
 
         <button 
            onClick={handleLogout}

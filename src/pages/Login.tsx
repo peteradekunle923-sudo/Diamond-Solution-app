@@ -207,13 +207,20 @@ export default function Login() {
       } else {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         
-        let finalReferralCode = referralFromUrl || manualReferralCode;
-        if (finalReferralCode && !finalReferralCode.startsWith('DS-')) {
-          finalReferralCode = 'DS-' + finalReferralCode;
-        }
-
+        let finalReferralCode = (referralFromUrl || manualReferralCode || '').trim();
         let referredByUid = null;
+        
         if (finalReferralCode) {
+          let cleanCode = finalReferralCode.toUpperCase();
+          if (cleanCode.startsWith('DS-')) {
+             // Correctly formatted
+          } else if (cleanCode.startsWith('DS')) {
+             cleanCode = 'DS-' + cleanCode.substring(2);
+          } else {
+             cleanCode = 'DS-' + cleanCode;
+          }
+          finalReferralCode = cleanCode;
+
           const referrerQuery = query(
             collection(db, 'users'),
             where('referralCode', '==', finalReferralCode),

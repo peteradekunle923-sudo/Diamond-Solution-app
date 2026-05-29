@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
 import Login from './pages/Login';
@@ -22,18 +22,19 @@ const Leaderboard = React.lazy(() => import('./pages/Leaderboard'));
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isAdmin, loading } = useAuth();
   if (loading) return null;
-  return user && isAdmin ? <>{children}</> : <Navigate to="/dashboard" />;
+  return user && isAdmin ? <>{children}</> : <Navigate to="/dashboard" replace />;
 };
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, profile, loading } = useAuth();
+  const location = useLocation();
   if (loading) return null;
   
-  if (user && profile?.status === 'suspended' && window.location.pathname !== '/reactivate') {
-    return <Navigate to="/reactivate" />;
+  if (user && profile?.status === 'suspended' && location.pathname !== '/reactivate') {
+    return <Navigate to="/reactivate" replace />;
   }
 
-  return user ? <>{children}</> : <Navigate to="/login" />;
+  return user ? <>{children}</> : <Navigate to="/login" replace />;
 };
 
 export default function App() {

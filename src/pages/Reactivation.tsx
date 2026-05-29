@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { db } from '../lib/firebase';
@@ -11,7 +12,14 @@ import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
 export default function Reactivation() {
   const { user, profile } = useAuth();
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (profile && profile.status !== 'suspended') {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [profile, navigate]);
   
   const isNigerian = profile?.country === 'Nigeria' || !profile?.country; // Default to Nigeria if not set
   const feeNGN = 1000;
@@ -23,7 +31,7 @@ export default function Reactivation() {
     reference: `reactivate_${new Date().getTime()}_${user?.uid}`,
     email: user?.email || '',
     amount: isNigerian ? feeNGN * 100 : Math.round(feeUSD * 1500 * 100), // Approximate USD to NGN for Paystack if it doesn't support USD directly in this setup
-    publicKey: 'pk_live_0000000000000000000000000000000000000000', // Mock key
+    publicKey: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '',
   };
 
   const onSuccess = async (reference: any) => {

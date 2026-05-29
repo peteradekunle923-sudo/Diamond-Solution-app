@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, where, getDoc, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, getDoc, doc, setDoc, updateDoc, getDocs, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import Layout from '../components/Layout';
 import { Search, Filter, BookOpen, ArrowRight, Layers, Lock, Zap, CheckCircle, ChevronRight } from 'lucide-react';
@@ -135,11 +135,48 @@ export default function CourseList() {
         createdAt: new Date().toISOString()
       });
 
+      // Synchronize backend payment status immediately in the user profile of the system
+      await setDoc(doc(db, 'users', user.uid), {
+        hasPaidCourse: true,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
         // Credit affiliate if user was referred
-        if (profile?.referredByUid) {
+        let referrerUid = profile?.referredByUid;
+        let referrerSnapData = null;
+
+        if (!referrerUid && profile?.referredBy) {
+          let refCode = String(profile.referredBy).trim().toUpperCase();
+          if (refCode.startsWith('DS-')) {
+             // Correctly formatted
+          } else if (refCode.startsWith('DS')) {
+             refCode = 'DS-' + refCode.substring(2);
+          } else {
+             refCode = 'DS-' + refCode;
+          }
+
+          const referrerQuery = query(
+            collection(db, 'users'),
+            where('referralCode', '==', refCode),
+            limit(1)
+          );
+          const referrerSnap = await getDocs(referrerQuery);
+          if (!referrerSnap.empty) {
+            referrerUid = referrerSnap.docs[0].id;
+            referrerSnapData = referrerSnap.docs[0].data();
+            // Self-heal: save the correct referredByUid to current student's record
+            try {
+              await setDoc(doc(db, 'users', user.uid), { referredByUid: referrerUid }, { merge: true });
+            } catch (err) {
+              console.warn("Silent referredByUid update failed:", err);
+            }
+          }
+        }
+
+        if (referrerUid) {
           const commissionRate = 0.25;
-          const referrerDoc = await getDoc(doc(db, 'users', profile.referredByUid));
-          const referrerData = referrerDoc.data();
+          const referrerDoc = referrerSnapData ? null : await getDoc(doc(db, 'users', referrerUid));
+          const referrerData = referrerSnapData || referrerDoc?.data();
           const referrerCurrency = referrerData?.currency || 'NGN';
           const NGN_TO_USD = 1500;
 
@@ -162,7 +199,7 @@ export default function CourseList() {
           const commissionId = `comm_${paymentId}`;
           await setDoc(doc(db, 'affiliates', commissionId), {
             id: commissionId,
-            referrerUid: profile.referredByUid,
+            referrerUid: referrerUid,
             referrerName: referrerData?.displayName || 'Affiliate',
             referredUid: user.uid,
             referredName: profile.displayName || 'Subordinate',
@@ -171,19 +208,19 @@ export default function CourseList() {
             commissionAmount: normalizedCommission,
             commissionCurrency: referrerCurrency,
             commissionRate: commissionRate,
-            status: 'pending',
+            status: 'success', // Set to success on payment completion
             createdAt: new Date().toISOString()
           });
         
-        const currentBalance = referrerData?.balance || 0;
-        try {
-          await setDoc(doc(db, 'users', profile.referredByUid), {
-            balance: currentBalance + normalizedCommission
-          }, { merge: true });
-        } catch (e) {
-          console.warn('Silent balance sync failed');
+          const currentBalance = referrerData?.balance || 0;
+          try {
+            await setDoc(doc(db, 'users', referrerUid), {
+              balance: currentBalance + normalizedCommission
+            }, { merge: true });
+          } catch (e) {
+            console.warn('Silent balance sync failed');
+          }
         }
-      }
     } catch (err) {
       console.error(err);
     }
@@ -225,6 +262,20 @@ export default function CourseList() {
       return () => clearTimeout(timer);
     }
   }, [selectedDeptWithPrice, paying]);
+
+  const hasAccess = deptAccess[deptFilter];
+  const originalLevels = DEPARTMENT_STRUCTURE[deptFilter]?.levels || ['100L', '200L', '300L', '400L', '500L'];
+  const levels = hasAccess 
+    ? originalLevels.filter(lvl => lvl !== 'All') 
+    : ['All', ...originalLevels];
+
+  // Auto-switch away from 'All' filter to first actual academic level once access is granted/paid
+  useEffect(() => {
+    if (hasAccess && levelFilter === 'All') {
+      const defaultLvl = originalLevels.find(l => l !== 'All') || '100L';
+      setLevelFilter(defaultLvl);
+    }
+  }, [hasAccess, deptFilter, levelFilter, originalLevels]);
 
   const filteredCourses = courses.filter(c => {
     const matchesSearch = c.title.toLowerCase().includes(search.toLowerCase());
@@ -284,8 +335,6 @@ export default function CourseList() {
       : { val: f.price || 10000, curr: '₦' };
   };
 
-  const levels = ['All', ...(DEPARTMENT_STRUCTURE[deptFilter]?.levels || ['100L', '200L', '300L', '400L', '500L'])];
-  const hasAccess = deptAccess[deptFilter];
   const activePrice = getDeptPrice(deptFilter);
 
   return (
@@ -418,25 +467,39 @@ export default function CourseList() {
 function CourseListItem({ course }: { course: any, key?: any }) {
   const { t } = useLanguage();
   return (
-    <Link to={`/courses/${course.id}`} className="card-luxury group flex items-stretch hover:border-gold/30 transition-all shadow-xl shadow-black/10">
-      <div className="w-32 h-auto bg-navy-mid flex items-center justify-center overflow-hidden flex-shrink-0 border-r border-gold/5 group-hover:bg-navy-high transition-colors">
-        {course.thumbnail ? (
-          <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700" />
-        ) : (
-          <BookOpen className="w-8 h-8 text-gold/20" />
-        )}
-      </div>
-      <div className="flex-1 p-5 flex flex-col justify-between space-y-3">
-        <div className="space-y-2">
+    <Link 
+      to={`/courses/${course.id}`} 
+      className="card-luxury group relative overflow-hidden flex flex-col justify-between p-6 min-h-[140px] hover:border-gold/30 transition-all shadow-xl shadow-black/10 bg-gradient-to-br from-navy-mid/60 to-navy-high/80"
+    >
+      {/* Background with thumbnail acting as a soft, elegant backdrop layer */}
+      {course.thumbnail ? (
+        <div className="absolute inset-0 z-0 opacity-10 group-hover:opacity-20 transition-opacity duration-700 pointer-events-none">
+          <img src={course.thumbnail} alt="" className="w-full h-full object-cover grayscale" />
+        </div>
+      ) : (
+        <div className="absolute top-0 right-0 w-32 h-32 bg-gold/5 blur-2xl -mr-16 -mt-16 pointer-events-none" />
+      )}
+      
+      {/* Single, unified background content area with course title styled on the visual tile */}
+      <div className="relative z-10 flex flex-col justify-between h-full space-y-4">
+        <div className="flex items-center justify-between">
           <span className="text-[8px] font-black uppercase tracking-[0.2em] text-text-3 bg-navy-high px-3 py-1 rounded border border-gold/10">
             {course.level}
           </span>
+          <div className="w-8 h-8 rounded-lg bg-navy-high/50 border border-gold/10 flex items-center justify-center text-gold/40 group-hover:text-gold transition-colors">
+            <BookOpen className="w-4 h-4" />
+          </div>
+        </div>
+
+        <div>
           <h4 className="font-serif font-black text-text-1 text-[13px] leading-snug group-hover:text-gold-light transition-colors line-clamp-2">
             {course.title}
           </h4>
         </div>
-        <div className="flex items-center justify-between text-[10px] font-black text-gold uppercase tracking-[0.2em]">
-          {t('general.view')} <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+
+        <div className="flex items-center justify-between text-[9px] font-black text-gold uppercase tracking-[0.2em] pt-3 border-t border-gold/5 mt-auto">
+          <span>{t('general.view')}</span>
+          <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
         </div>
       </div>
     </Link>

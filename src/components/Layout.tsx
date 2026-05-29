@@ -122,18 +122,18 @@ function Tab({ icon: Icon, label, to, badge }: { icon: any, label: string, to: s
           {isActive && (
             <motion.div 
               layoutId="tab-dot"
-              className="absolute top-2 w-1.5 h-1.5 rounded-full bg-gold shadow-[0_0_8px_rgba(201,147,10,0.8)]"
+              className="absolute top-2.5 w-1 h-1 rounded-full bg-gold shadow-[0_0_8px_rgba(201,147,10,0.8)]"
             />
           )}
-          <div className="relative">
-            <Icon className={cn("w-6 h-6 transition-transform duration-300", isActive ? "scale-110" : "group-hover:scale-105")} />
+          <div className="relative mt-2">
+            <Icon className={cn("w-5 h-5 transition-transform duration-300", isActive ? "scale-105" : "group-hover:scale-102")} />
             {badge !== undefined && badge > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center animate-bounce shadow-lg shadow-red-500/50">
+              <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-red-500 text-white text-[7px] font-bold rounded-full flex items-center justify-center animate-bounce shadow-lg shadow-red-500/50">
                 {badge}
               </span>
             )}
           </div>
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] mt-1.5">{label}</span>
+          <span className="text-[8px] font-black uppercase tracking-[0.18em] mt-1">{label}</span>
         </>
       )}
     </NavLink>

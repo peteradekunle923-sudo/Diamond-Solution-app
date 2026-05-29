@@ -14,7 +14,8 @@ import axios from 'axios';
 
 export default function AffiliateDashboard() {
   const { user, profile } = useAuth();
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
+  const [hasPaidCourse, setHasPaidCourse] = useState<boolean | null>(null);
   const [referrals, setReferrals] = useState<any[]>([]);
   const [commissions, setCommissions] = useState<any[]>([]);
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
@@ -94,7 +95,7 @@ export default function AffiliateDashboard() {
     }
     
     const amount = calculatedBalance;
-    const minThreshold = userCurrency === 'USD' ? 1 : 1000;
+    const minThreshold = userCurrency === 'USD' ? 10 : 10000;
     const currencySymbol = userCurrency === 'USD' ? '$' : '₦';
 
     if (amount < minThreshold) {
@@ -152,8 +153,23 @@ export default function AffiliateDashboard() {
         // Success handled by backend, profile listener will pick up changes
       }
     } catch (error: any) {
-      console.error('Activation Error:', error.response?.data?.error || error.message);
-      setActivationFailed(true);
+      console.warn('Backend activation failed, using client-side fallback:', error.response?.data?.error || error.message);
+      try {
+        const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const referralCode = profile?.referralCode || `DS-${randomPart}`;
+        const userRef = doc(db, 'users', user.uid);
+        await setDoc(userRef, {
+          affiliateStatus: "active",
+          isAffiliate: true,
+          isPartner: true,
+          referralCode: referralCode,
+          activatedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      } catch (fallbackError: any) {
+        console.error('Affiliate Activation Fallback Error:', fallbackError.message);
+        setActivationFailed(true);
+      }
     }
     setLoading(false);
   };
@@ -176,6 +192,103 @@ export default function AffiliateDashboard() {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  useEffect(() => {
+    if (user?.uid) {
+      if (profile?.role === 'admin' || profile?.role === 'moderator') {
+        setHasPaidCourse(true);
+        return;
+      }
+
+      const q = query(
+        collection(db, 'payments'),
+        where('userId', '==', user.uid)
+      );
+
+      const unsub = onSnapshot(q, (snap) => {
+        // Filter in memory to handle old/new formats and filter out reactivation payments
+        const hasPaid = snap.docs.some(docSnap => {
+          const d = docSnap.data();
+          const isSuccess = d.status === 'success' || d.status === 'paid';
+          const isNotReactivation = d.purpose !== 'reactivation';
+          // Payment must have a department, field, course identifier or be of type department_access
+          const hasDeptOrCourse = !!(
+            d.dept_name || 
+            d.department || 
+            d.courseId || 
+            d.type === 'department_access' || 
+            docSnap.id.startsWith('dept_pay_') || 
+            docSnap.id.includes('_course_')
+          );
+          return isSuccess && isNotReactivation && hasDeptOrCourse;
+        });
+        
+        setHasPaidCourse(hasPaid);
+      }, (err) => {
+        console.error("Failed to check payments for affiliate unlock:", err);
+        setHasPaidCourse(false);
+      });
+
+      return unsub;
+    } else {
+      setHasPaidCourse(null);
+    }
+  }, [user?.uid, profile?.role]);
+
+  if (hasPaidCourse === null) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+          <div className="w-10 h-10 border-4 border-gold border-t-transparent rounded-full animate-spin" />
+          <p className="text-[10px] font-black uppercase tracking-widest text-gold animate-pulse">
+            {language === 'fr' ? 'Validation des autorisations...' : 'Authenticating Access Authorization...'}
+          </p>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (hasPaidCourse === false) {
+    return (
+      <Layout>
+        <div className="px-6 py-8 flex flex-col items-center justify-center min-h-[70vh] text-center max-w-xl mx-auto space-y-6">
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', damping: 15 }}
+            className="w-20 h-20 bg-red-500/10 rounded-3xl border border-red-500/20 flex items-center justify-center text-red-500 shadow-lg shadow-red-500/5 mb-2"
+          >
+            <Lock className="w-10 h-10" />
+          </motion.div>
+          
+          <div className="space-y-2">
+            <h2 className="text-3xl font-serif font-black text-text-1 tracking-tight">
+              {language === 'fr' ? 'Accès Restreint' : 'Affiliate Platform Restricted'}
+            </h2>
+            <p className="text-[10px] font-black text-red-500 uppercase tracking-[0.4em] leading-none mb-4">
+              {language === 'fr' ? 'Abonnement requis' : 'Course Subscription Required'}
+            </p>
+          </div>
+
+          <p className="text-sm text-text-3 leading-relaxed">
+            {language === 'fr' 
+              ? "L'accès au programme d'affiliation et de partage de revenus est réservé exclusivement aux étudiants inscrits ayant payé au moins un cours départemental. Débloquez votre statut d'affilié dès aujourd'hui en rejoignant votre premier département académique."
+              : "Access to the Affiliate & Revenue Sharing program is strictly reserved for subscribed students who have paid for at least one physical/departmental course on the platform. Unlock your affiliate privileges today by securing access to any academic department."}
+          </p>
+
+          <div className="pt-4 w-full">
+            <a 
+              href="/courses"
+              className="inline-flex w-full sm:w-auto bg-gradient-to-r from-gold to-gold-light hover:from-gold-light hover:to-gold text-navy font-black text-[11px] uppercase tracking-widest px-8 py-4 rounded-2xl shadow-xl shadow-gold/25 hover:scale-105 active:scale-95 transition-all justify-center items-center gap-2"
+            >
+              <Zap className="w-4 h-4 fill-navy" />
+              {language === 'fr' ? 'Explorer les départements' : 'Explore Departments & Enroll'}
+            </a>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -211,7 +324,7 @@ export default function AffiliateDashboard() {
                   </p>
                   <button 
                     onClick={handleWithdrawal}
-                    disabled={loading || calculatedBalance < (userCurrency === 'USD' ? 1 : 1000)}
+                    disabled={loading || calculatedBalance < (userCurrency === 'USD' ? 10 : 10000)}
                     className="bg-emerald-500 text-white px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-30 disabled:grayscale flex items-center gap-2"
                   >
                     <ArrowUpRight className="w-4 h-4" />

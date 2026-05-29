@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { collection, onSnapshot, query, orderBy, doc, getDoc, getDocs, where, setDoc, updateDoc } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
@@ -26,6 +26,7 @@ export default function StudyPage() {
   const [loading, setLoading] = useState(true);
   const [paymentVerified, setPaymentVerified] = useState(false);
   const [translationLoading, setTranslationLoading] = useState(false);
+  const [answers, setAnswers] = useState<Record<string, { selectedAnswer: string | null; isSubmitted: boolean }>>({});
 
   useEffect(() => {
     if (!user) {
@@ -48,14 +49,37 @@ export default function StudyPage() {
           const progressSnap = await getDoc(progressRef);
           if (progressSnap.exists()) {
             const pData = progressSnap.data();
+            const savedAnswers = pData.answers || {};
+            setAnswers(savedAnswers);
+
+            // Recompute score to be 100% accurate
+            let correctCount = 0;
+            let totalCount = 0;
+            fetchedQuestions.forEach((q: any) => {
+              const ans = savedAnswers[q.id];
+              if (ans && ans.isSubmitted) {
+                totalCount++;
+                const isCorrect = q.type === 'application' ? true : parseInt(ans.selectedAnswer) === q.correctAnswer;
+                if (isCorrect) correctCount++;
+              }
+            });
+            setScore({ correct: correctCount, total: totalCount });
+
             if (pData.completed) {
                setShowResults(true);
-               setScore(pData.score || { correct: 0, total: 0 });
             } else {
-               setCurrentIndex(pData.currentIndex || 0);
-               setScore(pData.score || { correct: 0, total: 0 });
-               setSelectedAnswer(pData.selectedAnswer || null);
-               setIsSubmitted(pData.isSubmitted || false);
+               const savedIndex = pData.currentIndex || 0;
+               setCurrentIndex(savedIndex);
+
+               // Load state for this index
+               const qId = fetchedQuestions[savedIndex]?.id;
+               if (qId && savedAnswers[qId]) {
+                 setSelectedAnswer(savedAnswers[qId].selectedAnswer);
+                 setIsSubmitted(savedAnswers[qId].isSubmitted);
+               } else {
+                 setSelectedAnswer(null);
+                 setIsSubmitted(false);
+               }
             }
           }
         } catch (err) {
@@ -162,8 +186,17 @@ export default function StudyPage() {
   }, [id, user, isAdmin]);
 
   useEffect(() => {
-    if (selectedAnswer !== null && !isSubmitted && !loading) {
-      saveProgress({ selectedAnswer });
+    if (selectedAnswer !== null && !isSubmitted && !loading && questions[currentIndex]) {
+      const qId = questions[currentIndex].id;
+      const updatedAnswers = {
+        ...answers,
+        [qId]: { selectedAnswer, isSubmitted: false }
+      };
+      setAnswers(updatedAnswers);
+      saveProgress({
+        answers: updatedAnswers,
+        currentIndex
+      });
     }
   }, [selectedAnswer, isSubmitted, loading]);
 
@@ -229,29 +262,32 @@ export default function StudyPage() {
   }, [currentIndex, questions, language, translatedContent]);
 
   const [sessionStartTime] = useState(Date.now());
-  const [lastSyncTime, setLastSyncTime] = useState(Date.now());
+  const lastSyncTimeRef = useRef(Date.now());
 
   // Timer for study duration
   useEffect(() => {
     if (loading || showResults || questions.length === 0) return;
 
+    // Reset sync time when active studying starts
+    lastSyncTimeRef.current = Date.now();
+
     const syncInterval = setInterval(async () => {
       const now = Date.now();
-      const durationSeconds = Math.floor((now - lastSyncTime) / 1000);
+      const durationSeconds = Math.floor((now - lastSyncTimeRef.current) / 1000);
       if (durationSeconds >= 30) { // Sync every 30 seconds
         await updateStudyDuration(durationSeconds);
-        setLastSyncTime(now);
+        lastSyncTimeRef.current = now;
       }
-    }, 30000);
+    }, 15000); // Check more frequently to be highly robust
 
     return () => {
       clearInterval(syncInterval);
-      const finalDuration = Math.floor((Date.now() - lastSyncTime) / 1000);
+      const finalDuration = Math.floor((Date.now() - lastSyncTimeRef.current) / 1000);
       if (finalDuration > 0) {
         updateStudyDuration(finalDuration);
       }
     };
-  }, [loading, showResults, questions.length, lastSyncTime]);
+  }, [loading, showResults, questions.length]);
 
   const updateStudyDuration = async (seconds: number) => {
     if (!user) return;
@@ -321,18 +357,33 @@ export default function StudyPage() {
   const handleAutoSubmit = () => {
     if (isSubmitted) return;
     
-    setIsSubmitted(true);
-    const newScore = {
-      correct: score.correct,
-      total: score.total + 1
-    };
+    const currentQ = questions[currentIndex];
     
+    const updatedAnswers = {
+      ...answers,
+      [currentQ.id]: { selectedAnswer: null, isSubmitted: true }
+    };
+    setAnswers(updatedAnswers);
+    setIsSubmitted(true);
+
+    let correctCount = 0;
+    let totalCount = 0;
+    questions.forEach((q: any) => {
+      const ans = updatedAnswers[q.id];
+      if (ans && ans.isSubmitted) {
+        totalCount++;
+        const isCorrectQ = q.type === 'application' ? true : parseInt(ans.selectedAnswer!) === q.correctAnswer;
+        if (isCorrectQ) correctCount++;
+      }
+    });
+    const newScore = { correct: correctCount, total: totalCount };
     setScore(newScore);
+
     saveProgress({
       currentIndex,
+      answers: updatedAnswers,
       score: newScore,
-      isSubmitted: true,
-      selectedAnswer: null
+      isSubmitted: true
     });
     updateDailyPractice(false);
   };
@@ -358,18 +409,30 @@ export default function StudyPage() {
     
     const isCorrect = isApplication ? true : parseInt(selectedAnswer!) === currentQ.correctAnswer;
     
-    const newScore = {
-      correct: score.correct + (isCorrect ? 1 : 0),
-      total: score.total + 1
+    const updatedAnswers = {
+      ...answers,
+      [currentQ.id]: { selectedAnswer: selectedAnswer || 'completed', isSubmitted: true }
     };
-    
-    setScore(newScore);
+    setAnswers(updatedAnswers);
     setIsSubmitted(true);
+
+    let correctCount = 0;
+    let totalCount = 0;
+    questions.forEach((q: any) => {
+      const ans = updatedAnswers[q.id];
+      if (ans && ans.isSubmitted) {
+        totalCount++;
+        const isCorrectQ = q.type === 'application' ? true : parseInt(ans.selectedAnswer!) === q.correctAnswer;
+        if (isCorrectQ) correctCount++;
+      }
+    });
+    const newScore = { correct: correctCount, total: totalCount };
+    setScore(newScore);
 
     saveProgress({
       currentIndex,
+      answers: updatedAnswers,
       score: newScore,
-      selectedAnswer: selectedAnswer || 'completed',
       isSubmitted: true
     });
     updateDailyPractice(isCorrect);
@@ -378,17 +441,17 @@ export default function StudyPage() {
   const handleNext = () => {
     if (currentIndex < questions.length - 1) {
       const nextIndex = currentIndex + 1;
-      setCurrentIndex(nextIndex);
-      setSelectedAnswer(null);
-      setIsSubmitted(false);
-
       const nextQ = questions[nextIndex];
+      const savedNext = answers[nextQ.id] || { selectedAnswer: null, isSubmitted: false };
+
+      setCurrentIndex(nextIndex);
+      setSelectedAnswer(savedNext.selectedAnswer);
+      setIsSubmitted(savedNext.isSubmitted);
       setTimeLeft(nextQ?.type === 'application' ? 120 : 30);
 
       saveProgress({
         currentIndex: nextIndex,
-        selectedAnswer: null,
-        isSubmitted: false
+        isSubmitted: savedNext.isSubmitted
       });
     } else {
       setShowResults(true);
@@ -399,11 +462,17 @@ export default function StudyPage() {
   const handlePrev = () => {
     if (currentIndex > 0) {
       const prevIndex = currentIndex - 1;
+      const prevQ = questions[prevIndex];
+      const savedPrev = answers[prevQ.id] || { selectedAnswer: null, isSubmitted: false };
+
       setCurrentIndex(prevIndex);
-      // When going back, we are in "review" mode for that question
-      setSelectedAnswer(null); // Or load if we tracked them
-      setIsSubmitted(true); // Treat previous as submitted/view-only
-      saveProgress({ currentIndex: prevIndex });
+      setSelectedAnswer(savedPrev.selectedAnswer);
+      setIsSubmitted(savedPrev.isSubmitted);
+
+      saveProgress({
+        currentIndex: prevIndex,
+        isSubmitted: savedPrev.isSubmitted
+      });
     }
   };
 

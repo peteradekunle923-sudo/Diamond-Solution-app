@@ -12,13 +12,23 @@ service cloud.firestore {
     function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
-    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\.]+$'); }
+    function isValidId(id) { return id is string && id.size() <= 128; }
     
-    // Admin check: Hardcoded SuperAdmin + Admins collection lookup
+    // Check if user has a suspended status
+    function isSuspended() {
+      return isSignedIn() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        'status' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'suspended';
+    }
+    
+    // Admin check: Hardcoded SuperAdmin + Admins collection lookup + users role
     function isAdmin() { 
       return isSignedIn() && (
-        (request.auth.token.email != null && request.auth.token.email.lower() == 'peteradekunle923@gmail.com') ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        (request.auth.token.email != null && request.auth.token.email.matches('(?i)^peteradekunle923@gmail\\.com$')) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
       );
     }
 
@@ -38,6 +48,11 @@ service cloud.firestore {
              (!('affiliateStatus' in data) || data.affiliateStatus in ['none', 'pending', 'active', 'approved', 'declined']) &&
              (!('hasPaidAffiliateFee' in data) || data.hasPaidAffiliateFee is bool) &&
              (!('isPartner' in data) || data.isPartner is bool) &&
+             (!('isAffiliate' in data) || data.isAffiliate is bool) &&
+             (!('referralCode' in data) || (data.referralCode is string && data.referralCode.size() <= 100)) &&
+             (!('activatedAt' in data) || (data.activatedAt is string || data.activatedAt == request.time)) &&
+             (!('referredBy' in data) || (data.referredBy is string || data.referredBy == null)) &&
+             (!('referredByUid' in data) || (data.referredByUid is string || data.referredByUid == null)) &&
              (!('hasSeenTour' in data) || data.hasSeenTour is bool) &&
              (!('hasSeenProfessionalTour' in data) || data.hasSeenProfessionalTour is bool) &&
              (!('lastStudyDate' in data) || (data.lastStudyDate is string || data.lastStudyDate == request.time)) &&
@@ -58,42 +73,27 @@ service cloud.firestore {
     }
 
     function isValidWithdrawal(data) {
-      return data.keys().hasAll(['userId', 'amount', 'status', 'createdAt']) &&
+      return data.keys().hasAll(['userId', 'amount', 'status', 'createdAt', 'currency']) &&
              data.userId == request.auth.uid &&
-             data.amount is number && data.amount >= 1000 &&
+             data.amount is number && 
+             ((data.currency == 'USD' && data.amount >= 10) || (data.currency == 'NGN' && data.amount >= 10000)) &&
              data.status == 'pending' &&
              (data.createdAt is string || data.createdAt == request.time);
     }
 
     function isValidPractice(data) {
-      return (data.userId == request.auth.uid || (!('userId' in data) && existing().userId == request.auth.uid)) &&
-             (!('date' in data) || data.date is string) &&
-             (!('attempted' in data) || data.attempted is number) &&
-             (!('correct' in data) || data.correct is number) &&
-             (!('studyDuration' in data) || data.studyDuration is number) &&
-             (!('lastStudyDate' in data) || (data.lastStudyDate is string || data.lastStudyDate == request.time)) &&
-             (!('lastNotificationCheck' in data) || (data.lastNotificationCheck is string || data.lastNotificationCheck == request.time)) &&
-             (!('createdAt' in data) || (data.createdAt is string || data.createdAt == request.time)) &&
-             (!('updatedAt' in data) || (data.updatedAt is string || data.updatedAt == request.time));
+      return !('userId' in data) || data.userId == request.auth.uid;
     }
 
     function isValidStudyProgress(data) {
-      return (data.userId == request.auth.uid || (!('userId' in data) && existing().userId == request.auth.uid)) &&
-             (!('courseId' in data) || isValidId(data.courseId)) &&
-             (!('currentIndex' in data) || data.currentIndex is number) &&
-             (!('completed' in data) || data.completed is bool) &&
-             (!('score' in data) || (data.score is map)) &&
-             (!('isSubmitted' in data) || data.isSubmitted is bool) &&
-             (!('selectedAnswer' in data) || (data.selectedAnswer is string || data.selectedAnswer == null)) &&
-             (!('updatedAt' in data) || (data.updatedAt is string || data.updatedAt == request.time));
+      return !('userId' in data) || data.userId == request.auth.uid;
     }
 
     // 4. COLLECTION RULES
 
-    // --- Users ---
     match /users/{userId} {
       allow get: if isSignedIn();
-      allow list: if isAdmin() || (isSignedIn() && (
+      allow list: if isAdmin() || (isSignedIn() && !isSuspended() && (
         // Allow users to see their referrals
         resource.data.referredByUid == request.auth.uid ||
         // Allow public leaderboard (reading other student profiles basically)
@@ -106,23 +106,25 @@ service cloud.firestore {
                     incoming().affiliateStatus in ['none', 'active'] &&
                     (incoming().createdAt is string || incoming().createdAt == request.time);
       
-      allow update: if (isOwner(userId) && isValidUser(incoming()) && (
-        // Action 1: Basic Profile Update
-        (incoming().diff(existing()).affectedKeys().hasOnly([
-          'displayName', 'institutionalName', 'phone', 'department', 'level', 
-          'currency', 'language', 'updatedAt', 'hasSeenTour', 'hasSeenProfessionalTour', 'bankDetails'
-        ]) &&
-        incoming().role == existing().role &&
-        incoming().balance == existing().balance &&
-        incoming().affiliateStatus == existing().affiliateStatus)
-      ) && (!('email' in incoming()) || (incoming().email == existing().email))) || 
-      isAdmin();
+      allow update: if (
+        isOwner(userId) && 
+        (!('role' in incoming()) || incoming().role == existing().role) &&
+        (!('balance' in incoming()) || incoming().balance == existing().balance) &&
+        (!('email' in incoming()) || incoming().email == existing().email) &&
+        (!('status' in incoming()) || incoming().status == existing().status || (existing().status == 'suspended' && incoming().status == 'active')) &&
+        (!('affiliateStatus' in existing()) || 
+         incoming().affiliateStatus == existing().affiliateStatus || 
+         incoming().affiliateStatus in ['none', 'pending', 'active']) &&
+        (!('status' in existing()) || existing().status != 'suspended' || (incoming().status == 'active' && 'reactivatedAt' in incoming()))
+      ) || isAdmin();
     }
 
     // --- Payments ---
     match /payments/{paymentId} {
-      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow create: if isVerified() && isValidPayment(incoming()) && 
+      allow read: if isAdmin() || (isSignedIn() && !isSuspended() && resource.data.userId == request.auth.uid);
+      allow create: if isVerified() && 
+                    (!isSuspended() || (incoming().purpose == 'reactivation' && (incoming().amount == 1000 || incoming().amount == 2))) && 
+                    isValidPayment(incoming()) && 
                     (incoming().status == 'pending' || incoming().status == 'success') &&
                     (!('courseId' in incoming()) || exists(/databases/$(database)/documents/courses/$(incoming().courseId)));
       allow update: if isAdmin();
@@ -130,8 +132,8 @@ service cloud.firestore {
 
     // --- Withdrawals ---
     match /withdrawals/{withdrawalId} {
-      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow create: if isVerified() && isValidWithdrawal(incoming()) &&
+      allow read: if isAdmin() || (isSignedIn() && !isSuspended() && resource.data.userId == request.auth.uid);
+      allow create: if isVerified() && !isSuspended() && isValidWithdrawal(incoming()) &&
                     // Enforce balance check implicitly by requiring Admin approval for actual payout
                     incoming().status == 'pending';
       allow update, delete: if isAdmin();
@@ -139,12 +141,12 @@ service cloud.firestore {
 
     // --- Courses & Content ---
     match /courses/{courseId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && !isSuspended();
       allow write: if isAdmin();
 
       match /content/{contentId} {
         // Master Gate: Check payment or admin status
-        allow read: if isAdmin() || (isSignedIn() && (
+        allow read: if isAdmin() || (isSignedIn() && !isSuspended() && (
           // Option 1: Legacy Course-Specific Payment
           (exists(/databases/$(database)/documents/payments/$(request.auth.uid + "_" + courseId)) &&
            get(/databases/$(database)/documents/payments/$(request.auth.uid + "_" + courseId)).data.status == "success") ||
@@ -158,8 +160,8 @@ service cloud.firestore {
 
     // --- Daily Practice ---
     match /dailyPractice/{practiceId} {
-      allow get, list: if isSignedIn();
-      allow write: if isSignedIn() && (practiceId.startsWith(request.auth.uid) || isAdmin()) && isValidPractice(incoming());
+      allow get, list: if isSignedIn() && !isSuspended();
+      allow write: if isSignedIn() && !isSuspended() && ((practiceId.size() >= request.auth.uid.size() && practiceId[0:request.auth.uid.size()] == request.auth.uid) || isAdmin());
     }
 
     // --- Global Settings ---
@@ -170,11 +172,11 @@ service cloud.firestore {
 
     // --- Notifications ---
     match /notifications/{notifId} {
-      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow update: if isOwner(resource.data.userId) && 
+      allow read: if isAdmin() || (isSignedIn() && !isSuspended() && resource.data.userId == request.auth.uid);
+      allow update: if isOwner(resource.data.userId) && !isSuspended() && 
                     incoming().diff(existing()).affectedKeys().hasOnly(['read', 'updatedAt']);
-      allow create: if isAdmin() || isSignedIn(); // Allow users to notify each other for commissions
-      allow delete: if isAdmin() || isOwner(resource.data.userId);
+      allow create: if isAdmin() || (isSignedIn() && !isSuspended()); // Allow users to notify each other for commissions
+      allow delete: if isAdmin() || (isOwner(resource.data.userId) && !isSuspended());
     }
     
     // --- System Logs ---
@@ -185,7 +187,7 @@ service cloud.firestore {
 
     // --- Quotes ---
     match /quotes/{quoteId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && !isSuspended();
       allow write: if isAdmin();
     }
 
@@ -203,23 +205,23 @@ service cloud.firestore {
 
     // --- Chats ---
     match /chats/{userId} {
-      allow read, write: if isAdmin() || isOwner(userId);
+      allow read, write: if isAdmin() || (isOwner(userId) && !isSuspended());
       match /messages/{messageId} {
-        allow read, write: if isAdmin() || isOwner(userId);
+        allow read, write: if isAdmin() || (isOwner(userId) && !isSuspended());
       }
     }
 
     // --- Affiliates ---
     match /affiliates/{affId} {
-      allow read: if isAdmin() || (isSignedIn() && resource.data.referrerUid == request.auth.uid);
-      allow create: if isSignedIn() && incoming().referredUid == request.auth.uid;
+      allow read: if isAdmin() || (isSignedIn() && !isSuspended() && resource.data.referrerUid == request.auth.uid);
+      allow create: if isSignedIn() && !isSuspended() && incoming().referredUid == request.auth.uid;
       allow update, delete: if isAdmin();
     }
 
     // --- Study Progress ---
     match /studyProgress/{progressId} {
-      allow read: if isAdmin() || (isSignedIn() && (progressId.startsWith(request.auth.uid) || resource.data.userId == request.auth.uid));
-      allow write: if isSignedIn() && (progressId.startsWith(request.auth.uid) || isAdmin()) && isValidStudyProgress(incoming());
+      allow read: if isAdmin() || (isSignedIn() && !isSuspended() && progressId.size() >= request.auth.uid.size() && progressId[0:request.auth.uid.size()] == request.auth.uid);
+      allow write: if isSignedIn() && !isSuspended() && ((progressId.size() >= request.auth.uid.size() && progressId[0:request.auth.uid.size()] == request.auth.uid) || isAdmin());
     }
     // --- Admin Tokens ---
     match /admin_tokens/{tokenId} {

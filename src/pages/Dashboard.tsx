@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { BookOpen, Award, Users, ArrowRight, Quote as QuoteIcon, Wallet, MessageSquare, Zap, Target, CheckCircle, Bell, Globe, Send, Facebook, Twitter, Instagram, MessageCircle, Clock, ShieldAlert } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { cn } from '../lib/utils';
 import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
@@ -15,9 +15,22 @@ import { format, subDays, startOfDay, differenceInDays, startOfMonth, endOfMonth
 import OnboardingTour from '../components/OnboardingTour';
 
 export default function Dashboard() {
-  const { profile, user } = useAuth();
+  const { profile: loggedInProfile, user: loggedInUser, isAdmin } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const queryUserId = searchParams.get('userId');
+
+  const [targetProfile, setTargetProfile] = useState<any>(null);
+  const [isViewingOther] = useState(false);
+
+  useEffect(() => {
+    // Viewing other users' dashboards has been disabled for privacy/security reasons
+  }, []);
+
+  const activeUserUid = loggedInUser?.uid;
+  const activeProfile = loggedInProfile;
+
   const [quote, setQuote] = useState<any>(null);
   const [inactivityStats, setInactivityStats] = useState({
     daysSinceStudy: 0,
@@ -35,16 +48,31 @@ export default function Dashboard() {
   const [dynamicSocialLinks, setDynamicSocialLinks] = useState<any[]>([]);
 
   useEffect(() => {
-    if (!user || !profile) return;
+    if (isViewingOther) return;
+    if (!loggedInUser || !loggedInProfile) return;
 
     // Automated Activation: ensure every user has a referral code and is an affiliate
-    if (user?.uid && profile && (!profile.referralCode || profile.affiliateStatus !== 'active')) {
+    if (loggedInUser?.uid && loggedInProfile && (!loggedInProfile.referralCode || loggedInProfile.affiliateStatus !== 'active')) {
        // Silent background activation
-       axios.post('/api/activate-affiliate', { userId: user.uid }).catch(() => {
-         // Silently fail, it will retry on next mount if needed or profile listener will trigger it
+       axios.post('/api/activate-affiliate', { userId: loggedInUser.uid }).catch(async (error) => {
+         console.warn("Dashboard auto-activation endpoint failed, trying client fallback...", error.message);
+         try {
+           const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+           const referralCode = loggedInProfile?.referralCode || `DS-${randomPart}`;
+           await setDoc(doc(db, 'users', loggedInUser.uid), {
+             affiliateStatus: "active",
+             isAffiliate: true,
+             isPartner: true,
+             referralCode: referralCode,
+             activatedAt: new Date().toISOString(),
+             updatedAt: new Date().toISOString()
+           }, { merge: true });
+         } catch (err: any) {
+           console.error("Dashboard auto-activation client-side fallback failed:", err.message);
+         }
        });
     }
-  }, [user?.uid, profile?.referralCode, profile?.affiliateStatus]);
+  }, [loggedInUser?.uid, loggedInProfile?.referralCode, loggedInProfile?.affiliateStatus, isViewingOther]);
 
   useEffect(() => {
     // Fetch system settings for social links
@@ -78,124 +106,109 @@ export default function Dashboard() {
       handleFirestoreError(error, OperationType.GET, 'quotes');
     });
 
-    if (!user) return;
+    if (!activeUserUid) return;
 
-    // Fetch Last 7 Days of Study Data
-    const fetchWeeklyStats = async () => {
+    // Set up a single real-time listener for all dailyPractice documents of this user
+    const qPractice = query(
+      collection(db, 'dailyPractice'),
+      where('userId', '==', activeUserUid)
+    );
+
+    const unsubStats = onSnapshot(qPractice, (snapshot) => {
+      const practiceDocs = snapshot.docs.map(doc => doc.data());
+
+      // 1. Calculate Daily Stats (refreshed daily)
+      const today = new Date().toISOString().split('T')[0];
+      const todayDoc = practiceDocs.find(d => d.date === today);
+
+      const attempted = todayDoc ? (todayDoc.attempted || 0) : 0;
+      const correct = todayDoc ? (todayDoc.correct || 0) : 0;
+      const studyDuration = todayDoc ? (todayDoc.studyDuration || 0) : 0;
+      const avgScore = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
+
+      setStats({
+        attempted,
+        correct,
+        avgScore,
+        studyDuration
+      });
+
+      // 2. Calculate Weekly Analytics Chart Data
       const dates = Array.from({ length: 7 }, (_, i) => {
         const d = subDays(new Date(), i);
         return format(d, 'yyyy-MM-dd');
       }).reverse();
 
-      const weekStats = await Promise.all(dates.map(async (dateString) => {
-        const practiceId = `${user.uid}_${dateString}`;
-        const snap = await getDoc(doc(db, 'dailyPractice', practiceId));
-        const durationSec = snap.exists() ? snap.data().studyDuration || 0 : 0;
+      const weekStats = dates.map(dateString => {
+        const matchedDoc = practiceDocs.find(d => d.date === dateString);
+        const durationSec = matchedDoc ? matchedDoc.studyDuration || 0 : 0;
         return {
           date: dateString,
           label: format(new Date(dateString), 'EEE'),
           minutes: Math.round(durationSec / 60)
         };
-      }));
-
+      });
       setWeeklyData(weekStats);
-      
-      // Calculate Inactivity and Goals
+
+      // 3. Calculate Inactivity Stats
       let daysSince = 0;
-      if (profile?.lastStudyDate) {
-        daysSince = differenceInDays(startOfDay(new Date()), startOfDay(new Date(profile.lastStudyDate)));
+      const activeDocs = practiceDocs.filter(d => (d.attempted || 0) > 0 || (d.studyDuration || 0) > 0);
+      if (activeDocs.length > 0) {
+        const datesArray = activeDocs.map(d => d.date);
+        datesArray.sort();
+        const latestDateStr = datesArray[datesArray.length - 1];
+        
+        const latestStudyDate = startOfDay(new Date(latestDateStr));
+        const todayDate = startOfDay(new Date());
+        daysSince = differenceInDays(todayDate, latestStudyDate);
+        if (daysSince < 0) daysSince = 0;
+      } else if (activeProfile?.lastStudyDate) {
+        daysSince = differenceInDays(startOfDay(new Date()), startOfDay(new Date(activeProfile.lastStudyDate)));
         if (daysSince < 0) daysSince = 0;
       }
 
-      // Calculate monthly goal days and total precision
+      // 4. Calculate monthly goal days
       const now = new Date();
-      const currentDay = now.getDate();
-      const monthDates = Array.from({ length: currentDay }, (_, i) => {
-        const d = subDays(now, i);
-        return format(d, 'yyyy-MM-dd');
-      });
+      const firstDayOfMonth = startOfMonth(now);
+      const firstDayStr = format(firstDayOfMonth, 'yyyy-MM-dd');
       
       let metGoalDays = 0;
-      let monthAttempted = 0;
-      let monthCorrect = 0;
-
-      await Promise.all(monthDates.map(async (dateString) => {
-        const practiceId = `${user.uid}_${dateString}`;
-        const snap = await getDoc(doc(db, 'dailyPractice', practiceId));
-        if (snap.exists()) {
-           const data = snap.data();
-           if ((data.attempted || 0) >= 50) metGoalDays++;
-           monthAttempted += (data.attempted || 0);
-           monthCorrect += (data.correct || 0);
+      practiceDocs.forEach(d => {
+        if (d.date >= firstDayStr && (d.attempted || 0) >= 50) {
+          metGoalDays++;
         }
-      }));
-
-      const monthlyAccuracy = monthAttempted > 0 ? Math.round((monthCorrect / monthAttempted) * 100) : 0;
+      });
 
       setInactivityStats({
         daysSinceStudy: daysSince,
         monthlyGoalDays: metGoalDays
       });
-      
-      // Update stats with monthly accuracy so it isn't 0 if they haven't studied today
-      setStats(prev => ({ ...prev, avgScore: monthlyAccuracy }));
-    };
 
-    fetchWeeklyStats();
-
-    const today = new Date().toISOString().split('T')[0];
-    const practiceId = `${user.uid}_${today}`;
-    const practiceRef = doc(db, 'dailyPractice', practiceId);
-
-    const unsubStats = onSnapshot(practiceRef, (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        const attempted = data.attempted || 0;
-        const correct = data.correct || 0;
-        
-        setStats(prev => {
-          // We only override avgScore if they actually attempted something today,
-          // otherwise we keep the monthly accuracy we just calculated.
-          const newAvg = attempted > 0 ? Math.round((correct / attempted) * 100) : prev.avgScore;
-          return {
-            ...prev,
-            attempted,
-            correct,
-            avgScore: newAvg,
-            studyDuration: data.studyDuration || 0
-          };
-        });
-
-        // Notification Check (Every 3 hours if < 50 questions)
-        const now = new Date();
-        const lastCheck = data.lastNotificationCheck ? new Date(data.lastNotificationCheck) : null;
-        const hoursSinceLastCheck = lastCheck ? (now.getTime() - lastCheck.getTime()) / (1000 * 60 * 60) : 4; 
+      // 5. Daily Goal Notification Check (Every 3 hours if < 50 questions)
+      if (todayDoc && !isViewingOther) {
+        const attempted = todayDoc.attempted || 0;
+        const lastCheck = todayDoc.lastNotificationCheck ? new Date(todayDoc.lastNotificationCheck) : null;
+        const hoursSinceLastCheck = lastCheck ? (Date.now() - lastCheck.getTime()) / (1000 * 60 * 60) : 4;
 
         if (hoursSinceLastCheck >= 3 && attempted < 50) {
           setShowGoalPrompt(true);
-          // Update last check time
-          setDoc(practiceRef, { 
-            userId: user.uid,
-            date: today,
-            lastNotificationCheck: now.toISOString(),
-            updatedAt: now.toISOString()
-          }, { merge: true });
+          const practiceRef = doc(db, 'dailyPractice', `${activeUserUid}_${today}`);
+          updateDoc(practiceRef, { 
+            lastNotificationCheck: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }).catch(err => console.error("Could not update lastNotificationCheck:", err));
           
-          // Also add an official notification
           addDoc(collection(db, 'notifications'), {
-            userId: user.uid,
+            userId: activeUserUid,
             title: "Daily Practice Goal",
             body: `Scholar, you have only attempted ${attempted} questions today. Your daily goal is 50. Keep pushing!`,
             read: false,
-            createdAt: now.toISOString()
+            createdAt: new Date().toISOString()
           });
         }
-      } else {
-        // If it doesn't exist, just sync stats from profile if available or defaults
-        setStats(prev => ({ ...prev, studyDuration: 0 }));
       }
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, `dailyPractice/${practiceId}`);
+      handleFirestoreError(error, OperationType.GET, 'dailyPractice');
     });
 
     return () => {
@@ -203,7 +216,7 @@ export default function Dashboard() {
       unsubQuote();
       unsubStats();
     };
-  }, [user]);
+  }, [activeUserUid, activeProfile?.lastStudyDate, isViewingOther]);
 
   const getTimeGreeting = () => {
     const hour = new Date().getHours();
@@ -229,6 +242,28 @@ export default function Dashboard() {
     <Layout>
       <OnboardingTour />
       <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        {isViewingOther && (
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg shadow-blue-500/5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400">
+                <ShieldAlert className="w-5 h-5" />
+              </div>
+              <div className="text-left">
+                <h4 className="font-serif font-black text-blue-400 text-sm">Administrative Preview Mode</h4>
+                <p className="text-[11px] text-gray-400 font-medium">
+                  Viewing study telemetry stats & operational metrics for: <span className="text-gold font-bold">{activeProfile?.displayName || 'Scholar'}</span> ({activeProfile?.email || 'N/A'})
+                </p>
+              </div>
+            </div>
+            <button 
+              onClick={() => navigate('/admin-dashboard')}
+              className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded-xl text-xs font-black uppercase tracking-widest transition-all active:scale-95 border border-blue-500/30 font-mono"
+            >
+              Return to Console
+            </button>
+          </div>
+        )}
+
         {showGoalPrompt && (
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
@@ -259,10 +294,10 @@ export default function Dashboard() {
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
           <div className="space-y-1">
             <h2 className="text-4xl font-serif font-black text-text-1 tracking-tight">
-              {getTimeGreeting()} {profile?.displayName?.split(' ')[0] || 'Scholar'} 👋
+              {getTimeGreeting()} {activeProfile?.displayName?.split(' ')[0] || 'Scholar'} 👋
             </h2>
             <div className="inline-flex mt-2 items-center px-3 py-1 rounded-lg bg-gold/10 border border-gold/20 text-[10px] font-black text-gold uppercase tracking-widest">
-              {profile?.department ? t(`dept.${profile.department}`) : 'Scholar'}
+              {activeProfile?.department ? t(`dept.${activeProfile.department}`) : 'Scholar'}
             </div>
           </div>
         </div>
@@ -400,7 +435,7 @@ export default function Dashboard() {
             />
             <ActionButton 
               icon={Award} 
-              label="HALL OF FAME" 
+              label="Hall of Fame" 
               sub="Leaderboards" 
               onClick={() => navigate('/leaderboard')} 
             />
@@ -412,7 +447,7 @@ export default function Dashboard() {
             />
             <ActionButton 
               icon={Globe} 
-              label="SOCIAL MEDIA" 
+              label="Social Media" 
               sub="Connect" 
               onClick={() => setShowSocialMedia(true)} 
             />
@@ -478,8 +513,8 @@ export default function Dashboard() {
             <div className="space-y-2">
               <h4 className="text-2xl font-serif font-black text-navy tracking-tight">{t('dashboard.refer_earn')}</h4>
               <p className="text-navy/70 text-sm font-medium">{t('dashboard.refer_sub')}</p>
-              <div className="inline-block mt-4 px-6 py-2 bg-navy rounded-xl font-black text-gold tracking-[0.4em] text-lg">
-                {profile?.referralCode || `DS-${user?.uid?.substring(0, 6).toUpperCase() || 'REF'}`}
+              <div className="inline-block mt-4 px-6 py-2 bg-navy rounded-xl font-black text-gold tracking-[0.4em] text-lg font-mono">
+                {activeProfile?.referralCode || `DS-${activeUserUid?.substring(0, 6).toUpperCase() || 'REF'}`}
               </div>
             </div>
             <div className="hidden sm:flex w-24 h-24 bg-navy/10 rounded-full items-center justify-center group-hover:rotate-12 transition-transform">
