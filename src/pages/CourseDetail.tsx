@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import Layout from '../components/Layout';
-import { ChevronLeft, Lock, Play, CheckCircle2, ShieldCheck, Share2, Award, Zap, BookOpen } from 'lucide-react';
+import { ChevronLeft, Lock, Play, CheckCircle2, ShieldCheck, Share2, Award, Zap, BookOpen, RotateCcw, XCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { motion } from 'motion/react';
@@ -16,9 +16,15 @@ export default function CourseDetail() {
   const navigate = useNavigate();
   const { user, profile, isAdmin } = useAuth();
   const { t } = useLanguage();
+  const [paying, setPaying] = useState(false);
   const [course, setCourse] = useState<any>(null);
   const [hasPaid, setHasPaid] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const [questions, setQuestions] = useState<any[]>([]);
+  const [progress, setProgress] = useState<any>(null);
+  const [customStartNum, setCustomStartNum] = useState<string>('');
+  const [initiating, setInitiating] = useState(false);
 
   const [facultyPrice, setFacultyPrice] = useState({ ngn: 10000, usd: 7 });
   const userCurrency = profile?.currency || 'NGN';
@@ -57,6 +63,39 @@ export default function CourseDetail() {
         const courseData = d.data();
         setCourse(courseData);
 
+        // Check if user has paid for this course/department
+        let userHasPaidLocal = false;
+        if (user) {
+          if (isAdmin) {
+            userHasPaidLocal = true;
+          } else {
+            // Check if user has paid for THIS specific department using deterministic ID
+            const paymentId = `dept_pay_${user.uid}_${courseData.department}`;
+            const pd = await getDoc(doc(db, 'payments', paymentId));
+            const legacyPaymentId = `${user.uid}_${id}`;
+            const legacyPd = await getDoc(doc(db, 'payments', legacyPaymentId));
+            
+            if ((pd.exists() && pd.data()?.status === 'success') || (legacyPd.exists() && legacyPd.data()?.status === 'success')) {
+               userHasPaidLocal = true;
+            }
+          }
+        }
+
+        setHasPaid(userHasPaidLocal);
+
+        // Fetch course questions content subcollection ONLY if they have paid / authorized to prevent permissions errors
+        if (userHasPaidLocal) {
+          try {
+            const qSnap = await getDocs(query(collection(db, 'courses', id!, 'content'), orderBy('order', 'asc')));
+            const fetchedQuestions = qSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setQuestions(fetchedQuestions);
+          } catch (err) {
+            console.error("Failed to fetch course content queries:", err);
+          }
+        } else {
+          setQuestions([]);
+        }
+
         // Fetch price from faculties collection if it exists, else from constants
         const facultySnap = await getDocs(query(collection(db, 'faculties'), where('name', '==', courseData.department)));
         if (!facultySnap.empty) {
@@ -70,41 +109,176 @@ export default function CourseDetail() {
         }
         
         if (user) {
-          if (isAdmin) {
-            setHasPaid(true);
-          } else {
-            // Check if user has paid for THIS specific department using deterministic ID
-            const paymentId = `dept_pay_${user.uid}_${courseData.department}`;
-            const pd = await getDoc(doc(db, 'payments', paymentId));
-            if (pd.exists() && pd.data()?.status === 'success') {
-               setHasPaid(true);
+          // Fetch studyProgress if exists
+          try {
+            const progressRef = doc(db, 'studyProgress', `${user.uid}_${id}`);
+            const progressSnap = await getDoc(progressRef);
+            if (progressSnap.exists()) {
+              setProgress(progressSnap.data());
             }
+          } catch (progressErr) {
+            console.error("Failed to fetch user progress:", progressErr);
           }
         }
       }
       setLoading(false);
     };
     fetchCourseAndPrice();
-  }, [id, user, isAdmin]);
+  }, [id, user, isAdmin, profile]);
+
+  const handleStartProtocol = async (startIndex: number, clearState: boolean) => {
+    if (!user) return navigate('/login');
+    setInitiating(true);
+    try {
+      const progressRef = doc(db, 'studyProgress', `${user?.uid}_${id}`);
+      if (clearState) {
+        await setDoc(progressRef, {
+          userId: user.uid,
+          courseId: id,
+          currentIndex: 0,
+          completed: false,
+          answers: {},
+          score: { correct: 0, total: 0 },
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      } else {
+        await setDoc(progressRef, {
+          userId: user.uid,
+          courseId: id,
+          currentIndex: startIndex,
+          completed: false,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      }
+      navigate(`/courses/${id}/study`);
+    } catch (err) {
+      console.error("Error launching study protocol:", err);
+      navigate(`/courses/${id}/study`);
+    } finally {
+      setInitiating(false);
+    }
+  };
 
   const onSuccess = async (reference: any) => {
-    if (!user || !course) return;
-    setLoading(true);
+    if (!user || !course || !profile) return;
+    setPaying(true);
     
     try {
-      // Use backend for verification and record creation
+      const paymentId = `dept_pay_${user.uid}_${course.department}`;
+      
+      const existingDoc = await getDoc(doc(db, 'payments', paymentId));
+      if (existingDoc.exists() && existingDoc.data()?.status === 'success') {
+        alert("Department access already acquired.");
+        setHasPaid(true);
+        setPaying(false);
+        return;
+      }
+
+      // Handle Affiliate Sync Calculation
+      let referrerUid = profile.referredByUid;
+      let referrerSnapData: any = null;
+
+      if (!referrerUid && profile.referredBy) {
+        let refCode = String(profile.referredBy).trim().toUpperCase();
+        if (refCode.startsWith('DS-')) { } else if (refCode.startsWith('DS')) { refCode = 'DS-' + refCode.substring(2); } else { refCode = 'DS-' + refCode; }
+        const referrerQuery = query(collection(db, 'users'), where('referralCode', '==', refCode), limit(1));
+        const referrerSnap = await getDocs(referrerQuery);
+        if (!referrerSnap.empty) {
+          referrerUid = referrerSnap.docs[0].id;
+          referrerSnapData = referrerSnap.docs[0].data();
+          try { await setDoc(doc(db, 'users', user.uid), { referredByUid: referrerUid }, { merge: true }); } catch (err) {}
+        }
+      }
+
+      let referrerEmail = "";
+      let referrerName = "";
+      let finalCommissionValue = 0;
+      let referrerCurrency = 'NGN';
+
+      if (referrerUid) {
+        const referrerDoc = referrerSnapData ? null : await getDoc(doc(db, 'users', referrerUid));
+        const referrerData = referrerSnapData || referrerDoc?.data() || {};
+        referrerCurrency = referrerData.currency || 'NGN';
+        const commissionRate = 0.25;
+        let commissionAmount = displayPrice * commissionRate;
+        const NGN_TO_USD = 1500;
+        
+        let normalizedCommission = commissionAmount;
+        if (userCurrency !== referrerCurrency) {
+          if (userCurrency === 'USD' && referrerCurrency === 'NGN') normalizedCommission = commissionAmount * NGN_TO_USD;
+          else if (userCurrency === 'NGN' && referrerCurrency === 'USD') normalizedCommission = commissionAmount / NGN_TO_USD;
+        }
+        if (referrerCurrency === 'NGN') normalizedCommission = Math.floor(normalizedCommission);
+
+        referrerEmail = referrerData.email || "";
+        referrerName = referrerData.displayName || "Affiliate";
+        finalCommissionValue = normalizedCommission;
+      }
+
+      let finalRef = '';
+      if (typeof reference === 'string') finalRef = reference;
+      else if (reference && typeof reference === 'object') finalRef = reference.reference || reference.transaction || reference.trans || reference.trxref;
+
+      // Use backend for verification and email dispatch
       const response = await axios.post('/api/verify-departmental-payment', {
-        reference: reference.reference,
+        reference: finalRef,
         userId: user.uid,
         department: course.department,
         amount: displayPrice,
         currency: userCurrency,
-        courseId: id
+        courseId: id,
+        userData: profile,
+        referrerEmail,
+        referrerName,
+        finalCommissionValue,
+        referrerId: referrerUid
       });
 
       if (response.data.success) {
-        alert('Institutional Access Granted! You can now initiate the study protocol.');
+        // Record payment locally
+        await setDoc(doc(db, 'payments', paymentId), {
+          id: paymentId,
+          userId: user.uid,
+          amount: displayPrice,
+          currency: userCurrency,
+          status: 'success',
+          type: 'department_access',
+          dept_name: course.department,
+          department: course.department,
+          reference: reference.reference || reference,
+          courseId: id,
+          createdAt: new Date().toISOString()
+        });
+
+        // Mark user as paid
+        await setDoc(doc(db, 'users', user.uid), {
+          hasPaidCourse: true,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+
+        // Record affiliate commission
+        if (referrerUid) {
+          const commissionId = `comm_${paymentId}`;
+          await setDoc(doc(db, 'affiliates', commissionId), {
+            id: commissionId,
+            referrerUid: referrerUid,
+            referrerName: referrerName,
+            referredUid: user.uid,
+            referredName: profile.displayName || 'Scholar',
+            paymentAmount: displayPrice,
+            paymentCurrency: userCurrency,
+            commissionAmount: finalCommissionValue,
+            commissionCurrency: referrerCurrency,
+            commissionRate: 0.25,
+            status: 'success',
+            createdAt: new Date().toISOString()
+          });
+        }
+
+        alert('Institutional Access Granted! Launching study protocol...');
         setHasPaid(true);
+        // Auto-launch the course
+        handleStartProtocol(0, false);
       } else {
         alert('Payment verification failed. Please contact support.');
       }
@@ -112,15 +286,16 @@ export default function CourseDetail() {
       console.error('Course payment error:', err);
       alert('Error verifying payment: ' + (err.response?.data?.error || err.message));
     } finally {
-      setLoading(false);
+      setPaying(false);
     }
   };
 
   const onClose = () => {
-    setLoading(false);
+    setPaying(false);
   };
 
   const handlePayment = () => {
+    if (paying) return;
     if (!user) return navigate('/login');
     
     if (!import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || import.meta.env.VITE_PAYSTACK_PUBLIC_KEY === 'pk_test_placeholder') {
@@ -130,7 +305,7 @@ export default function CourseDetail() {
       return;
     }
 
-    setLoading(true);
+    setPaying(true);
     // Tiny delay to ensure we don't hold the UI thread while the hook function is accessed
     setTimeout(() => {
       initializePayment({ onSuccess, onClose });
@@ -155,24 +330,16 @@ export default function CourseDetail() {
 
   return (
     <Layout>
-      <div className="relative h-80 bg-navy-high overflow-hidden rounded-[2.5rem] mb-12 shadow-2xl border border-gold/10">
-        {course.thumbnail ? (
-          <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover opacity-40 grayscale-[0.3]" referrerPolicy="no-referrer" />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center opacity-10">
-             <BookOpen className="w-64 h-64 text-gold-light" />
-          </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/50 to-transparent" />
+      <div className="pt-8 px-6 max-w-4xl mx-auto w-full relative z-20">
         <button 
-          onClick={() => navigate(-1)}
-          className="absolute top-8 left-8 w-12 h-12 bg-navy-mid/80 backdrop-blur-xl border border-gold/20 rounded-2xl flex items-center justify-center text-gold hover:bg-gold hover:text-navy transition-all shadow-xl z-20"
+          onClick={() => navigate('/courses')}
+          className="w-10 h-10 md:w-12 md:h-12 bg-navy-mid/80 backdrop-blur-xl border border-gold/20 rounded-2xl flex items-center justify-center text-gold hover:bg-gold hover:text-navy transition-all shadow-xl"
         >
-          <ChevronLeft className="w-6 h-6" />
+          <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 relative right-[1px]" />
         </button>
       </div>
 
-      <div className="px-2 -mt-24 relative z-10 space-y-12 pb-24 max-w-4xl mx-auto w-full">
+      <div className="px-3 pt-8 relative z-10 space-y-12 pb-24 max-w-4xl mx-auto w-full">
         <motion.div 
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -188,7 +355,7 @@ export default function CourseDetail() {
                   {course.level} {t('course.level')}
                 </span>
               </div>
-              <h2 className="text-5xl font-serif font-black text-text-1 leading-tight tracking-tight drop-shadow-2xl">
+              <h2 className="text-2xl sm:text-3xl font-serif font-black text-text-1 leading-tight tracking-tight drop-shadow-2xl">
                 {course.title}
               </h2>
             </div>
@@ -205,22 +372,81 @@ export default function CourseDetail() {
 
             <div className="pt-4">
               {hasPaid ? (
-                <button 
-                  onClick={() => navigate(`/courses/${id}/study`)}
-                  className="w-full h-20 bg-emerald-500 rounded-2xl text-navy font-black text-xs uppercase tracking-[0.4em] shadow-2xl shadow-emerald-500/20 flex items-center justify-center gap-4 hover:bg-emerald-400 active:scale-[0.98] transition-all group"
-                >
-                  <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 2, repeat: Infinity }}>
-                    <Zap className="w-6 h-6 fill-navy" />
-                  </motion.div>
-                  <span>{t('course.initiate_protocol')}</span>
-                </button>
+                <div className="space-y-6">
+                  {/* Protocol Initiation Dashboard */}
+                  <div className="bg-navy bg-opacity-40 p-6 rounded-2xl border border-gold/10 space-y-4 text-left">
+                    <span className="text-[10px] font-black text-gold uppercase tracking-[0.3em] block mb-2">Protocol Launch Configurations</span>
+                    
+                    <div className="grid grid-cols-1 gap-4">
+                      {/* Option 1: Resume */}
+                      <button 
+                        onClick={() => handleStartProtocol(progress?.currentIndex || 0, false)}
+                        className={`flex items-center gap-4 p-4 rounded-xl border text-left transition-all ${
+                          progress?.completed
+                            ? 'opacity-40 border-gold/5 cursor-not-allowed bg-transparent'
+                            : 'bg-navy-mid border-gold/20 hover:border-gold/40 hover:bg-navy-mid/70'
+                        }`}
+                        disabled={progress?.completed || initiating}
+                      >
+                        <div className="w-10 h-10 rounded-lg bg-gold/10 flex items-center justify-center text-gold flex-shrink-0">
+                          <Play className="w-4 h-4 fill-gold" />
+                        </div>
+                        <div className="truncate flex-1">
+                          <span className="text-[10px] font-black text-text-1 uppercase tracking-widest block">Resume Session</span>
+                          <span className="text-[10px] font-semibold text-text-3 block truncate">
+                            {progress?.completed ? 'Session Concluded' : `Continue from Question ${(progress?.currentIndex || 0) + 1}`}
+                          </span>
+                        </div>
+                      </button>
+                    </div>
+
+                    {/* Option 3: Custom Number */}
+                    <div className="pt-4 border-t border-gold/10 flex flex-col md:flex-row gap-4 items-stretch md:items-end justify-between">
+                      <div className="flex-1 min-w-0">
+                        <label className="text-[9px] font-black text-[#9facb9] uppercase tracking-widest block mb-2">
+                          Custom Start Question Number (1 - {questions.length || 1})
+                        </label>
+                        <input 
+                          type="number"
+                          min="1"
+                          max={questions.length || 1}
+                          value={customStartNum}
+                          onChange={(e) => setCustomStartNum(e.target.value)}
+                          placeholder="e.g. 5"
+                          className="w-full h-11 bg-navy-high border border-gold/10 focus:border-gold/40 rounded-xl px-4 text-xs font-bold font-mono text-gold-light tracking-wide outline-none"
+                        />
+                      </div>
+                      <button
+                        onClick={() => {
+                          const num = parseInt(customStartNum);
+                          if (isNaN(num) || num < 1 || num > (questions.length || 1)) {
+                            alert(`Please enter a valid question number between 1 and ${questions.length || 1}.`);
+                            return;
+                          }
+                          handleStartProtocol(num - 1, false);
+                        }}
+                        disabled={initiating || questions.length === 0}
+                        className="h-11 px-6 bg-gold hover:bg-gold-light disabled:opacity-45 rounded-xl text-navy font-black text-[10px] uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-2"
+                      >
+                        <span>Jump to Qn</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <button 
                   onClick={handlePayment}
-                  className="w-full h-20 bg-gold rounded-3xl text-navy font-black text-xs uppercase tracking-[0.4em] shadow-2xl shadow-gold/40 flex items-center justify-center gap-4 hover:bg-gold-light active:scale-[0.98] transition-all group"
+                  disabled={paying}
+                  className="w-full h-20 bg-gold rounded-3xl text-navy font-black text-xs uppercase tracking-[0.4em] shadow-2xl shadow-gold/40 flex items-center justify-center gap-4 hover:bg-gold-light active:scale-[0.98] transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Lock className="w-5 h-5 opacity-50 group-hover:rotate-12 transition-transform" />
-                  <span>{t('payment.authorize')}: {userCurrency === 'USD' ? '$' : '₦'}{displayPrice.toLocaleString()}</span>
+                  {paying ? (
+                    <div className="w-5 h-5 border-2 border-navy/20 border-t-navy rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <Lock className="w-5 h-5 opacity-50 group-hover:rotate-12 transition-transform" />
+                      <span>{t('payment.authorize')}: {userCurrency === 'USD' ? '$' : '₦'}{displayPrice.toLocaleString()}</span>
+                    </>
+                  )}
                 </button>
               )}
               <p className="text-center mt-6 text-[9px] font-black text-text-3 uppercase tracking-[0.3em] opacity-40">
@@ -230,19 +456,32 @@ export default function CourseDetail() {
           </div>
         </motion.div>
 
-        {/* Learning Objectives */}
-        <div className="space-y-8 px-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-[1px] bg-gold/30" />
-            <h3 className="text-xs font-black text-text-3 uppercase tracking-[0.6em]">{t('course.objectives')}</h3>
+
+
+        {/* Learning Objectives / Course Content */}
+        {course.objectives ? (
+          <div className="space-y-8 px-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-[1px] bg-gold/30" />
+              <h3 className="text-xs font-black text-text-3 uppercase tracking-[0.6em]">{t('course.objectives')}</h3>
+            </div>
+            <div className="grid md:grid-cols-2 gap-6">
+              {course.objectives.split('\n').map((line: string, idx: number) => {
+                const trimmed = line.trim();
+                if (!trimmed) return null;
+                return <ObjectiveItem key={idx} text={trimmed} />;
+              })}
+            </div>
           </div>
-          <div className="grid md:grid-cols-2 gap-6">
-            <ObjectiveItem text={t('course.obj1')} />
-            <ObjectiveItem text={t('course.obj2')} />
-            <ObjectiveItem text={t('course.obj3')} />
-            <ObjectiveItem text={t('course.obj4')} />
+        ) : (
+          <div className="space-y-8 px-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-[1px] bg-gold/30" />
+              <h3 className="text-xs font-black text-text-3 uppercase tracking-[0.6em]">{t('course.objectives')}</h3>
+            </div>
+            <p className="text-xs text-text-3 font-semibold italic opacity-60">Awaiting Course Objectives update from the Academic Board...</p>
           </div>
-        </div>
+        )}
       </div>
     </Layout>
   );
@@ -262,7 +501,7 @@ function Feature({ icon: Icon, label, value }: any) {
   );
 }
 
-function ObjectiveItem({ text }: { text: string }) {
+function ObjectiveItem({ text }: { text: string; key?: React.Key }) {
   return (
     <div className="card-luxury p-6 flex items-start gap-4 bg-navy-mid/40">
       <div className="w-6 h-6 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500 flex-shrink-0 border border-emerald-500/20 mt-1">

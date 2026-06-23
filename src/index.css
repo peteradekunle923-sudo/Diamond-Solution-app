@@ -21,8 +21,9 @@
 }
 
 @layer base {
-  body {
-    @apply font-sans bg-navy text-text-1 antialiased;
+  html, body {
+    @apply font-sans bg-navy text-text-1 antialiased min-h-screen;
+    background-color: var(--color-navy);
   }
 }
 

@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
 import { cn } from '../lib/utils';
 import { useLanguage } from '../context/LanguageContext';
+import axios from 'axios';
 
 export default function Chat() {
   const { user, profile } = useAuth();
@@ -61,6 +62,14 @@ export default function Chat() {
         text,
         createdAt: new Date().toISOString()
       });
+
+      // Notify Admin via WhatsApp
+      await axios.post('/api/whatsapp/notify-admin', {
+        userId: user.uid,
+        userName: profile?.displayName || user.displayName || 'Scholar',
+        text
+      }).catch(err => console.error("WhatsApp notification failed:", err));
+
     } catch (err) {
       console.error("Chat error:", err);
     }

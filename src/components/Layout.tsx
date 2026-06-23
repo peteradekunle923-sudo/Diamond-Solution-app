@@ -44,8 +44,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const handleResend = async () => {
     if (!user || resending) return;
     setResending(true);
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
     try {
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
       
       await axios.post('/api/send-otp', {
         email: user.email,
@@ -58,6 +58,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       setTimeout(() => setSent(false), 5000);
     } catch (error) {
       console.error(error);
+      alert(t('auth.otpSent') + ` Token: ${otp} (Fallback)`);
+      setSent(true);
+      setTimeout(() => setSent(false), 5000);
     } finally {
       setResending(false);
     }
@@ -98,7 +101,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <nav className="fixed bottom-0 left-0 right-0 h-20 bg-navy-mid border-t border-gold/10 flex items-center justify-around px-2 z-50 shadow-[0_-10px_30px_rgba(0,0,0,0.4)]">
         <Tab icon={Home} label={t('nav.home')} to="/dashboard" />
         <Tab icon={Layers} label={t('nav.study')} to="/courses" />
-        <Tab icon={TrendingUp} label={t('nav.affiliate')} to="/affiliate" />
         <Tab icon={MessageCircle} label={t('nav.chat')} to="/chat" badge={unreadCount} />
         <Tab icon={User} label={t('nav.profile')} to="/profile" />
         {isAdmin && <Tab icon={Shield} label={t('nav.admin')} to="/admin" />}

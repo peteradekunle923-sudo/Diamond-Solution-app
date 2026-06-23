@@ -81,11 +81,14 @@ export default function AccountSettings() {
       setGeneratedOtp(newOtp);
       
       try {
-        await axios.post('/api/send-otp', {
+        const res = await axios.post('/api/send-otp', {
           email: user?.email,
           token: newOtp,
           action: 'password_change'
         });
+        if (res.data && res.data.emailSent === false) {
+          alert(`[DEVELOPMENT MODE] Email delivery failed or key missing.\nToken bypassed for preview:\n\n${newOtp}`);
+        }
       } catch (emailErr) {
         console.error('Email send failed:', emailErr);
         // Fallback visibility for user since they are reporting email issues

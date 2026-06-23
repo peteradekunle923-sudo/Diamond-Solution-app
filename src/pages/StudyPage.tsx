@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, query, orderBy, doc, getDoc, getDocs, where, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, getDoc, getDocs, where, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { ChevronLeft, CheckCircle, ArrowRight, ArrowLeft, Trophy, RotateCcw, XCircle, Info, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -13,7 +13,7 @@ import axios from 'axios';
 export default function StudyPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, profile } = useAuth();
   const { t, language } = useLanguage();
   const [course, setCourse] = useState<any>(null);
   const [questions, setQuestions] = useState<any[]>([]);
@@ -109,9 +109,9 @@ export default function StudyPage() {
           setCourse(courseData);
           console.log("Course data found:", courseData);
 
-          // If admin, bypass payment verification
+          // If admin or has global course access, bypass payment verification
           if (isAdmin) {
-            console.log("User is admin, bypassing payment checkout");
+            console.log("User is admin or has global payment access, bypassing payment checkout");
             setPaymentVerified(true);
             setupQuestionsListener();
             return;
@@ -183,7 +183,7 @@ export default function StudyPage() {
     return () => {
       if (unsubQuestions) unsubQuestions();
     };
-  }, [id, user, isAdmin]);
+  }, [id, user, isAdmin, profile]);
 
   useEffect(() => {
     if (selectedAnswer !== null && !isSubmitted && !loading && questions[currentIndex]) {
@@ -542,8 +542,14 @@ export default function StudyPage() {
            </div>
 
            <div className="grid grid-cols-2 gap-4">
-             <button onClick={() => {
-               saveProgress({ completed: false, currentIndex: 0, score: { correct: 0, total: 0 }, isSubmitted: false, selectedAnswer: null });
+            <button onClick={async () => {
+                try {
+                  if (user?.uid && id) {
+                    await deleteDoc(doc(db, 'studyProgress', `${user.uid}_${id}`));
+                  }
+                } catch (err) {
+                  console.error("Error clearing progress:", err);
+                }
                window.location.reload();
              }} className="btn btn-gold py-4">
                <RotateCcw className="w-4 h-4 mr-2" />
@@ -579,11 +585,11 @@ export default function StudyPage() {
       )}
       <header className="sticky top-0 bg-navy-mid border-b border-gold/10 px-6 py-4 flex items-center justify-between z-30 shadow-2xl">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-xl bg-navy-high border border-gold/10 flex items-center justify-center text-text-3 hover:text-gold transition-all">
-            <ChevronLeft className="w-5 h-5" />
+          <button onClick={() => navigate(`/courses/${id}`)} className="w-10 h-10 rounded-xl bg-navy-high border border-gold/10 flex items-center justify-center text-text-3 hover:text-gold transition-all">
+            <ChevronLeft className="w-5 h-5 relative right-[1px]" />
           </button>
           <div>
-            <h1 className="text-sm font-serif font-black truncate max-w-[150px] sm:max-w-none">{course?.title}</h1>
+            <h1 className="text-xs sm:text-sm font-serif font-black text-text-1 leading-tight">{course?.title}</h1>
             <p className="text-[9px] font-black text-gold uppercase tracking-widest mt-0.5">
               {t('study.questionStatus').replace('{n}', (currentIndex + 1).toString()).replace('{m}', questions.length.toString())}
             </p>
@@ -611,7 +617,7 @@ export default function StudyPage() {
         />
       </div>
 
-      <main className="flex-1 p-6 md:p-12 max-w-4xl mx-auto w-full pb-32">
+      <main className="flex-1 p-6 md:p-12 max-w-4xl mx-auto w-full pb-16 md:pb-8">
         <AnimatePresence mode="wait">
           <motion.div 
             key={currentIndex}
@@ -706,7 +712,7 @@ export default function StudyPage() {
         </AnimatePresence>
       </main>
 
-      <footer className="fixed bottom-0 left-0 right-0 p-6 md:p-8 bg-navy-mid/80 backdrop-blur-xl border-t border-gold/10 z-30 flex items-center justify-center">
+      <footer className="sticky md:relative bottom-0 left-0 right-0 p-6 md:p-8 bg-navy-mid/95 border-t border-gold/10 z-30 flex items-center justify-center">
         <div className="max-w-4xl w-full flex items-center justify-between gap-6">
            <div className="flex items-center gap-2">
              <button 

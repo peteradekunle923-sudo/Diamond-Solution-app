@@ -13,12 +13,24 @@ import { useLanguage } from '../context/LanguageContext';
 import { cn } from '../lib/utils';
 
 export default function CourseList() {
-  const { user, profile } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
   const { t } = useLanguage();
   const [courses, setCourses] = useState<any[]>([]);
-  const [search, setSearch] = useState('');
-  const [deptFilter, setDeptFilter] = useState('All');
-  const [levelFilter, setLevelFilter] = useState('All');
+  const [search, setSearch] = useState(() => sessionStorage.getItem('courseList_search') || '');
+  const [deptFilter, setDeptFilter] = useState(() => sessionStorage.getItem('courseList_deptFilter') || 'All');
+  const [levelFilter, setLevelFilter] = useState(() => sessionStorage.getItem('courseList_levelFilter') || 'All');
+
+  useEffect(() => {
+    sessionStorage.setItem('courseList_search', search);
+  }, [search]);
+
+  useEffect(() => {
+    sessionStorage.setItem('courseList_deptFilter', deptFilter);
+  }, [deptFilter]);
+
+  useEffect(() => {
+    sessionStorage.setItem('courseList_levelFilter', levelFilter);
+  }, [levelFilter]);
   const [loading, setLoading] = useState(true);
   const [deptAccess, setDeptAccess] = useState<Record<string, boolean>>({});
   const [paying, setPaying] = useState(false);
@@ -118,111 +130,128 @@ export default function CourseList() {
   const initializePayment = usePaystackPayment(paystackConfig);
 
   const onSuccess = async (reference: any) => {
-    if (!user || !selectedDeptWithPrice) return;
+    if (!user || !selectedDeptWithPrice || !profile) return;
     try {
       const paymentId = `dept_pay_${user.uid}_${selectedDeptWithPrice.name}`;
-      await setDoc(doc(db, 'payments', paymentId), {
-        id: paymentId,
+      
+      const existingDoc = await getDoc(doc(db, 'payments', paymentId));
+      if (existingDoc.exists() && existingDoc.data()?.status === 'success') {
+        alert("Department access already acquired.");
+        setPaying(false);
+        setSelectedDeptWithPrice(null);
+        return;
+      }
+
+      // Handle Affiliate Sync Calculation
+      let referrerUid = profile.referredByUid;
+      let referrerSnapData: any = null;
+
+      if (!referrerUid && profile.referredBy) {
+        let refCode = String(profile.referredBy).trim().toUpperCase();
+        if (refCode.startsWith('DS-')) { } else if (refCode.startsWith('DS')) { refCode = 'DS-' + refCode.substring(2); } else { refCode = 'DS-' + refCode; }
+        const referrerQuery = query(collection(db, 'users'), where('referralCode', '==', refCode), limit(1));
+        const referrerSnap = await getDocs(referrerQuery);
+        if (!referrerSnap.empty) {
+          referrerUid = referrerSnap.docs[0].id;
+          referrerSnapData = referrerSnap.docs[0].data();
+          try { await setDoc(doc(db, 'users', user.uid), { referredByUid: referrerUid }, { merge: true }); } catch (err) {}
+        }
+      }
+
+      let referrerEmail = "";
+      let referrerName = "";
+      let finalCommissionValue = 0;
+      let referrerCurrency = 'NGN';
+
+      if (referrerUid) {
+        const referrerDoc = referrerSnapData ? null : await getDoc(doc(db, 'users', referrerUid));
+        const referrerData = referrerSnapData || referrerDoc?.data() || {};
+        referrerCurrency = referrerData.currency || 'NGN';
+        const commissionRate = 0.25;
+        let commissionAmount = currentPrice * commissionRate;
+        const NGN_TO_USD = 1500;
+        
+        let normalizedCommission = commissionAmount;
+        if (userCurrency !== referrerCurrency) {
+          if (userCurrency === 'USD' && referrerCurrency === 'NGN') normalizedCommission = commissionAmount * NGN_TO_USD;
+          else if (userCurrency === 'NGN' && referrerCurrency === 'USD') normalizedCommission = commissionAmount / NGN_TO_USD;
+        }
+        if (referrerCurrency === 'NGN') normalizedCommission = Math.floor(normalizedCommission);
+
+        referrerEmail = referrerData.email || "";
+        referrerName = referrerData.displayName || "Affiliate";
+        finalCommissionValue = normalizedCommission;
+      }
+
+      let finalRef = '';
+      if (typeof reference === 'string') finalRef = reference;
+      else if (reference && typeof reference === 'object') finalRef = reference.reference || reference.transaction || reference.trans || reference.trxref;
+
+      const { default: axios } = await import('axios');
+      const response = await axios.post('/api/verify-departmental-payment', {
+        reference: finalRef,
         userId: user.uid,
-        email: user.email,
+        department: selectedDeptWithPrice.name,
         amount: currentPrice,
         currency: userCurrency,
-        status: 'success',
-        type: 'department_access',
-        dept_name: selectedDeptWithPrice.name,
-        reference: reference.reference,
-        paidAt: new Date().toISOString(),
-        createdAt: new Date().toISOString()
+        courseId: 'all_dept',
+        userData: profile,
+        referrerEmail,
+        referrerName,
+        finalCommissionValue,
+        referrerId: referrerUid
       });
 
-      // Synchronize backend payment status immediately in the user profile of the system
-      await setDoc(doc(db, 'users', user.uid), {
-        hasPaidCourse: true,
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
+      if (response.data.success) {
+        // Record payment
+        await setDoc(doc(db, 'payments', paymentId), {
+          id: paymentId,
+          userId: user.uid,
+          amount: currentPrice,
+          currency: userCurrency,
+          status: 'success',
+          type: 'department_access',
+          dept_name: selectedDeptWithPrice.name,
+          department: selectedDeptWithPrice.name,
+          reference: reference.reference || reference,
+          courseId: 'all_dept',
+          createdAt: new Date().toISOString()
+        });
 
-        // Credit affiliate if user was referred
-        let referrerUid = profile?.referredByUid;
-        let referrerSnapData = null;
+        // Mark user as paid
+        await setDoc(doc(db, 'users', user.uid), {
+          hasPaidCourse: true,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
 
-        if (!referrerUid && profile?.referredBy) {
-          let refCode = String(profile.referredBy).trim().toUpperCase();
-          if (refCode.startsWith('DS-')) {
-             // Correctly formatted
-          } else if (refCode.startsWith('DS')) {
-             refCode = 'DS-' + refCode.substring(2);
-          } else {
-             refCode = 'DS-' + refCode;
-          }
-
-          const referrerQuery = query(
-            collection(db, 'users'),
-            where('referralCode', '==', refCode),
-            limit(1)
-          );
-          const referrerSnap = await getDocs(referrerQuery);
-          if (!referrerSnap.empty) {
-            referrerUid = referrerSnap.docs[0].id;
-            referrerSnapData = referrerSnap.docs[0].data();
-            // Self-heal: save the correct referredByUid to current student's record
-            try {
-              await setDoc(doc(db, 'users', user.uid), { referredByUid: referrerUid }, { merge: true });
-            } catch (err) {
-              console.warn("Silent referredByUid update failed:", err);
-            }
-          }
-        }
-
+        // Record affiliate commission
         if (referrerUid) {
-          const commissionRate = 0.25;
-          const referrerDoc = referrerSnapData ? null : await getDoc(doc(db, 'users', referrerUid));
-          const referrerData = referrerSnapData || referrerDoc?.data();
-          const referrerCurrency = referrerData?.currency || 'NGN';
-          const NGN_TO_USD = 1500;
-
-          let commissionAmount = currentPrice * commissionRate;
-          
-          // Normalize commission to referrer's currency
-          let normalizedCommission = commissionAmount;
-          if (userCurrency !== referrerCurrency) {
-            if (userCurrency === 'USD' && referrerCurrency === 'NGN') {
-              normalizedCommission = commissionAmount * NGN_TO_USD;
-            } else if (userCurrency === 'NGN' && referrerCurrency === 'USD') {
-              normalizedCommission = commissionAmount / NGN_TO_USD;
-            }
-          }
-          
-          if (referrerCurrency === 'NGN') {
-            normalizedCommission = Math.floor(normalizedCommission);
-          }
-
           const commissionId = `comm_${paymentId}`;
           await setDoc(doc(db, 'affiliates', commissionId), {
             id: commissionId,
             referrerUid: referrerUid,
-            referrerName: referrerData?.displayName || 'Affiliate',
+            referrerName: referrerName,
             referredUid: user.uid,
-            referredName: profile.displayName || 'Subordinate',
+            referredName: profile.displayName || 'Scholar',
             paymentAmount: currentPrice,
             paymentCurrency: userCurrency,
-            commissionAmount: normalizedCommission,
+            commissionAmount: finalCommissionValue,
             commissionCurrency: referrerCurrency,
-            commissionRate: commissionRate,
-            status: 'success', // Set to success on payment completion
+            commissionRate: 0.25,
+            status: 'success',
             createdAt: new Date().toISOString()
           });
-        
-          const currentBalance = referrerData?.balance || 0;
-          try {
-            await setDoc(doc(db, 'users', referrerUid), {
-              balance: currentBalance + normalizedCommission
-            }, { merge: true });
-          } catch (e) {
-            console.warn('Silent balance sync failed');
-          }
+          // Do NOT increment balance on the users collection. The affiliate's balance is purely derived from affiliates table dynamically in AffiliateDashboard.
         }
-    } catch (err) {
+        
+        alert('Institutional Access Granted! You can now access your courses.');
+
+      } else {
+        alert('Payment verification failed.');
+      }
+    } catch (err: any) {
       console.error(err);
+      alert('Error verifying payment: ' + (err.response?.data?.error || err.message));
     }
     setPaying(false);
     setSelectedDeptWithPrice(null);
@@ -263,7 +292,7 @@ export default function CourseList() {
     }
   }, [selectedDeptWithPrice, paying]);
 
-  const hasAccess = deptAccess[deptFilter];
+  const hasAccess = isAdmin || deptAccess[deptFilter];
   const originalLevels = DEPARTMENT_STRUCTURE[deptFilter]?.levels || ['100L', '200L', '300L', '400L', '500L'];
   const levels = hasAccess 
     ? originalLevels.filter(lvl => lvl !== 'All') 
@@ -277,11 +306,29 @@ export default function CourseList() {
     }
   }, [hasAccess, deptFilter, levelFilter, originalLevels]);
 
+  // Set default level (either 200L or MB 1) when entering a department to prevent blank states
+  useEffect(() => {
+    if (deptFilter && deptFilter !== 'All') {
+      const deptLevels = DEPARTMENT_STRUCTURE[deptFilter]?.levels || [];
+      if (deptLevels.length > 0) {
+        if (deptLevels.includes('MB 1')) {
+          setLevelFilter('MB 1');
+        } else if (deptLevels.includes('200L')) {
+          setLevelFilter('200L');
+        } else {
+          setLevelFilter(deptLevels[0]);
+        }
+      } else {
+        setLevelFilter('200L');
+      }
+    }
+  }, [deptFilter]);
+
   const filteredCourses = courses.filter(c => {
     const matchesSearch = c.title.toLowerCase().includes(search.toLowerCase());
     const matchesLevel = levelFilter === 'All' || c.level === levelFilter;
     return matchesSearch && matchesLevel;
-  });
+  }).sort((a, b) => (a.title || '').localeCompare(b.title || ''));
 
   if (deptFilter === 'All') {
     return (
@@ -307,7 +354,7 @@ export default function CourseList() {
                     <h3 className="text-xl font-serif font-black text-text-1 group-hover:text-gold transition-colors">{t(`dept.${f.name}`)}</h3>
                     <div className="flex items-center gap-3">
                       <span className="text-[9px] font-black text-text-3 uppercase tracking-widest leading-none">{t('courses.faculty')}</span>
-                      {deptAccess[f.name] && (
+                      {(isAdmin || deptAccess[f.name]) && (
                         <div className="flex items-center gap-1 text-emerald-500 text-[8px] font-black uppercase tracking-widest bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/10">
                           <CheckCircle className="w-3 h-3" />
                           {t('courses.authorized')}
@@ -368,9 +415,9 @@ export default function CourseList() {
             <motion.div 
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="card-luxury p-12 bg-navy-mid border-gold/30 text-center space-y-8 relative overflow-hidden"
+              className="card-luxury p-12 bg-navy-mid border-gold/30 text-center space-y-8 relative overflow-hidden transform-gpu isolate"
             >
-              <div className="absolute top-0 right-0 w-48 h-48 bg-gold/5 blur-3xl -mr-24 -mt-24 pointer-events-none" />
+              <div className="absolute top-0 right-0 w-64 h-64 opacity-20 -mr-24 -mt-24 pointer-events-none" style={{ background: 'radial-gradient(circle, var(--color-gold) 0%, transparent 70%)' }} />
               <div className="w-24 h-24 bg-gold/10 rounded-[2.5rem] flex items-center justify-center text-gold mx-auto border border-gold/20 shadow-[0_0_60px_rgba(201,147,10,0.1)]">
                 <Lock className="w-10 h-10" />
               </div>
@@ -469,7 +516,7 @@ function CourseListItem({ course }: { course: any, key?: any }) {
   return (
     <Link 
       to={`/courses/${course.id}`} 
-      className="card-luxury group relative overflow-hidden flex flex-col justify-between p-6 min-h-[140px] hover:border-gold/30 transition-all shadow-xl shadow-black/10 bg-gradient-to-br from-navy-mid/60 to-navy-high/80"
+      className="card-luxury group relative overflow-hidden transform-gpu isolate flex flex-col justify-between p-6 min-h-[140px] hover:border-gold/30 transition-all shadow-xl shadow-black/10 bg-gradient-to-br from-navy-mid/60 to-navy-high/80"
     >
       {/* Background with thumbnail acting as a soft, elegant backdrop layer */}
       {course.thumbnail ? (
@@ -477,7 +524,7 @@ function CourseListItem({ course }: { course: any, key?: any }) {
           <img src={course.thumbnail} alt="" className="w-full h-full object-cover grayscale" />
         </div>
       ) : (
-        <div className="absolute top-0 right-0 w-32 h-32 bg-gold/5 blur-2xl -mr-16 -mt-16 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-48 h-48 opacity-20 -mr-16 -mt-16 pointer-events-none" style={{ background: 'radial-gradient(circle, var(--color-gold) 0%, transparent 70%)' }} />
       )}
       
       {/* Single, unified background content area with course title styled on the visual tile */}
@@ -492,7 +539,7 @@ function CourseListItem({ course }: { course: any, key?: any }) {
         </div>
 
         <div>
-          <h4 className="font-serif font-black text-text-1 text-[13px] leading-snug group-hover:text-gold-light transition-colors line-clamp-2">
+          <h4 className="font-serif font-black text-text-1 text-[11px] sm:text-[12px] leading-tight group-hover:text-gold-light transition-colors">
             {course.title}
           </h4>
         </div>

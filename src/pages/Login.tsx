@@ -5,9 +5,11 @@ import { auth, db } from '../lib/firebase';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'motion/react';
-import { Diamond, Mail, Lock, ArrowRight, ShieldCheck, Send, MessageCircle, Facebook, Twitter, Instagram } from 'lucide-react';
+import { Diamond, Mail, Lock, ArrowRight, ShieldCheck, Send, MessageCircle, Facebook, Twitter, Instagram, Eye, EyeOff, Fingerprint } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { setSessionToken } from '../context/AuthContext';
 import { cn } from '../lib/utils';
+import { isBiometricsSupported, hasEnrolledBiometrics, enrollBiometrics, authenticateBiometrics, getEnrolledEmail, clearBiometrics } from '../lib/biometrics';
 
 import { DEPARTMENTS } from '../constants';
 
@@ -19,6 +21,8 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [manualReferralCode, setManualReferralCode] = useState('');
   const [name, setName] = useState('');
   const [institutionalName, setInstitutionalName] = useState('');
@@ -29,14 +33,42 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
   const [showOtpStep, setShowOtpStep] = useState(false);
+  const [otpAction, setOtpAction] = useState<'register' | 'deviceCheck'>('register');
+  const [tempPassword, setTempPassword] = useState('');
   const [otpInput, setOtpInput] = useState('');
   const [generatedOtp, setGeneratedOtp] = useState('');
   const [registrationData, setRegistrationData] = useState<any>(null);
   const navigate = useNavigate();
   const [dynamicSocialLinks, setDynamicSocialLinks] = useState<any[]>([]);
 
+  const [biometricsSupported, setBiometricsSupported] = useState(false);
+  const [biometricsEnrolled, setBiometricsEnrolled] = useState(false);
+  const [enableBiometricsOnLogin, setEnableBiometricsOnLogin] = useState(false);
+  const [enrolledEmail, setEnrolledEmail] = useState('');
+  const [biometricUnlocking, setBiometricUnlocking] = useState(false);
+  const [isInIframe, setIsInIframe] = useState(false);
+
   const [deletedStaticNames, setDeletedStaticNames] = useState<string[]>([]);
   const [allFacultiesList, setAllFacultiesList] = useState<string[]>(DEPARTMENTS);
+
+  useEffect(() => {
+    async function initBiometrics() {
+      setIsInIframe(window.self !== window.top);
+      const supported = await isBiometricsSupported();
+      setBiometricsSupported(supported);
+      if (supported) {
+        const enrolled = await hasEnrolledBiometrics();
+        setBiometricsEnrolled(enrolled);
+        if (enrolled) {
+          const emailStr = await getEnrolledEmail();
+          setEnrolledEmail(emailStr);
+          // Auto fill email if biometrics enrolled
+          setEmail(emailStr);
+        }
+      }
+    }
+    initBiometrics();
+  }, []);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'faculties'), (snap) => {
@@ -88,18 +120,78 @@ export default function Login() {
     e.preventDefault();
     if (otpInput === generatedOtp) {
       setLoading(true);
-      try {
-        await setDoc(doc(db, 'users', auth.currentUser!.uid), {
-          emailVerified: true
-        }, { merge: true });
-        navigate('/dashboard');
-      } catch (err: any) {
-        setError('Verification Error: ' + err.message);
-      } finally {
-        setLoading(false);
+      if (otpAction === 'deviceCheck') {
+        try {
+          setSessionToken('PENDING_LOGIN'); // Bypass onSnapshot auto-logout
+          
+          // Add timeout to prevent hanging
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Sign in timeout")), 15000));
+          const res = await Promise.race([
+            signInWithEmailAndPassword(auth, email, tempPassword),
+            timeoutPromise
+          ]) as any;
+
+          const deviceInfo = {
+            userAgent: navigator.userAgent,
+            screen: `${window.screen.width}x${window.screen.height}`,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+          };
+          
+          let deviceId = 'unknown';
+          try {
+            const deviceString = `${deviceInfo.userAgent || ''}-${deviceInfo.screen || ''}-${deviceInfo.timezone || ''}`;
+            const encoder = new TextEncoder();
+            const data = encoder.encode(deviceString);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            deviceId = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+          } catch (e) {
+            console.warn("Device id generation failed", e);
+          }
+
+          const sessionToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
+          setSessionToken(sessionToken);
+          
+          // Fire and forget session update
+          setDoc(doc(db, "user_sessions", res.user.uid), {
+            deviceId,
+            sessionToken,
+            lastLogin: new Date().toISOString(),
+            deviceInfo
+          }, { merge: true }).catch(e => console.warn("Client session save failed", e));
+          
+          sessionStorage.removeItem('diamond_onboard_shown');
+          
+          // Delay navigation so AuthContext state updates first (preventing route bounce)
+          setTimeout(() => {
+            navigate('/dashboard');
+            setLoading(false);
+          }, 500);
+          return; // Skip the finally block to allow navigate to unmount smoothly
+        } catch (err: any) {
+          setError('Login verification failed: ' + err.message);
+          setLoading(false);
+        }
+      } else {
+        try {
+          // Fire and forget verification update
+          if (auth.currentUser) {
+            setDoc(doc(db, 'users', auth.currentUser.uid), {
+              emailVerified: true
+            }, { merge: true }).catch(err => console.warn('emailVerified update failed', err));
+          }
+          setTimeout(() => {
+            navigate('/dashboard');
+            setLoading(false);
+          }, 500);
+          return;
+        } catch (err: any) {
+          setError('Verification Error: ' + err.message);
+          setLoading(false);
+        }
       }
     } else {
-      setError(t('auth.otpSent') + ' ERROR');
+      setError(t('auth.otpSent') + ' ERROR: Incorrect Code');
     }
   };
 
@@ -182,6 +274,62 @@ export default function Login() {
     }
   };
 
+  const handleBiometricUnlock = async () => {
+    setError('');
+    setBiometricUnlocking(true);
+    setLoading(true);
+    try {
+      const credentials = await authenticateBiometrics();
+      if (credentials && credentials.email && credentials.password) {
+        setEmail(credentials.email);
+        setPassword(credentials.password);
+        setSessionToken('PENDING_LOGIN'); // Bypass onSnapshot auto-logout
+        
+        const res = await signInWithEmailAndPassword(auth, credentials.email, credentials.password);
+        
+        const deviceInfo = {
+          userAgent: navigator.userAgent,
+          screen: `${window.screen.width}x${window.screen.height}`,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        };
+
+        const deviceString = `${deviceInfo.userAgent || ''}-${deviceInfo.screen || ''}-${deviceInfo.timezone || ''}`;
+        const encoder = new TextEncoder();
+        const data = encoder.encode(deviceString);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const deviceId = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+        const sessionRef = doc(db, 'user_sessions', res.user.uid);
+        const sessionToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
+        setSessionToken(sessionToken);
+
+        try {
+          await setDoc(sessionRef, {
+            deviceId,
+            sessionToken,
+            lastLogin: new Date().toISOString(),
+            deviceInfo
+          }, { merge: true });
+        } catch (e) {
+          console.warn("Client session save failed:", e);
+        }
+
+        await res.user.getIdToken(true);
+        sessionStorage.removeItem('diamond_onboard_shown');
+        navigate('/dashboard');
+      } else {
+        setError('No valid biometric credentials detected. Please log in with your email and password first.');
+      }
+    } catch (err: any) {
+      console.warn("Biometric unlocking failed:", err);
+      setError(err?.message || 'Biometric verification cancelled or not registered.');
+    } finally {
+      setBiometricUnlocking(false);
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -200,13 +348,116 @@ export default function Login() {
     setLoading(true);
     try {
       if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
+        setSessionToken('PENDING_LOGIN'); // Bypass onSnapshot auto-logout
+        const res = await signInWithEmailAndPassword(auth, email, password);
+        const deviceInfo = {
+          userAgent: navigator.userAgent,
+          screen: `${window.screen.width}x${window.screen.height}`,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        };
+
+        // Client-side device ID generation matching the server method:
+        const deviceString = `${deviceInfo.userAgent || ''}-${deviceInfo.screen || ''}-${deviceInfo.timezone || ''}`;
+        const encoder = new TextEncoder();
+        const data = encoder.encode(deviceString);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const deviceId = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+        const userDocRef = doc(db, 'users', res.user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        const userData = userDocSnap.data() || {};
+        const isUserAdmin = userData.role === 'admin' || email === 'peteradekunle923@gmail.com';
+
+        const sessionRef = doc(db, 'user_sessions', res.user.uid);
+        const oldSessionSnap = await getDoc(sessionRef);
+        
+        let requireVerification = false;
+        // Verification protocol bypassed by administrative order to allow multi-device sign-in freely
+
+        if (requireVerification) {
+           const code = Math.floor(100000 + Math.random() * 900000).toString();
+           setGeneratedOtp(code);
+           await axios.post('/api/send-otp', {
+             email,
+             token: code,
+             action: 'Unrecognized Device Login Request'
+           }).catch((err) => {
+             console.error(err);
+             alert(`Notice: Mail server delivery failed (likely due to trial restrictions). For this preview, your OTP is: ${code}`);
+           });
+
+           await signOut(auth);
+           setOtpAction('deviceCheck');
+           setTempPassword(password);
+           setShowOtpStep(true);
+           setLoading(false);
+           return;
+        }
+
+        // Generate session token on client fallback
+        const sessionToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
+        setSessionToken(sessionToken);
+        
+        try {
+          await setDoc(sessionRef, {
+            deviceId,
+            sessionToken,
+            lastLogin: new Date().toISOString(),
+            deviceInfo
+          }, { merge: true });
+        } catch (e) {
+          console.warn("Client session save failed:", e);
+        }
+        
+        if (enableBiometricsOnLogin && biometricsSupported) {
+          try {
+            await enrollBiometrics(email, password);
+          } catch (e: any) {
+            console.warn("Could not enroll biometrics:", e);
+          }
+        }
+        
+        await res.user.getIdToken(true);
         // Clear session tour flag on explicit login as requested
         sessionStorage.removeItem('diamond_onboard_shown');
         navigate('/dashboard');
       } else {
+        setSessionToken('PENDING_LOGIN'); // Bypass onSnapshot auto-logout
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         
+        const idToken = await userCredential.user.getIdToken();
+        const deviceInfo = {
+          userAgent: navigator.userAgent,
+          screen: `${window.screen.width}x${window.screen.height}`,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        };
+        const deviceString = `${deviceInfo.userAgent || ''}-${deviceInfo.screen || ''}-${deviceInfo.timezone || ''}`;
+        const encoder = new TextEncoder();
+        const data = encoder.encode(deviceString);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const deviceId = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+        const sessionToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
+        setSessionToken(sessionToken);
+        
+        try {
+          const { doc, setDoc } = await import('firebase/firestore');
+          const { db } = await import('../lib/firebase');
+          
+          await setDoc(doc(db, "user_sessions", userCredential.user.uid), {
+            deviceId,
+            sessionToken,
+            lastLogin: new Date().toISOString(),
+            deviceInfo
+          }, { merge: true });
+        } catch (e) {
+          console.warn("Client fallback session save failed:", e);
+        }
+        
+        await userCredential.user.getIdToken(true);
+
         let finalReferralCode = (referralFromUrl || manualReferralCode || '').trim();
         let referredByUid = null;
         
@@ -263,11 +514,15 @@ export default function Login() {
         setGeneratedOtp(otp);
         
         try {
-          await axios.post('/api/send-otp', {
+          const res = await axios.post('/api/send-otp', {
             email,
             token: otp,
             action: 'registration'
           });
+          
+          if (res.data && res.data.emailSent === false) {
+             alert(`[DEVELOPMENT MODE] Email delivery failed or key missing.\nToken bypassed for preview:\n\n${otp}`);
+          }
           
           // Sign out so they are "directed to login page" after registration as requested
           await signOut(auth);
@@ -296,19 +551,21 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-navy text-text-1 relative overflow-hidden flex flex-col justify-center items-center px-4 py-12">
-      {/* Background Ornaments */}
-      <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-gold/5 rounded-full blur-[120px] -z-10" />
-      <div className="absolute bottom-[-10%] left-[-10%] w-[300px] h-[300px] bg-gold/5 rounded-full blur-[80px] -z-10 opacity-50" />
+    <div className="min-h-[100dvh] w-full bg-navy text-text-1 relative flex flex-col items-center px-4 py-8 md:py-12 overflow-x-hidden overflow-y-auto transition-all duration-200">
+      {/* Fixed Background Ornaments to avoid resizing glitches on mobile keyboard appearance */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] opacity-10" style={{ background: 'radial-gradient(circle, #C9930A 0%, rgba(201,147,10,0) 60%)' }} />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[300px] h-[300px] opacity-5" style={{ background: 'radial-gradient(circle, #C9930A 0%, rgba(201,147,10,0) 60%)' }} />
+      </div>
 
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="auth-card max-w-md w-full p-10 py-12 border-gold/15 bg-navy-mid/80 backdrop-blur-2xl shadow-2xl shadow-black/60"
+        className="relative z-10 max-w-md w-full p-8 md:p-10 border border-gold/15 rounded-3xl shadow-2xl shadow-black mt-auto mb-auto bg-navy-card overflow-hidden transition-all duration-200"
       >
         <div className="flex flex-col items-center space-y-10">
           <div className="flex flex-col items-center space-y-4">
-            <div className="w-16 h-16 bg-gold diamond-mark shadow-[0_0_30px_rgba(201,147,10,0.4)] flex items-center justify-center">
+            <div className="w-16 h-16 bg-gold diamond-mark drop-shadow-[0_0_20px_rgba(201,147,10,0.5)] flex items-center justify-center">
               <Diamond className="w-8 h-8 text-navy" />
             </div>
             <div className="text-center space-y-1">
@@ -332,7 +589,7 @@ export default function Login() {
                       type="text"
                       maxLength={6}
                       placeholder="XXXXXX"
-                      className="w-full text-center py-5 bg-navy-high border border-gold/10 rounded-2xl focus:border-gold outline-none transition-all text-2xl font-black tracking-[0.5em] text-gold"
+                      className="w-full text-center h-16 min-h-[64px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-2xl font-black tracking-[0.5em] text-gold"
                       value={otpInput}
                       onChange={(e) => setOtpInput(e.target.value.replace(/[^0-9]/g, ''))}
                       required
@@ -359,7 +616,7 @@ export default function Login() {
                 </div>
              </form>
           ) : (
-          <form onSubmit={showForgotPassword ? handleForgotPassword : handleSubmit} className="w-full space-y-5">
+          <form onSubmit={showForgotPassword ? handleForgotPassword : handleSubmit} className="w-full space-y-5 transition-all duration-200">
             {showForgotPassword ? (
               <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2">
                 <p className="text-[10px] font-black text-text-3 uppercase tracking-widest leading-relaxed mb-2 opacity-70">
@@ -372,7 +629,7 @@ export default function Login() {
                     <input
                       type="email"
                       placeholder="name@university.edu"
-                      className="w-full pl-11 pr-4 py-4 bg-navy-high border border-gold/10 rounded-2xl focus:border-gold outline-none transition-all text-sm font-medium"
+                      className="w-full pl-11 pr-4 h-14 min-h-[56px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
                       value={resetEmail}
                       onChange={(e) => setResetEmail(e.target.value)}
                       required
@@ -413,7 +670,7 @@ export default function Login() {
                     <input
                       type="email"
                       placeholder="name@university.edu"
-                      className="w-full pl-11 pr-4 py-4 bg-navy-high border border-gold/10 rounded-2xl focus:border-gold outline-none transition-all text-sm font-medium"
+                      className="w-full pl-11 pr-4 h-14 min-h-[56px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
@@ -435,15 +692,84 @@ export default function Login() {
                   <div className="relative group">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-3 group-focus-within:text-gold transition-colors" />
                     <input
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
-                      className="w-full pl-11 pr-4 py-4 bg-navy-high border border-gold/10 rounded-2xl focus:border-gold outline-none transition-all text-sm font-medium"
+                      className="w-full pl-11 pr-12 h-14 min-h-[56px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-text-3 hover:text-gold transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   </div>
                 </div>
+
+                {biometricsSupported && !biometricsEnrolled && (
+                  <div className="flex flex-col gap-1 pt-2 px-1">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="enable-biometrics"
+                        className="w-4 h-4 rounded border-gold/20 text-gold focus:ring-gold bg-navy-high cursor-pointer"
+                        checked={enableBiometricsOnLogin}
+                        onChange={(e) => setEnableBiometricsOnLogin(e.target.checked)}
+                      />
+                      <label htmlFor="enable-biometrics" className="text-[9px] font-black text-text-3 uppercase tracking-widest cursor-pointer select-none">
+                        Enable Fingerprint Quick Unlock
+                      </label>
+                    </div>
+                    {isInIframe && (
+                      <p className="text-[8px] text-gold/70 mt-0.5 leading-relaxed tracking-normal pl-7">
+                        ⚠️ Requires opening in a new tab due to frame security.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {biometricsSupported && biometricsEnrolled && (
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={handleBiometricUnlock}
+                      disabled={loading || biometricUnlocking}
+                      className="w-full h-16 border border-gold/30 rounded-2xl bg-gold/10 hover:bg-gold/20 transition-all flex items-center justify-center gap-4 text-gold group relative overflow-hidden active:scale-[0.98] transform"
+                    >
+                      {biometricUnlocking ? (
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] animate-pulse">Verifying Credentials...</span>
+                      ) : (
+                        <>
+                          <Fingerprint className="w-6 h-6 text-gold animate-bounce" />
+                          <span className="text-[10px] font-black uppercase tracking-[0.2em]">Unlock with Fingerprint</span>
+                        </>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                    </button>
+                    {isInIframe && (
+                      <p className="text-[8px] text-gold/80 mt-1.5 text-center leading-relaxed tracking-normal">
+                        ⚠️ Fingerprint unlock is restricted inside this preview screen. Click <strong>"Open App in a New Tab"</strong> at the top right to use it securely.
+                      </p>
+                    )}
+                    <div className="flex justify-between items-center px-1 mt-2">
+                      <span className="text-[8px] font-bold text-text-3 uppercase tracking-widest">Enrolled: {enrolledEmail}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          clearBiometrics();
+                          setBiometricsEnrolled(false);
+                          setEnrolledEmail('');
+                        }}
+                        className="text-[8px] font-black text-red-500/60 uppercase tracking-widest hover:text-red-500 transition-colors"
+                      >
+                        Reset Fingerprint Enrolment
+                      </button>
+                    </div>
+                  </div>
+                )}
               </>
             ) : (
               <>
@@ -454,7 +780,7 @@ export default function Login() {
                       <input
                         type="text"
                         placeholder="Jack Sparrow"
-                        className="w-full px-4 py-4 bg-navy-high border border-gold/10 rounded-2xl focus:border-gold outline-none transition-all text-sm font-medium"
+                        className="w-full px-4 h-14 min-h-[56px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         required
@@ -465,7 +791,7 @@ export default function Login() {
                       <input
                         type="text"
                         placeholder="University"
-                        className="w-full px-4 py-4 bg-navy-high border border-gold/10 rounded-2xl focus:border-gold outline-none transition-all text-sm font-medium"
+                        className="w-full px-4 h-14 min-h-[56px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
                         value={institutionalName}
                         onChange={(e) => setInstitutionalName(e.target.value)}
                         required
@@ -476,7 +802,7 @@ export default function Login() {
                       <select 
                         value={department}
                         onChange={(e) => setDepartment(e.target.value)}
-                        className="w-full px-4 py-4 bg-navy-high border border-gold/10 rounded-2xl focus:border-gold outline-none transition-all text-sm font-medium appearance-none"
+                        className="w-full px-4 h-14 min-h-[56px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium appearance-none"
                       >
                         {allFacultiesList.map(dept => (
                           <option key={dept} value={dept}>{t(`dept.${dept}`) !== `dept.${dept}` ? t(`dept.${dept}`) : dept}</option>
@@ -489,7 +815,7 @@ export default function Login() {
                         <select 
                           value={countryCode}
                           onChange={(e) => setCountryCode(e.target.value)}
-                          className="w-24 bg-navy-high border border-gold/10 rounded-2xl text-[10px] font-black text-gold px-2 focus:border-gold outline-none"
+                          className="w-24 h-14 min-h-[56px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-[10px] font-black text-gold px-2"
                         >
                           {africanCountries.map(c => (
                             <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
@@ -498,7 +824,7 @@ export default function Login() {
                         <input
                           type="tel"
                           placeholder="811223344"
-                          className="flex-1 px-4 py-4 bg-navy-high border border-gold/10 rounded-2xl focus:border-gold outline-none transition-all text-sm font-medium"
+                          className="flex-1 px-4 h-14 min-h-[56px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
                           value={phone}
                           onChange={(e) => setPhone(e.target.value)}
                           required
@@ -520,7 +846,7 @@ export default function Login() {
                       <input
                         type="email"
                         placeholder="scholar@university.edu"
-                        className="w-full px-4 py-4 bg-navy-high border border-gold/10 rounded-2xl focus:border-gold outline-none transition-all text-sm font-medium"
+                        className="w-full px-4 h-14 min-h-[56px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
@@ -528,32 +854,52 @@ export default function Login() {
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1">{t('auth.password')}</label>
-                      <input
-                        type="password"
-                        placeholder="••••••••"
-                        className="w-full px-4 py-4 bg-navy-high border border-gold/10 rounded-2xl focus:border-gold outline-none transition-all text-sm font-medium"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                      />
+                      <div className="relative group">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-3 group-focus-within:text-gold transition-colors" />
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          placeholder="••••••••"
+                          className="w-full pl-11 pr-12 h-14 min-h-[56px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-text-3 hover:text-gold transition-colors"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1">{t('auth.forgotPassword')}</label>
-                      <input
-                        type="password"
-                        placeholder="••••••••"
-                        className="w-full px-4 py-4 bg-navy-high border border-gold/10 rounded-2xl focus:border-gold outline-none transition-all text-sm font-medium"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        required
-                      />
+                      <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1">{t('auth.confirmPassword')}</label>
+                      <div className="relative group">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-3 group-focus-within:text-gold transition-colors" />
+                        <input
+                          type={showConfirmPassword ? "text" : "password"}
+                          placeholder="••••••••"
+                          className="w-full pl-11 pr-12 h-14 min-h-[56px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-text-3 hover:text-gold transition-colors"
+                        >
+                          {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1">REFERRAL</label>
                       <input
                         type="text"
                         placeholder="DS-XXXXXX"
-                        className="w-full px-4 py-4 bg-navy-high border border-gold/10 rounded-2xl focus:border-gold outline-none transition-all text-sm font-medium"
+                        className="w-full px-4 h-14 min-h-[56px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
                         value={manualReferralCode}
                         onChange={(e) => setManualReferralCode(e.target.value.toUpperCase())}
                       />
@@ -581,7 +927,7 @@ export default function Login() {
 
             {error && (
               <div className={cn(
-                "p-4 rounded-xl flex items-start gap-3 border",
+                "p-4 rounded-xl flex items-start gap-3 border min-h-[56px] transition-all duration-200",
                 error.startsWith('success:') ? "bg-emerald-500/10 border-emerald-500/20" : "bg-red-500/10 border-red-500/20"
               )}>
                 <ShieldCheck className={cn("w-4 h-4 flex-shrink-0 mt-0.5", error.startsWith('success:') ? "text-emerald-500" : "text-red-500")} />

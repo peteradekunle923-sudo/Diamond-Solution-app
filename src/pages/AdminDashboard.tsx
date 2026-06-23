@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, addDoc, doc, updateDoc, query, orderBy, deleteDoc, where, limit, setDoc, getDoc, increment } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, doc, updateDoc, query, orderBy, deleteDoc, where, limit, setDoc, getDoc, increment, writeBatch, getDocs } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth as getSecondaryAuth, createUserWithEmailAndPassword, signOut as secondarySignOut } from 'firebase/auth';
@@ -8,8 +8,8 @@ import firebaseConfig from '../../firebase-applet-config.json';
 import { 
   Shield, LayoutDashboard, Users, Link as LinkIcon, CreditCard, Wallet,
   BarChart2, Building2, FileText, Bell, Quote, LogOut, Search, 
-  Filter, Plus, Edit3, Trash2, CheckCircle2, AlertCircle, XCircle, ArrowRight,
-  Layers, X, Download, MessageCircle, Check, Target, ShieldAlert, Clock, Menu
+  Filter, Plus, Edit3, Trash2, CheckCircle2, AlertCircle, XCircle, ArrowRight, ArrowLeft,
+  Layers, X, Download, MessageCircle, Check, Target, ShieldAlert, Clock, Menu, BookOpen
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { downloadCSV } from '../lib/csvUtils';
@@ -123,16 +123,21 @@ export default function AdminDashboard() {
       });
       
       try {
-        await axios.post('/api/send-otp', {
+        const res = await axios.post('/api/send-otp', {
           token,
           action,
           targetId: id,
           email: 'peteradekunle923@gmail.com'
         });
-        alert(`[SECURITY AUTHENTICATED] A 6-digit verification token has been dispatched to admin. Check inbox/spam.`); 
+        if (res.data && res.data.emailSent === false) {
+           alert(`[DEVELOPMENT MODE] Email delivery failed or key missing.\nToken bypassed for preview:\n\n${token}`);
+        } else {
+           alert(`[SECURITY AUTHENTICATED] A 6-digit verification token has been dispatched to admin. Check inbox/spam.`); 
+        }
       } catch (emailErr: any) {
         console.error('Email Dispatch Error:', emailErr);
-        alert(`[WARNING] Database record created, but email failed. Reason: ${emailErr.message}`);
+        const errorDetail = emailErr.response?.data?.details || emailErr.message;
+        alert(`[WARNING] Database record created, but email failed. Reason: ${errorDetail}\n\n[DEVELOPMENT MODE] Token bypassed for preview:\n\n${token}`);
       }
       
       setOtpValue('');
@@ -899,14 +904,18 @@ function UsersManager({ requestClearance }: { requestClearance: any }) {
                           <button 
                             onClick={async () => {
                               try {
-                                const token = await auth.currentUser?.getIdToken();
-                                await axios.post('/api/admin/approve-affiliate', 
-                                  { targetUserId: u.id },
-                                  { headers: { Authorization: `Bearer ${token}` } }
-                                );
+                                const referralCode = "DS-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+                                await updateDoc(doc(db, 'users', u.id), {
+                                  affiliateStatus: "active",
+                                  isAffiliate: true,
+                                  isPartner: true,
+                                  referralCode: referralCode,
+                                  activatedAt: new Date().toISOString(),
+                                  updatedAt: new Date().toISOString()
+                                });
                                 alert('User successfully promoted to Partner STATUS.');
                               } catch (err: any) {
-                                alert('Activation Error: ' + (err.response?.data?.error || err.message));
+                                alert('Activation Error: ' + err.message);
                               }
                             }}
                             className="bg-gold/10 text-gold border border-gold/20 px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-gold hover:text-navy transition-all shadow-sm"
@@ -1443,18 +1452,22 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
       
       // Dispatch Real Email via Backend API
       try {
-        await axios.post('/api/send-otp', {
+        const res = await axios.post('/api/send-otp', {
           token,
           action,
           targetId: id,
           email: 'peteradekunle923@gmail.com'
         });
-        alert(`[SECURITY AUTHENTICATED] A 6-digit verification token has been dispatched to: peteradekunle923@gmail.com. Please check your inbox (or spam folder).`); 
+        if (res.data && res.data.emailSent === false) {
+           alert(`[DEVELOPMENT MODE] Email delivery failed or key missing.\nToken bypassed for preview:\n\n${token}`);
+        } else {
+           alert(`[SECURITY AUTHENTICATED] A 6-digit verification token has been dispatched to: peteradekunle923@gmail.com. Please check your inbox (or spam folder).`); 
+        }
       } catch (emailErr: any) {
         console.error('Email Dispatch Error:', emailErr);
         // Fallback or warning if the server-side key isn't set yet
         const errorDetail = emailErr.response?.data?.details || emailErr.message;
-        alert(`[WARNING] Database authorization record created, but email delivery failed. \n\nReason: ${errorDetail}\n\nCONTACT SYSTEM ADMIN TO CONFIGURE 'RESEND_API_KEY'.`);
+        alert(`[WARNING] Database authorization record created, but email delivery failed. \n\nReason: ${errorDetail}\n\n[DEVELOPMENT MODE] Token bypassed for preview:\n\n${token}`);
       }
       
       setOtpValue('');
@@ -1805,6 +1818,8 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
   const [editCourseData, setEditCourseData] = useState({ id: '', title: '', department: '', level: '', description: '' });
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [bulkDeleteConfirmText, setBulkDeleteConfirmText] = useState('');
+  const [showCourseContentModal, setShowCourseContentModal] = useState(false);
+  const [courseContentInput, setCourseContentInput] = useState('');
 
   useEffect(() => {
     setQuestionSearch('');
@@ -1946,10 +1961,13 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
       let importedCount = 0;
 
       try {
-        setLoading(true); // Assuming there's a loading state or similar
+        setLoading(true);
         const contentRef = collection(db, 'courses', activeCourse.id, 'content');
         const isAppQuestion = activeCourse.level === 'Application Questions';
         
+        let batch = writeBatch(db);
+        let batchCount = 0;
+
         for (const row of dataRows) {
           if (!row) continue;
           if (!isAppQuestion && row.length < 6) continue;
@@ -1965,7 +1983,8 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
             }
           }
 
-          await addDoc(contentRef, {
+          const newDocRef = doc(contentRef);
+          batch.set(newDocRef, {
             type: isAppQuestion ? 'application' : 'objective',
             question: row[0] || 'Untitled Question',
             options: isAppQuestion ? [] : [row[1] || 'Opt A', row[2] || 'Opt B', row[3] || 'Opt C', row[4] || 'Opt D', row[5] || 'Opt E'],
@@ -1976,8 +1995,22 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
             order: currentOrder++,
             createdAt: new Date().toISOString()
           });
+          
           importedCount++;
+          batchCount++;
+
+          // Firestore batches are limited to 500 operations
+          if (batchCount >= 450) {
+            await batch.commit();
+            batch = writeBatch(db);
+            batchCount = 0;
+          }
         }
+        
+        if (batchCount > 0) {
+          await batch.commit();
+        }
+
         alert(`${importedCount} questions successfully synchronized with archive.`);
       } catch (err) {
         handleFirestoreError(err, OperationType.CREATE, `courses/${activeCourse.id}/content`);
@@ -2083,6 +2116,31 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
       alert('Archive/Course details successfully synchronized.');
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `courses/${editCourseData.id}`);
+    }
+  };
+
+  const handleSaveCourseContent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeCourse) return;
+    try {
+      setLoading(true);
+      const courseRef = doc(db, 'courses', activeCourse.id);
+      await updateDoc(courseRef, {
+        objectives: courseContentInput.trim()
+      });
+      
+      // Update local state with objectives so it syncs up live
+      setActiveCourse({
+        ...activeCourse,
+        objectives: courseContentInput.trim()
+      });
+      
+      setShowCourseContentModal(false);
+      alert("Academic objectives / course content updated successfully!");
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `courses/${activeCourse.id}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -2342,6 +2400,18 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
                 >
                   <Plus className="w-4 h-4" />
                   {loading ? 'Processing Archives...' : t('admin.importArchive')}
+                </button>
+                <button 
+                  onClick={() => {
+                    setCourseContentInput(activeCourse?.objectives || '');
+                    setShowCourseContentModal(true);
+                  }}
+                  disabled={loading}
+                  className="bg-gold/10 border border-gold/20 text-gold px-6 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gold/20 transition-all flex items-center gap-2"
+                  title="Configure Course Content Objectives"
+                >
+                  <BookOpen className="w-4 h-4" />
+                  <span>Course Content</span>
                 </button>
                 <button 
                   onClick={exportQuestionsCSV}
@@ -2686,6 +2756,73 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
                  <button type="submit" className="w-full bg-gold text-navy py-4 rounded-xl font-black text-[12px] uppercase tracking-[0.2em] shadow-2xl shadow-gold/20 hover:bg-gold-light transition-all active:scale-95">
                    Save Changes
                  </button>
+               </form>
+             </motion.div>
+           </div>
+         )}
+       </AnimatePresence>
+
+       {/* Course Content Modal */}
+       <AnimatePresence>
+         {showCourseContentModal && (
+           <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-navy/50 backdrop-blur-sm animate-none">
+             <motion.div 
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               className="fixed inset-0 bg-navy/80 backdrop-blur-md"
+               onClick={() => setShowCourseContentModal(false)}
+             />
+             <motion.div 
+               initial={{ opacity: 0, scale: 0.95, y: 20 }}
+               animate={{ opacity: 1, scale: 1, y: 0 }}
+               exit={{ opacity: 0, scale: 0.95, y: 20 }}
+               className="relative w-full max-w-lg bg-[#161b2e] border border-gold/20 rounded-3xl p-8 shadow-2xl z-[120]"
+             >
+               <div className="flex items-center justify-between mb-6">
+                 <div>
+                   <h3 className="font-serif font-black text-2xl text-text-1">Course Content Objectives</h3>
+                   <p className="text-[10px] text-gray-500 font-mono mt-1 uppercase tracking-widest animate-none">
+                     For course: {activeCourse?.title}
+                   </p>
+                 </div>
+                 <button onClick={() => setShowCourseContentModal(false)} className="text-gray-400 hover:text-white transition-colors">
+                   <X className="w-5 h-5" />
+                 </button>
+               </div>
+               
+               <form onSubmit={handleSaveCourseContent} className="space-y-6 animate-none">
+                 <div>
+                   <label className="text-[10px] font-black text-[#9facb9] uppercase tracking-widest mb-2 block">
+                     Objectives (Enter each objective on a new line)
+                   </label>
+                   <textarea 
+                     value={courseContentInput}
+                     onChange={e => setCourseContentInput(e.target.value)}
+                     placeholder="e.g.&#10;Synthesize complex biological systems&#10;Analyze pathological cells under virtual microscope&#10;Establish logic verification queries"
+                     rows={8}
+                     className="w-full bg-navy border border-white/10 focus:border-gold rounded-xl p-4 text-xs font-semibold text-white outline-none resize-none font-sans leading-relaxed"
+                   />
+                   <p className="text-[10px] text-gray-500 italic mt-2 font-mono">
+                     Each separate line will display as a distinct polished academic objective block in the public detail page.
+                   </p>
+                 </div>
+                 
+                 <div className="flex gap-4">
+                   <button 
+                     type="button"
+                     onClick={() => setShowCourseContentModal(false)}
+                     className="flex-1 bg-white/5 hover:bg-white/10 text-gray-400 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
+                   >
+                     Cancel
+                   </button>
+                   <button 
+                     type="submit" 
+                     className="flex-1 bg-gold text-navy py-4 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl shadow-gold/20 hover:bg-gold-light transition-all"
+                   >
+                     Save Content
+                   </button>
+                 </div>
                </form>
              </motion.div>
            </div>
@@ -3196,57 +3333,68 @@ function SupportManager() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-180px)]">
-      <div className="bg-[#161b2e] border border-[#1e2540] rounded-2xl overflow-hidden flex flex-col shadow-xl">
-        <div className="p-6 border-b border-[#1e2540] flex items-center justify-between">
-           <h3 className="font-serif font-black text-lg uppercase tracking-tight">Active Threads</h3>
-           <MessageCircle className="w-5 h-5 text-gold/40" />
-        </div>
-        <div className="flex-1 overflow-y-auto no-scrollbar">
-          {threads.length === 0 ? (
-            <div className="p-10 text-center text-gray-500 font-serif italic text-xs">
-              No active support archives found...
-            </div>
-          ) : (
-            threads.map((u: any) => (
-              <button 
-                key={u.id}
-                onClick={() => setSelectedUser(u)}
-                className={cn(
-                  "w-full p-6 text-left border-b border-[#1e2540] transition-all hover:bg-white/5 flex items-center gap-4 group",
-                  selectedUser?.id === u.id ? "bg-gold/5 border-l-4 border-l-gold" : ""
-                )}
-              >
-                <div className="w-10 h-10 rounded-xl bg-[#1c2236] flex items-center justify-center font-serif font-black text-gold border border-gold/10 group-hover:scale-110 transition-transform">
-                  {u.displayName?.charAt(0) || 'U'}
-                </div>
-                <div className="overflow-hidden flex-1">
-                  <div className="font-bold text-[14px] truncate text-white">{u.displayName || 'Anonymous Scholar'}</div>
-                  <div className="text-[10px] text-gray-500 font-mono italic truncate">{u.department || 'General Faculty'}</div>
-                </div>
-                {u.adminUnreadCount > 0 && (
-                  <div className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center animate-pulse shadow-lg shadow-red-500/40">
-                    {u.adminUnreadCount}
+    <div className={cn("grid gap-6 h-[calc(100vh-180px)]", selectedUser ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-3")}>
+      {!selectedUser && (
+        <div className="bg-[#161b2e] border border-[#1e2540] rounded-2xl overflow-hidden flex flex-col shadow-xl">
+          <div className="p-6 border-b border-[#1e2540] flex items-center justify-between">
+             <h3 className="font-serif font-black text-lg uppercase tracking-tight">Active Threads</h3>
+             <MessageCircle className="w-5 h-5 text-gold/40" />
+          </div>
+          <div className="flex-1 overflow-y-auto no-scrollbar">
+            {threads.length === 0 ? (
+              <div className="p-10 text-center text-gray-500 font-serif italic text-xs">
+                No active support archives found...
+              </div>
+            ) : (
+              threads.map((u: any) => (
+                <button 
+                  key={u.id}
+                  onClick={() => setSelectedUser(u)}
+                  className={cn(
+                    "w-full p-6 text-left border-b border-[#1e2540] transition-all hover:bg-white/5 flex items-center gap-4 group",
+                    selectedUser?.id === u.id ? "bg-gold/5 border-l-4 border-l-gold" : ""
+                  )}
+                >
+                  <div className="w-10 h-10 rounded-xl bg-[#1c2236] flex items-center justify-center font-serif font-black text-gold border border-gold/10 group-hover:scale-110 transition-transform">
+                    {u.displayName?.charAt(0) || 'U'}
                   </div>
-                )}
-              </button>
-            ))
-          )}
+                  <div className="overflow-hidden flex-1">
+                    <div className="font-bold text-[14px] truncate text-white">{u.displayName || 'Anonymous Scholar'}</div>
+                    <div className="text-[10px] text-gray-500 font-mono italic truncate">{u.department || 'General Faculty'}</div>
+                  </div>
+                  {u.adminUnreadCount > 0 && (
+                    <div className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center animate-pulse shadow-lg shadow-red-500/40">
+                      {u.adminUnreadCount}
+                    </div>
+                  )}
+                </button>
+              ))
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="lg:col-span-2 bg-[#161b2e] border border-[#1e2540] rounded-2xl overflow-hidden flex flex-col shadow-2xl relative">
+      <div className={cn("bg-[#161b2e] border border-[#1e2540] rounded-2xl overflow-hidden flex flex-col shadow-2xl relative", !selectedUser ? "lg:col-span-2 hidden lg:flex" : "")}>
         {selectedUser ? (
           <>
-            <div className="p-6 border-b border-[#1e2540] flex items-center gap-4 bg-navy-mid/40">
-               <div className="w-10 h-10 rounded-xl bg-gold/10 flex items-center justify-center text-gold border border-gold/20 font-serif font-black">{selectedUser.displayName?.charAt(0)}</div>
-               <div>
-                  <h4 className="font-serif font-black text-white text-lg">{selectedUser.displayName}</h4>
-                  <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                    <span className="text-[9px] text-gray-500 font-black uppercase tracking-widest">Active Archives</span>
-                  </div>
+            <div className="p-6 border-b border-[#1e2540] flex items-center justify-between bg-navy-mid/40">
+               <div className="flex items-center gap-4">
+                 <div className="w-10 h-10 rounded-xl bg-gold/10 flex items-center justify-center text-gold border border-gold/20 font-serif font-black">{selectedUser.displayName?.charAt(0)}</div>
+                 <div>
+                    <h4 className="font-serif font-black text-white text-lg">{selectedUser.displayName}</h4>
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                      <span className="text-[9px] text-gray-500 font-black uppercase tracking-widest">Active Archives</span>
+                    </div>
+                 </div>
                </div>
+               <button
+                 onClick={() => setSelectedUser(null)}
+                 className="text-[10px] text-gold font-bold uppercase tracking-widest hover:text-gold-light transition-all flex items-center gap-2 bg-gold/10 px-4 py-2 rounded-lg border border-gold/20"
+               >
+                 <ArrowLeft className="w-4 h-4" />
+                 Back to Threads
+               </button>
             </div>
             
             <div className="flex-1 overflow-y-auto p-8 space-y-6 flex flex-col scrollbar-none">

@@ -9,9 +9,9 @@ export default function Splash() {
   const { t, language, setLanguage } = useLanguage();
 
   return (
-    <div className="min-h-screen bg-navy text-text-1 relative overflow-hidden flex flex-col justify-center items-center px-6 py-20">
+    <div className="min-h-screen bg-navy text-text-1 relative flex flex-col justify-center items-center px-4 py-12 md:py-20">
       {/* Language Toggle */}
-      <div className="absolute top-8 right-8 z-50 flex items-center gap-2 bg-navy-mid/60 backdrop-blur-xl border border-gold/10 p-1.5 rounded-full">
+      <div className="absolute top-6 right-6 md:top-8 md:right-8 z-50 flex items-center gap-2 bg-navy-card border border-gold/10 p-1.5 rounded-full shadow-lg">
         <Globe className="w-4 h-4 text-gold ml-2" />
         <button 
           onClick={() => setLanguage('en')}
@@ -27,15 +27,17 @@ export default function Splash() {
         </button>
       </div>
 
-      {/* Background Ornaments */}
-      <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-gold/5 rounded-full blur-[120px] -z-10" />
-      <div className="absolute bottom-[-10%] left-[-10%] w-[300px] h-[300px] bg-gold/5 rounded-full blur-[80px] -z-10 opacity-50" />
+      {/* FIXED Background Ornaments to avoid resizing glitches on mobile */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] opacity-10" style={{ background: 'radial-gradient(circle, var(--color-gold) 0%, transparent 60%)' }} />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[300px] h-[300px] opacity-5" style={{ background: 'radial-gradient(circle, var(--color-gold) 0%, transparent 60%)' }} />
+      </div>
 
-      <div className="auth-card max-w-2xl w-full p-10 md:p-16 border-gold/15 bg-navy-mid/60 backdrop-blur-2xl animate-in fade-in zoom-in duration-700">
+      <div className="relative z-10 max-w-2xl w-full p-8 md:p-16 border border-gold/15 rounded-3xl bg-navy-card shadow-2xl animate-in fade-in zoom-in duration-700 my-auto">
         <div className="flex flex-col items-center text-center space-y-10">
           {/* Logo Section */}
           <div className="flex flex-col items-center space-y-6">
-            <div className="w-20 h-20 bg-gold diamond-mark shadow-[0_0_40px_rgba(201,147,10,0.5)] flex items-center justify-center transition-transform hover:rotate-12 duration-500">
+            <div className="w-20 h-20 bg-gold diamond-mark drop-shadow-[0_0_25px_rgba(201,147,10,0.6)] flex items-center justify-center transition-transform hover:rotate-12 duration-500">
               <Diamond className="w-10 h-10 text-navy" />
             </div>
             <div className="space-y-2">

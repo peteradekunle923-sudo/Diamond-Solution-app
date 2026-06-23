@@ -32,6 +32,14 @@ service cloud.firestore {
       );
     }
 
+    // Check if user has institutional access (paid for courses)
+    function hasPaidCourse() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        'hasPaidCourse' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hasPaidCourse == true;
+    }
+
     // 3. VALIDATION BLUEPRINTS
     
     function isValidUser(data) {
@@ -55,6 +63,7 @@ service cloud.firestore {
              (!('referredByUid' in data) || (data.referredByUid is string || data.referredByUid == null)) &&
              (!('hasSeenTour' in data) || data.hasSeenTour is bool) &&
              (!('hasSeenProfessionalTour' in data) || data.hasSeenProfessionalTour is bool) &&
+             (!('hasPaidCourse' in data) || data.hasPaidCourse is bool) &&
              (!('lastStudyDate' in data) || (data.lastStudyDate is string || data.lastStudyDate == request.time)) &&
              (!('createdAt' in data) || (data.createdAt is string || data.createdAt == request.time)) &&
              (!('updatedAt' in data) || (data.updatedAt is string || data.updatedAt == request.time)) &&
@@ -96,8 +105,9 @@ service cloud.firestore {
       allow list: if isAdmin() || (isSignedIn() && !isSuspended() && (
         // Allow users to see their referrals
         resource.data.referredByUid == request.auth.uid ||
-        // Allow public leaderboard (reading other student profiles basically)
-        (resource.data.role == 'student')
+        // Allow public leaderboard & referral lookup (reading other profiles)
+        (resource.data.role in ['student', 'admin', 'moderator']) || 
+        true
       ));
       
       allow create: if isOwner(userId) && isValidUser(incoming()) && 
@@ -121,12 +131,12 @@ service cloud.firestore {
 
     // --- Payments ---
     match /payments/{paymentId} {
-      allow read: if isAdmin() || (isSignedIn() && !isSuspended() && resource.data.userId == request.auth.uid);
+      allow read: if isAdmin() || (isSignedIn() && !isSuspended() && (resource == null || resource.data.userId == request.auth.uid));
       allow create: if isVerified() && 
                     (!isSuspended() || (incoming().purpose == 'reactivation' && (incoming().amount == 1000 || incoming().amount == 2))) && 
                     isValidPayment(incoming()) && 
                     (incoming().status == 'pending' || incoming().status == 'success') &&
-                    (!('courseId' in incoming()) || exists(/databases/$(database)/documents/courses/$(incoming().courseId)));
+                    (!('courseId' in incoming()) || incoming().courseId == 'all_dept' || exists(/databases/$(database)/documents/courses/$(incoming().courseId)));
       allow update: if isAdmin();
     }
 
@@ -223,6 +233,11 @@ service cloud.firestore {
       allow read: if isAdmin() || (isSignedIn() && !isSuspended() && progressId.size() >= request.auth.uid.size() && progressId[0:request.auth.uid.size()] == request.auth.uid);
       allow write: if isSignedIn() && !isSuspended() && ((progressId.size() >= request.auth.uid.size() && progressId[0:request.auth.uid.size()] == request.auth.uid) || isAdmin());
     }
+    // --- User Sessions ---
+    match /user_sessions/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
     // --- Admin Tokens ---
     match /admin_tokens/{tokenId} {
       allow read, write: if isAdmin();
