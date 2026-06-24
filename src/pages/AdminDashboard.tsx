@@ -36,7 +36,8 @@ export default function AdminDashboard() {
     pendingCommissions: 0,
     pendingWithdrawals: 0,
     pendingSupports: 0,
-    suspendedCount: 0
+    suspendedCount: 0,
+    totalPaidOut: '₦0'
   });
 
   useEffect(() => {
@@ -74,8 +75,32 @@ export default function AdminDashboard() {
       setStats(prev => ({ ...prev, totalRevenue: totalNGN, displayRevenue: displayTotal }));
     }, (err) => handleFirestoreError(err, OperationType.LIST, 'payments'));
 
-    const unsubWithdrawals = onSnapshot(query(collection(db, 'withdrawals'), where('status', '==', 'pending')), (snap) => {
-      setStats(prev => ({ ...prev, pendingWithdrawals: snap.size }));
+    const unsubWithdrawals = onSnapshot(collection(db, 'withdrawals'), (snap) => {
+      let pendingCount = 0;
+      let totalNGN = 0;
+      let totalUSD = 0;
+      snap.docs.forEach(d => {
+        const data = d.data();
+        if (data.status === 'pending') {
+          pendingCount++;
+        } else if (data.status === 'success') {
+          const amt = data.amount || 0;
+          if (data.currency === 'USD') {
+            totalUSD += amt;
+          } else {
+            totalNGN += amt;
+          }
+        }
+      });
+      const displayTotalPaidOut = totalUSD > 0
+        ? `₦${totalNGN.toLocaleString()} + $${totalUSD.toLocaleString()}`
+        : `₦${totalNGN.toLocaleString()}`;
+
+      setStats(prev => ({ 
+        ...prev, 
+        pendingWithdrawals: pendingCount,
+        totalPaidOut: displayTotalPaidOut
+      }));
     }, (err) => handleFirestoreError(err, OperationType.LIST, 'withdrawals'));
 
     const unsubChats = onSnapshot(collection(db, 'chats'), (snap) => {
@@ -504,8 +529,12 @@ function DashboardOverview({ stats, onViewLedger }: { stats: any; onViewLedger?:
       // 1. Recent Payments (Latest 5)
       const all = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
       const sorted = [...all]
-        .filter(p => p.paidAt)
-        .sort((a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime());
+        .filter(p => p.paidAt || p.createdAt)
+        .sort((a, b) => {
+          const dateA = new Date(a.paidAt || a.createdAt).getTime();
+          const dateB = new Date(b.paidAt || b.createdAt).getTime();
+          return dateB - dateA;
+        });
       setRecentPayments(sorted.slice(0, 5));
 
       // 2. Revenue Breakdown
@@ -545,10 +574,11 @@ function DashboardOverview({ stats, onViewLedger }: { stats: any; onViewLedger?:
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
         <StatCard label={t('admin.totalStudents')} value={stats.totalStudents.toLocaleString()} sub={`${stats.suspendedCount || 0} suspended`} colorClass="text-gold" />
         <StatCard label="Protocol Violation" value={(stats.suspendedCount || 0).toString()} sub="Total Suspended" colorClass="text-red-500" />
         <StatCard label={t('admin.totalRevenue')} value={stats.displayRevenue} sub="All time success" colorClass="text-[#3ddba5]" />
+        <StatCard label={t('admin.totalPaidOut')} value={stats.totalPaidOut} sub="Successful withdrawals" colorClass="text-purple-400" />
         <StatCard label={t('admin.pendingAffiliates')} value={stats.pendingCommissions.toString()} sub="Waiting for approval" colorClass="text-[#ff9a3c]" />
         <StatCard label={t('admin.pendingPayouts')} value={stats.pendingWithdrawals.toString()} sub="Withdrawal requests" colorClass="text-[#ff5a5a]" />
         <StatCard label="Support Queries" value={stats.pendingSupports.toString()} sub="People lodged complaints" colorClass="text-blue-400" />
@@ -904,7 +934,7 @@ function UsersManager({ requestClearance }: { requestClearance: any }) {
                           <button 
                             onClick={async () => {
                               try {
-                                const referralCode = "DS-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+                                const referralCode = "DS" + Math.random().toString(36).substring(2, 8).toUpperCase();
                                 await updateDoc(doc(db, 'users', u.id), {
                                   affiliateStatus: "active",
                                   isAffiliate: true,
@@ -1239,12 +1269,35 @@ function AffiliateManager({ requestClearance }: { requestClearance: any }) {
 function PaymentsManager() {
   const { t } = useLanguage();
   const [payments, setPayments] = useState<any[]>([]);
+  const [search, setSearch] = useState('');
+  const [gateway, setGateway] = useState('');
 
   useEffect(() => {
-    return onSnapshot(query(collection(db, 'payments'), orderBy('paidAt', 'desc'), limit(50)), (snap) => {
-      setPayments(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    return onSnapshot(collection(db, 'payments'), (snap) => {
+      const all = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const sorted = all.sort((a: any, b: any) => {
+        const dateA = new Date(a.paidAt || a.createdAt || 0).getTime();
+        const dateB = new Date(b.paidAt || b.createdAt || 0).getTime();
+        return dateB - dateA;
+      });
+      setPayments(sorted);
     }, (err) => handleFirestoreError(err, OperationType.LIST, 'payments'));
   }, []);
+
+  const filteredPayments = payments.filter((p) => {
+    const searchLower = search.toLowerCase();
+    const matchesSearch = !search ||
+      (p.reference || '').toLowerCase().includes(searchLower) ||
+      (p.studentName || '').toLowerCase().includes(searchLower) ||
+      (p.email || '').toLowerCase().includes(searchLower) ||
+      (p.dept_name || p.department || '').toLowerCase().includes(searchLower);
+
+    const matchesGateway = !gateway || gateway === 'Filter by Gateway' ||
+      (gateway === 'Paystack Secure' && ((p.reference || '').startsWith('pay_') || (p.reference || '').startsWith('sim_') || (p.reference || '').startsWith('dept_pay_'))) ||
+      (gateway === 'Flutterwave Flow' && (p.reference || '').startsWith('flw_'));
+
+    return matchesSearch && matchesGateway;
+  });
 
   return (
     <div className="space-y-6">
@@ -1254,16 +1307,22 @@ function PaymentsManager() {
           <input 
             type="text" 
             placeholder={t('admin.searchTransaction')} 
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
             className="w-full bg-[#161b2e] border border-[#1e2540] rounded-xl pl-10 pr-4 py-3 text-[13px] focus:border-gold outline-none shadow-lg"
           />
         </div>
-        <select className="bg-[#161b2e] border border-[#1e2540] rounded-xl px-5 py-3 text-[13px] text-gray-400 outline-none">
-          <option>Filter by Gateway</option>
-          <option>Paystack Secure</option>
-          <option>Flutterwave Flow</option>
+        <select 
+          value={gateway}
+          onChange={(e) => setGateway(e.target.value)}
+          className="bg-[#161b2e] border border-[#1e2540] rounded-xl px-5 py-3 text-[13px] text-gray-400 outline-none"
+        >
+          <option value="">Filter by Gateway</option>
+          <option value="Paystack Secure">Paystack Secure</option>
+          <option value="Flutterwave Flow">Flutterwave Flow</option>
         </select>
         <button 
-          onClick={() => downloadCSV(payments, 'financial_ledger')}
+          onClick={() => downloadCSV(filteredPayments, 'financial_ledger')}
           className="bg-white/5 border border-white/10 text-gray-400 px-6 py-3 rounded-xl text-[13px] font-black uppercase tracking-widest hover:border-gold/30 hover:text-gold transition-all flex items-center gap-2 ml-auto"
         >
           <Download className="w-4 h-4" />
@@ -1284,15 +1343,15 @@ function PaymentsManager() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1e2540]">
-              {payments.length === 0 ? (
+              {filteredPayments.length === 0 ? (
                 <tr><td colSpan={5} className="px-6 py-32 text-center text-gray-600 italic">No financial movements detected in secure ledger</td></tr>
               ) : (
-                payments.map((p) => (
+                filteredPayments.map((p) => (
                   <tr key={p.id} className="hover:bg-white/[0.01] group transition-all">
-                    <td className="px-6 py-6 text-[12px] font-mono text-gray-500 group-hover:text-gold transition-colors">{p.reference}</td>
+                    <td className="px-6 py-6 text-[12px] font-mono text-gray-500 group-hover:text-gold transition-colors">{p.reference || p.id}</td>
                     <td className="px-6 py-6 text-[14.5px] font-bold">
-                      {p.studentName}
-                      <div className="text-[10px] font-mono text-gray-500 mt-0.5">{p.email}</div>
+                      {p.studentName || p.studentEmail || p.email || t('profile.defaultName')}
+                      <div className="text-[10px] font-mono text-gray-500 mt-0.5">{p.email || 'no-email'}</div>
                     </td>
                     <td className="px-6 py-6 text-[14.5px] font-black text-[#3ddba5] font-mono text-nowrap">
                       {p.currency === 'USD' ? '$' : '₦'}{p.amount?.toLocaleString()}
@@ -1306,7 +1365,7 @@ function PaymentsManager() {
                       </span>
                     </td>
                     <td className="px-6 py-6 text-[12.5px] text-gray-500 font-mono text-nowrap">
-                      {p.paidAt ? format(new Date(p.paidAt), 'yyyy.MM.dd | HH:mm') : '—'}
+                      {p.paidAt || p.createdAt ? format(new Date(p.paidAt || p.createdAt), 'yyyy.MM.dd | HH:mm') : '—'}
                     </td>
                   </tr>
                 ))
@@ -1330,8 +1389,8 @@ function AnalyticsDashboard({ stats }: { stats: any }) {
       const monthly = new Array(12).fill(0);
       snap.docs.forEach(doc => {
         const data = doc.data();
-        if (data.status === 'success' && data.paidAt) {
-          const date = new Date(data.paidAt);
+        if (data.status === 'success' && (data.paidAt || data.createdAt)) {
+          const date = new Date(data.paidAt || data.createdAt);
           if (date.getFullYear() === new Date().getFullYear()) {
             const amount = data.currency === 'USD' ? (data.amount || 0) * 1500 : (data.amount || 0);
             monthly[date.getMonth()] += amount;
@@ -3485,7 +3544,9 @@ function WithdrawalsManager({ requestClearance }: { requestClearance: any }) {
             bankCode: withdrawal.bankDetails?.bankCode,
             accountName: withdrawal.bankDetails?.accountName,
             reference: `WD_${withdrawal.id}_${Date.now()}`,
-            userId: withdrawal.userId
+            userId: withdrawal.userId,
+            hasPaidCourse: true,
+            currency: withdrawal.currency || 'NGN'
           })
         });
 

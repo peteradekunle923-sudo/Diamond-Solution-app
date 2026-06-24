@@ -1,12 +1,31 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Diamond, ArrowRight, Globe } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
 export default function Splash() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { t, language, setLanguage } = useLanguage();
+
+  const refCode = searchParams.get('ref');
+
+  React.useEffect(() => {
+    if (refCode) {
+      sessionStorage.setItem('referralCode', refCode);
+    }
+  }, [refCode]);
+
+  const handleNavigateToLogin = (isSignUp: boolean = false) => {
+    const code = refCode || sessionStorage.getItem('referralCode');
+    const mode = isSignUp ? 'signup' : 'login';
+    if (code) {
+      navigate(`/login?ref=${code}&mode=${mode}`);
+    } else {
+      navigate(`/login?mode=${mode}`);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-navy text-text-1 relative flex flex-col justify-center items-center px-4 py-12 md:py-20">
@@ -56,21 +75,21 @@ export default function Splash() {
           {/* Stats Bar */}
           <div className="grid grid-cols-3 w-full bg-navy border border-gold/10 rounded-2xl overflow-hidden divide-x divide-gold/10">
             <StatSmall num="5+" label={t('splash.departments')} />
-            <StatSmall num="1,000+" label={t('splash.questions')} />
+            <StatSmall num="15,000+" label={t('splash.questions')} />
             <StatSmall num="25%" label={t('splash.commission')} />
           </div>
 
           {/* Actions */}
           <div className="w-full space-y-4 pt-4">
             <button 
-              onClick={() => navigate('/login')}
+              onClick={() => handleNavigateToLogin(true)}
               className="w-full bg-gold text-navy py-5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] shadow-2xl shadow-gold/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3"
             >
               💎 {t('splash.initiate')}
               <ArrowRight className="w-4 h-4" />
             </button>
             <button 
-              onClick={() => navigate('/login')}
+              onClick={() => handleNavigateToLogin(false)}
               className="w-full bg-navy-high border border-gold/20 text-gold py-5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] hover:bg-gold/5 transition-all"
             >
               {t('splash.signin')}

@@ -20,10 +20,31 @@
   --color-text-3: #45647E;
 }
 
+:root {
+  color-scheme: dark;
+}
+
 @layer base {
   html, body {
     @apply font-sans bg-navy text-text-1 antialiased min-h-screen;
     background-color: var(--color-navy);
+    color-scheme: dark;
+  }
+  
+  /* Prevent browser autocomplete/autofill from rendering white background or dark text on dark theme inputs */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover, 
+  input:-webkit-autofill:focus, 
+  input:-webkit-autofill:active,
+  input:autofill,
+  input:autofill:hover,
+  input:autofill:focus,
+  input:autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px #162B46 inset !important; /* matches --color-navy-high */
+    box-shadow: 0 0 0 1000px #162B46 inset !important;
+    -webkit-text-fill-color: #EDE8E1 !important; /* matches --color-text-1 */
+    caret-color: #C9930A !important; /* matches --color-gold */
+    transition: background-color 5000s ease-in-out 0s;
   }
 }
 
@@ -49,5 +70,13 @@
   .scrollbar-none {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+}
+
+@media (max-width: 430px) {
+  input, textarea, select {
+    -webkit-appearance: none;
+    border-radius: 8px;
+    transform: translateZ(0);
   }
 }

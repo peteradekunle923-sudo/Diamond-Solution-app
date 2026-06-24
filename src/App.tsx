@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
+import { Diamond } from 'lucide-react';
 import Login from './pages/Login';
 
 // Pages - to be created
@@ -19,16 +20,34 @@ const AccountSettings = React.lazy(() => import('./pages/AccountSettings'));
 const Reactivation = React.lazy(() => import('./pages/Reactivation'));
 const Leaderboard = React.lazy(() => import('./pages/Leaderboard'));
 
+const PageLoader = () => (
+  <div className="fixed inset-0 bg-[#07101F] flex flex-col items-center justify-center z-50 px-4">
+    <div className="flex flex-col items-center space-y-6">
+      <div className="w-16 h-16 bg-[#C9930A] diamond-mark drop-shadow-[0_0_20px_rgba(201,147,10,0.5)] flex items-center justify-center animate-pulse">
+        <Diamond className="w-8 h-8 text-[#07101F]" />
+      </div>
+      <div className="text-center space-y-2">
+        <h3 className="text-lg font-serif font-black tracking-[0.25em] text-[#EDE8E1] uppercase animate-pulse">
+          DIAMOND SOLUTION
+        </h3>
+        <p className="text-[#45647E] text-[10px] font-black uppercase tracking-[0.4em] animate-pulse">
+          Securing Access...
+        </p>
+      </div>
+    </div>
+  </div>
+);
+
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isAdmin, loading } = useAuth();
-  if (loading) return null;
+  if (loading) return <PageLoader />;
   return user && isAdmin ? <>{children}</> : <Navigate to="/dashboard" replace />;
 };
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, profile, loading } = useAuth();
   const location = useLocation();
-  if (loading) return null;
+  if (loading) return <PageLoader />;
   
   if (user && profile?.status === 'suspended' && location.pathname !== '/reactivate') {
     return <Navigate to="/reactivate" replace />;
@@ -42,7 +61,7 @@ export default function App() {
     <LanguageProvider>
       <AuthProvider>
         <Router>
-          <React.Suspense fallback={<div className="flex h-screen items-center justify-center">Loading...</div>}>
+          <React.Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<Splash />} />
               <Route path="/login" element={<Login />} />

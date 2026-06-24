@@ -13,17 +13,64 @@ import { isBiometricsSupported, hasEnrolledBiometrics, enrollBiometrics, authent
 
 import { DEPARTMENTS } from '../constants';
 
+const Platform = {
+  OS: typeof window !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) ? 'ios' : 'android'
+};
+
+const SafeAreaView = ({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) => {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, width: '100%', minHeight: '100vh', ...style }}>
+      {children}
+    </div>
+  );
+};
+
+const KeyboardAvoidingView = ({ children, style, behavior }: { children: React.ReactNode; style?: React.CSSProperties; behavior?: string }) => {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, width: '100%', ...style }} data-behavior={behavior}>
+      {children}
+    </div>
+  );
+};
+
+const ScrollView = ({ children, contentContainerStyle, keyboardShouldPersistTaps, showsVerticalScrollIndicator }: { children: React.ReactNode; contentContainerStyle?: React.CSSProperties; keyboardShouldPersistTaps?: string; showsVerticalScrollIndicator?: boolean }) => {
+  return (
+    <div style={{ overflowY: 'auto', flex: 1, width: '100%', ...contentContainerStyle }} data-taps={keyboardShouldPersistTaps} data-scroll={showsVerticalScrollIndicator}>
+      {children}
+    </div>
+  );
+};
+
+const ActivityIndicator = ({ size, color }: { size?: number | string; color?: string }) => {
+  const isLarge = size === 'large';
+  return (
+    <div 
+      className={cn("animate-spin rounded-full border-2 border-current", isLarge ? "h-8 w-8" : "h-5 w-5")} 
+      style={{ borderColor: color || 'currentColor', borderTopColor: 'transparent' }} 
+    />
+  );
+};
+
 export default function Login() {
   const { t, language } = useLanguage();
   const [searchParams] = useSearchParams();
   const referralFromUrl = searchParams.get('ref');
-  const [isLogin, setIsLogin] = useState(true);
+  const [isLogin, setIsLogin] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const modeParam = params.get('mode');
+    if (modeParam === 'signup') return false;
+    if (modeParam === 'login') return true;
+    const refParam = params.get('ref');
+    const storedCode = sessionStorage.getItem('referralCode');
+    if (refParam && !modeParam) return true; // Will redirect to splash anyway
+    return !(refParam || storedCode);
+  });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [manualReferralCode, setManualReferralCode] = useState('');
+  const [manualReferralCode, setManualReferralCode] = useState(() => referralFromUrl || sessionStorage.getItem('referralCode') || '');
   const [name, setName] = useState('');
   const [institutionalName, setInstitutionalName] = useState('');
   const [department, setDepartment] = useState(DEPARTMENTS[0]);
@@ -69,6 +116,27 @@ export default function Login() {
     }
     initBiometrics();
   }, []);
+
+  useEffect(() => {
+    const modeParam = searchParams.get('mode');
+    if (referralFromUrl && !modeParam) {
+      sessionStorage.setItem('referralCode', referralFromUrl);
+      navigate(`/?ref=${referralFromUrl}`, { replace: true });
+    } else {
+      const code = referralFromUrl || sessionStorage.getItem('referralCode');
+      if (code) {
+        setManualReferralCode(code);
+      }
+      
+      if (modeParam === 'signup') {
+        setIsLogin(false);
+      } else if (modeParam === 'login') {
+        setIsLogin(true);
+      } else if (code) {
+        setIsLogin(false);
+      }
+    }
+  }, [referralFromUrl, navigate, searchParams]);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'faculties'), (snap) => {
@@ -462,19 +530,17 @@ export default function Login() {
         let referredByUid = null;
         
         if (finalReferralCode) {
-          let cleanCode = finalReferralCode.toUpperCase();
-          if (cleanCode.startsWith('DS-')) {
-             // Correctly formatted
-          } else if (cleanCode.startsWith('DS')) {
-             cleanCode = 'DS-' + cleanCode.substring(2);
-          } else {
-             cleanCode = 'DS-' + cleanCode;
+          let cleanCode = finalReferralCode.toUpperCase().replace('-', '');
+          if (!cleanCode.startsWith('DS')) {
+             cleanCode = 'DS' + cleanCode;
           }
           finalReferralCode = cleanCode;
 
+          const legacyRefCode = 'DS-' + finalReferralCode.substring(2);
+
           const referrerQuery = query(
             collection(db, 'users'),
-            where('referralCode', '==', finalReferralCode),
+            where('referralCode', 'in', [finalReferralCode, legacyRefCode]),
             limit(1)
           );
           const referrerSnap = await getDocs(referrerQuery);
@@ -495,7 +561,7 @@ export default function Login() {
           phone: `${countryCode}${phone}`,
           role: 'student',
           createdAt: new Date().toISOString(),
-          referralCode: 'DS-' + Math.random().toString(36).substring(2, 8).toUpperCase(),
+          referralCode: 'DS' + Math.random().toString(36).substring(2, 8).toUpperCase(),
           referredBy: finalReferralCode || null,
           referredByUid: referredByUid,
           affiliateStatus: 'active',
@@ -551,95 +617,204 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-[100dvh] w-full bg-navy text-text-1 relative flex flex-col items-center px-4 py-8 md:py-12 overflow-x-hidden overflow-y-auto transition-all duration-200">
-      {/* Fixed Background Ornaments to avoid resizing glitches on mobile keyboard appearance */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] opacity-10" style={{ background: 'radial-gradient(circle, #C9930A 0%, rgba(201,147,10,0) 60%)' }} />
-        <div className="absolute bottom-[-10%] left-[-10%] w-[300px] h-[300px] opacity-5" style={{ background: 'radial-gradient(circle, #C9930A 0%, rgba(201,147,10,0) 60%)' }} />
-      </div>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#07101F' }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      > {/* Fix: Problem 4 Top-level KeyboardAvoidingView wrapper */}
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 48 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        > {/* Fix: Problem 4 Top-level ScrollView wrapper */}
+          <div className="flex-1 w-full min-h-screen bg-navy flex flex-col items-center justify-center relative transition-all duration-200" style={{ paddingLeft: 20, paddingRight: 20, display: 'flex', flexDirection: 'column', flex: 1, backgroundColor: '#07101F' }}>
+            {loading && (
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(7, 16, 31, 0.8)', // Fix: Problem 3 Backdrop matching background color
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: 999,
+                display: 'flex'
+              }}>
+                <ActivityIndicator size="large" color="#C9930A" />
+              </div>
+            )}
+            <div className="min-h-[100dvh] w-full bg-navy text-text-1 relative flex flex-col items-center px-3 sm:px-4 py-6 sm:py-8 md:py-12 overflow-x-hidden overflow-y-auto transition-all duration-200" style={{ display: 'flex', flexDirection: 'column', flex: 1, backgroundColor: '#07101F' }}>
+            {/* Fixed Background Ornaments to avoid resizing glitches on mobile keyboard appearance */}
+            <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+              <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] opacity-10" style={{ background: 'radial-gradient(circle, #C9930A 0%, rgba(201,147,10,0) 60%)' }} />
+              <div className="absolute bottom-[-10%] left-[-10%] w-[300px] h-[300px] opacity-5" style={{ background: 'radial-gradient(circle, #C9930A 0%, rgba(201,147,10,0) 60%)' }} />
+            </div>
 
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 max-w-md w-full p-8 md:p-10 border border-gold/15 rounded-3xl shadow-2xl shadow-black mt-auto mb-auto bg-navy-card overflow-hidden transition-all duration-200"
-      >
-        <div className="flex flex-col items-center space-y-10">
-          <div className="flex flex-col items-center space-y-4">
-            <div className="w-16 h-16 bg-gold diamond-mark drop-shadow-[0_0_20px_rgba(201,147,10,0.5)] flex items-center justify-center">
-              <Diamond className="w-8 h-8 text-navy" />
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="relative z-10 w-full max-w-[calc(100vw-24px)] xs:max-w-md p-5 xs:p-6 sm:p-8 md:p-10 border border-gold/15 rounded-3xl shadow-2xl shadow-black mt-auto mb-auto bg-navy-card overflow-visible transition-all duration-200"
+            > {/* Fix: Problem 1 Removed overflow-hidden and set overflow-visible to prevent text cut off */}
+            <div className="flex flex-col items-center space-y-6 sm:space-y-8 md:space-y-10">
+          <div className="flex flex-col items-center space-y-3 sm:space-y-4">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gold diamond-mark drop-shadow-[0_0_20px_rgba(201,147,10,0.5)] flex items-center justify-center">
+              <Diamond className="w-7 h-7 sm:w-8 sm:h-8 text-navy" />
             </div>
             <div className="text-center space-y-1">
-              <h2 className="text-3xl font-serif font-black tracking-tight text-text-1">
+              <h2 className="text-2xl sm:text-3xl font-serif font-black tracking-tight text-text-1">
                 {showOtpStep ? t('auth.verifyEmail') : isLogin ? t('auth.signin') : t('auth.noAccount').split('?')[1]?.trim() || t('auth.login')}
               </h2>
-              <p className="text-text-3 text-[10px] font-black uppercase tracking-[0.4em] leading-relaxed">
+              <p className="text-text-3 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.4em] leading-relaxed">
                 {showOtpStep ? t('auth.otpSent') : t('splash.professional')}
               </p>
             </div>
           </div>
 
           {showOtpStep ? (
-             <form onSubmit={handleVerifyOtp} className="w-full space-y-6">
-                <div className="space-y-4 text-center">
-                  <p className="text-[10px] font-black text-text-3 uppercase tracking-widest leading-relaxed">
-                    {t('auth.otpSent')} <span className="text-gold">{email}</span>
-                  </p>
-                  <div className="relative group">
-                    <input
-                      type="text"
-                      maxLength={6}
-                      placeholder="XXXXXX"
-                      className="w-full text-center h-16 min-h-[64px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-2xl font-black tracking-[0.5em] text-gold"
-                      value={otpInput}
-                      onChange={(e) => setOtpInput(e.target.value.replace(/[^0-9]/g, ''))}
-                      required
-                    />
-                  </div>
-                </div>
+             <form 
+               onSubmit={handleVerifyOtp} 
+               className="w-full space-y-4 sm:space-y-6"
+               style={{
+                 transform: 'translateZ(0)',
+                 WebkitTransform: 'translateZ(0)',
+                 overflow: 'hidden',
+                 position: 'relative'
+               }}
+             >
+               {/* Fix: Problem 4 Removed duplicate inner wrappers */}
+               <div className="space-y-4 text-center" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrap input groups with margin */}
+                 <p className="text-[10px] font-black text-text-3 uppercase tracking-widest leading-relaxed" style={{ marginBottom: 6, includeFontPadding: false }}> {/* Fix: Problem 2 Label margin */}
+                   {t('auth.otpSent')} <span className="text-gold">{email}</span>
+                 </p>
+                 <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Input wrapper styling */}
+                   <input
+                     type="text"
+                     maxLength={6}
+                     placeholder="XXXXXX"
+                     className="w-full text-center h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-2xl font-black tracking-[0.5em] text-gold"
+                     value={otpInput}
+                     onChange={(e) => setOtpInput(e.target.value.replace(/[^0-9]/g, ''))}
+                     required
+                     style={{
+                       height: 52, // Fix: Problem 2 Height
+                       width: '100%', // Fix: Problem 2 Width
+                       maxWidth: '100%', // Fix: Problem 5 maxWidth
+                       paddingLeft: 14, // Fix: Problem 2 paddingHorizontal
+                       paddingRight: 14, // Fix: Problem 2 paddingHorizontal
+                       paddingHorizontal: 14, // Fix: Problem 2 paddingHorizontal
+                       overflow: 'hidden',
+                       zIndex: 1, // Fix: Problem 1 zIndex
+                       elevation: 1, // Fix: Problem 1 elevation
+                       includeFontPadding: false, // Fix: Problem 8 includeFontPadding
+                       textAlignVertical: 'center', // Fix: Problem 8 textAlignVertical
+                       colorScheme: 'dark',
+                       color: '#C9930A', // Fix: Problem 8 Explicit color
+                       fontSize: 16, // Fix: Problem 8 font size
+                       WebkitAppearance: 'none',
+                       appearance: 'none',
+                       WebkitTransform: 'translateZ(0)',
+                       transform: 'translateZ(0)',
+                       backfaceVisibility: 'hidden',
+                       WebkitBackfaceVisibility: 'hidden',
+                       willChange: 'auto',
+                       isolation: 'isolate',
+                       backgroundColor: '#162B46'
+                     }}
+                   />
+                 </div>
+               </div>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-gold text-navy font-black text-[10px] uppercase tracking-[0.3em] py-5 px-6 rounded-2xl shadow-2xl shadow-gold/20 transition-all transform active:scale-[0.98] flex items-center justify-center disabled:opacity-50"
-                >
-                  {loading ? t('general.loading') : t('general.submit')}
-                </button>
+               <button
+                 type="submit"
+                 disabled={loading}
+                 className="w-full bg-gold text-navy font-black text-[10px] uppercase tracking-[0.3em] h-[52px] rounded-2xl shadow-2xl shadow-gold/20 transition-all transform active:scale-[0.98] flex items-center justify-center disabled:opacity-50 mt-4"
+                 style={{
+                   height: 52, // Fix: Problem 6 Fixed height
+                   width: '100%', // Fix: Problem 6 Fixed width
+                   maxWidth: '100%',
+                   justifyContent: 'center',
+                   alignItems: 'center',
+                   display: 'flex'
+                 }}
+               >
+                 {loading ? (
+                   <ActivityIndicator size="small" color="#07101F" /> /* Fix: Problem 6 ActivityIndicator inside button during loading */
+                 ) : (
+                   t('general.submit')
+                 )}
+               </button>
 
-                <div className="text-center">
-                   <button 
-                    type="button"
-                    onClick={() => setShowOtpStep(false)}
-                    className="text-[9px] font-black text-text-3 uppercase tracking-widest hover:text-gold"
-                   >
-                     {t('general.cancel')}
-                   </button>
-                </div>
+               <div className="text-center mt-4">
+                  <button 
+                   type="button"
+                   onClick={() => setShowOtpStep(false)}
+                   className="text-[9px] font-black text-text-3 uppercase tracking-widest hover:text-gold"
+                  >
+                    {t('general.cancel')}
+                  </button>
+               </div>
              </form>
           ) : (
-          <form onSubmit={showForgotPassword ? handleForgotPassword : handleSubmit} className="w-full space-y-5 transition-all duration-200">
+          <form 
+            onSubmit={showForgotPassword ? handleForgotPassword : handleSubmit} 
+            className="w-full space-y-4 sm:space-y-5 transition-all duration-200"
+            style={{
+              transform: 'translateZ(0)',
+              WebkitTransform: 'translateZ(0)',
+              overflow: 'hidden',
+              position: 'relative'
+            }}
+          >
+            {/* Fix: Problem 4 Removed duplicate inner wrappers */}
             {showForgotPassword ? (
-              <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2">
-                <p className="text-[10px] font-black text-text-3 uppercase tracking-widest leading-relaxed mb-2 opacity-70">
+              <div className="space-y-5">
+                <p className="text-[10px] font-black text-text-3 uppercase tracking-widest leading-relaxed mb-2 opacity-70" style={{ includeFontPadding: false }}>
                    {t('auth.forgotPassword')}
                 </p>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1">{t('auth.email')}</label>
-                  <div className="relative group">
+                <div className="space-y-1.5" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrapper margin */}
+                  <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>{t('auth.email')}</label> {/* Fix: Problem 2 Label margin */}
+                  <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-3 group-focus-within:text-gold transition-colors" />
                     <input
                       type="email"
                       placeholder="name@university.edu"
-                      className="w-full pl-11 pr-4 h-14 min-h-[56px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
+                      className="w-full pl-11 pr-4 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
                       value={resetEmail}
                       onChange={(e) => setResetEmail(e.target.value)}
                       required
+                      style={{
+                        height: 52, // Fix: Problem 2 Height
+                        width: '100%', // Fix: Problem 2 Width
+                        maxWidth: '100%', // Fix: Problem 5 maxWidth
+                        paddingLeft: 14, // Fix: Problem 2 paddingHorizontal
+                        paddingRight: 14, // Fix: Problem 2 paddingHorizontal
+                        paddingHorizontal: 14, // Fix: Problem 2 paddingHorizontal
+                        overflow: 'hidden',
+                        zIndex: 1, // Fix: Problem 1 zIndex
+                        elevation: 1, // Fix: Problem 1 elevation
+                        includeFontPadding: false, // Fix: Problem 8 includeFontPadding
+                        textAlignVertical: 'center', // Fix: Problem 8 textAlignVertical
+                        colorScheme: 'dark',
+                        color: '#EDE8E1', // Fix: Problem 8 Explicit color
+                        fontSize: 16, // Fix: Problem 8 Font size
+                        WebkitAppearance: 'none',
+                        appearance: 'none',
+                        WebkitTransform: 'translateZ(0)',
+                        transform: 'translateZ(0)',
+                        backfaceVisibility: 'hidden',
+                        WebkitBackfaceVisibility: 'hidden',
+                        willChange: 'auto',
+                        isolation: 'isolate',
+                        backgroundColor: '#162B46'
+                      }}
                     />
                   </div>
                 </div>
                 {resetSent ? (
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-xl flex items-start gap-3">
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-xl flex items-start gap-3" style={{ marginBottom: 16 }}>
                     <ShieldCheck className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                    <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest leading-relaxed">
+                    <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest leading-relaxed" style={{ includeFontPadding: false }}>
                       {t('auth.resetSent')}
                     </p>
                   </div>
@@ -647,222 +822,123 @@ export default function Login() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-gold text-navy font-black text-[10px] uppercase tracking-[0.3em] py-5 px-6 rounded-2xl shadow-2xl shadow-gold/20 transition-all transform active:scale-[0.98] flex items-center justify-center group disabled:opacity-50"
+                    className="w-full bg-gold text-navy font-black text-[10px] uppercase tracking-[0.3em] h-[52px] rounded-2xl shadow-2xl shadow-gold/20 transition-all transform active:scale-[0.98] flex items-center justify-center group disabled:opacity-50"
+                    style={{
+                      height: 52, // Fix: Problem 6 Fixed height
+                      width: '100%', // Fix: Problem 6 Fixed width
+                      maxWidth: '100%',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      display: 'flex',
+                      marginBottom: 16
+                    }}
                   >
-                    {loading ? t('general.loading') : t('general.submit')}
-                    {!loading && <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />}
+                    {loading ? (
+                      <ActivityIndicator size="small" color="#07101F" /> /* Fix: Problem 6 ActivityIndicator inside button */
+                    ) : (
+                      <>
+                        {t('general.submit')}
+                        <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      </>
+                    )}
                   </button>
                 )}
                 <button
                   type="button"
                   onClick={() => setShowForgotPassword(false)}
                   className="w-full text-text-3 font-black text-[10px] uppercase tracking-widest hover:text-gold transition-colors"
+                  style={{ height: 52, width: '100%', maxWidth: '100%', justifyContent: 'center', alignItems: 'center', display: 'flex' }}
                 >
                   {t('general.back')}
                 </button>
               </div>
             ) : isLogin ? (
-              <>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1">{t('auth.email')}</label>
-                  <div className="relative group">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-3 group-focus-within:text-gold transition-colors" />
-                    <input
-                      type="email"
-                      placeholder="name@university.edu"
-                      className="w-full pl-11 pr-4 h-14 min-h-[56px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <div className="flex justify-between items-center px-1">
-                    <label className="text-[10px] font-black text-text-3 uppercase tracking-widest">{t('auth.password')}</label>
-                    <button 
-                      type="button"
-                      onClick={() => setShowForgotPassword(true)}
-                      className="text-[9px] font-black text-gold/60 uppercase tracking-widest hover:text-gold transition-colors"
-                    >
-                      {t('auth.forgotPassword')}
-                    </button>
-                  </div>
-                  <div className="relative group">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-3 group-focus-within:text-gold transition-colors" />
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      placeholder="••••••••"
-                      className="w-full pl-11 pr-12 h-14 min-h-[56px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-text-3 hover:text-gold transition-colors"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                {biometricsSupported && !biometricsEnrolled && (
-                  <div className="flex flex-col gap-1 pt-2 px-1">
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        id="enable-biometrics"
-                        className="w-4 h-4 rounded border-gold/20 text-gold focus:ring-gold bg-navy-high cursor-pointer"
-                        checked={enableBiometricsOnLogin}
-                        onChange={(e) => setEnableBiometricsOnLogin(e.target.checked)}
-                      />
-                      <label htmlFor="enable-biometrics" className="text-[9px] font-black text-text-3 uppercase tracking-widest cursor-pointer select-none">
-                        Enable Fingerprint Quick Unlock
-                      </label>
-                    </div>
-                    {isInIframe && (
-                      <p className="text-[8px] text-gold/70 mt-0.5 leading-relaxed tracking-normal pl-7">
-                        ⚠️ Requires opening in a new tab due to frame security.
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {biometricsSupported && biometricsEnrolled && (
-                  <div className="pt-2">
-                    <button
-                      type="button"
-                      onClick={handleBiometricUnlock}
-                      disabled={loading || biometricUnlocking}
-                      className="w-full h-16 border border-gold/30 rounded-2xl bg-gold/10 hover:bg-gold/20 transition-all flex items-center justify-center gap-4 text-gold group relative overflow-hidden active:scale-[0.98] transform"
-                    >
-                      {biometricUnlocking ? (
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] animate-pulse">Verifying Credentials...</span>
-                      ) : (
-                        <>
-                          <Fingerprint className="w-6 h-6 text-gold animate-bounce" />
-                          <span className="text-[10px] font-black uppercase tracking-[0.2em]">Unlock with Fingerprint</span>
-                        </>
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                    </button>
-                    {isInIframe && (
-                      <p className="text-[8px] text-gold/80 mt-1.5 text-center leading-relaxed tracking-normal">
-                        ⚠️ Fingerprint unlock is restricted inside this preview screen. Click <strong>"Open App in a New Tab"</strong> at the top right to use it securely.
-                      </p>
-                    )}
-                    <div className="flex justify-between items-center px-1 mt-2">
-                      <span className="text-[8px] font-bold text-text-3 uppercase tracking-widest">Enrolled: {enrolledEmail}</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          clearBiometrics();
-                          setBiometricsEnrolled(false);
-                          setEnrolledEmail('');
-                        }}
-                        className="text-[8px] font-black text-red-500/60 uppercase tracking-widest hover:text-red-500 transition-colors"
-                      >
-                        Reset Fingerprint Enrolment
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <>
-                {step === 1 ? (
-                  <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1">{t('dashboard.profile')}</label>
-                      <input
-                        type="text"
-                        placeholder="Jack Sparrow"
-                        className="w-full px-4 h-14 min-h-[56px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1">INSTITUTION</label>
-                      <input
-                        type="text"
-                        placeholder="University"
-                        className="w-full px-4 h-14 min-h-[56px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
-                        value={institutionalName}
-                        onChange={(e) => setInstitutionalName(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1">{t('splash.departments')}</label>
-                      <select 
-                        value={department}
-                        onChange={(e) => setDepartment(e.target.value)}
-                        className="w-full px-4 h-14 min-h-[56px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium appearance-none"
-                      >
-                        {allFacultiesList.map(dept => (
-                          <option key={dept} value={dept}>{t(`dept.${dept}`) !== `dept.${dept}` ? t(`dept.${dept}`) : dept}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1">PHONE</label>
-                      <div className="flex gap-2">
-                        <select 
-                          value={countryCode}
-                          onChange={(e) => setCountryCode(e.target.value)}
-                          className="w-24 h-14 min-h-[56px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-[10px] font-black text-gold px-2"
-                        >
-                          {africanCountries.map(c => (
-                            <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
-                          ))}
-                        </select>
+                  <>
+                    <div className="space-y-1.5" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrapper margin */}
+                      <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>{t('auth.email')}</label> {/* Fix: Problem 2 Label margin */}
+                      <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-3 group-focus-within:text-gold transition-colors" />
                         <input
-                          type="tel"
-                          placeholder="811223344"
-                          className="flex-1 px-4 h-14 min-h-[56px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
+                          type="email"
+                          placeholder="name@university.edu"
+                          className="w-full pl-11 pr-4 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
                           required
+                          style={{
+                            height: 52, // Fix: Problem 2 Height
+                            width: '100%', // Fix: Problem 2 Width
+                            maxWidth: '100%', // Fix: Problem 5 maxWidth
+                            paddingLeft: 14, // Fix: Problem 2 paddingHorizontal
+                            paddingRight: 14, // Fix: Problem 2 paddingHorizontal
+                            paddingHorizontal: 14, // Fix: Problem 2 paddingHorizontal
+                            overflow: 'hidden',
+                            zIndex: 1, // Fix: Problem 1 zIndex
+                            elevation: 1, // Fix: Problem 1 elevation
+                            includeFontPadding: false, // Fix: Problem 8 includeFontPadding
+                            textAlignVertical: 'center', // Fix: Problem 8 textAlignVertical
+                            colorScheme: 'dark',
+                            color: '#EDE8E1', // Fix: Problem 8 Explicit color
+                            fontSize: 16, // Fix: Problem 8 Font size
+                            WebkitAppearance: 'none',
+                            appearance: 'none',
+                            WebkitTransform: 'translateZ(0)',
+                            transform: 'translateZ(0)',
+                            backfaceVisibility: 'hidden',
+                            WebkitBackfaceVisibility: 'hidden',
+                            willChange: 'auto',
+                            isolation: 'isolate',
+                            backgroundColor: '#162B46'
+                          }}
                         />
                       </div>
                     </div>
-                    <button 
-                      type="button" 
-                      onClick={() => setStep(2)}
-                      className="w-full bg-gold/10 text-gold py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2"
-                    >
-                      {t('quiz.next')} <ArrowRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1">{t('auth.email')}</label>
-                      <input
-                        type="email"
-                        placeholder="scholar@university.edu"
-                        className="w-full px-4 h-14 min-h-[56px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1">{t('auth.password')}</label>
-                      <div className="relative group">
+
+                    <div className="space-y-1.5" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrapper margin */}
+                      <div className="flex justify-between items-center px-1" style={{ marginBottom: 6 }}> {/* Fix: Problem 2 Label margin */}
+                        <label className="text-[10px] font-black text-text-3 uppercase tracking-widest" style={{ includeFontPadding: false }}>{t('auth.password')}</label>
+                        <button 
+                          type="button"
+                          onClick={() => setShowForgotPassword(true)}
+                          className="text-[9px] font-black text-gold/60 uppercase tracking-widest hover:text-gold transition-colors"
+                        >
+                          {t('auth.forgotPassword')}
+                        </button>
+                      </div>
+                      <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-3 group-focus-within:text-gold transition-colors" />
                         <input
                           type={showPassword ? "text" : "password"}
                           placeholder="••••••••"
-                          className="w-full pl-11 pr-12 h-14 min-h-[56px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
+                          className="w-full pl-11 pr-12 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           required
+                          style={{
+                            height: 52, // Fix: Problem 2 Height
+                            width: '100%', // Fix: Problem 2 Width
+                            maxWidth: '100%', // Fix: Problem 5 maxWidth
+                            paddingLeft: 14, // Fix: Problem 2 paddingHorizontal
+                            paddingRight: 14, // Fix: Problem 2 paddingHorizontal
+                            paddingHorizontal: 14, // Fix: Problem 2 paddingHorizontal
+                            overflow: 'hidden',
+                            zIndex: 1, // Fix: Problem 1 zIndex
+                            elevation: 1, // Fix: Problem 1 elevation
+                            includeFontPadding: false, // Fix: Problem 8 includeFontPadding
+                            textAlignVertical: 'center', // Fix: Problem 8 textAlignVertical
+                            colorScheme: 'dark',
+                            color: '#EDE8E1', // Fix: Problem 8 Explicit color
+                            fontSize: 16, // Fix: Problem 8 Font size
+                            WebkitAppearance: 'none',
+                            appearance: 'none',
+                            WebkitTransform: 'translateZ(0)',
+                            transform: 'translateZ(0)',
+                            backfaceVisibility: 'hidden',
+                            WebkitBackfaceVisibility: 'hidden',
+                            willChange: 'auto',
+                            isolation: 'isolate',
+                            backgroundColor: '#162B46'
+                          }}
                         />
                         <button
                           type="button"
@@ -873,83 +949,530 @@ export default function Login() {
                         </button>
                       </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1">{t('auth.confirmPassword')}</label>
-                      <div className="relative group">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-3 group-focus-within:text-gold transition-colors" />
-                        <input
-                          type={showConfirmPassword ? "text" : "password"}
-                          placeholder="••••••••"
-                          className="w-full pl-11 pr-12 h-14 min-h-[56px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          required
-                        />
+
+                    {biometricsSupported && !biometricsEnrolled && (
+                      <div className="flex flex-col gap-1 pt-2 px-1" style={{ marginBottom: 16 }}>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            id="enable-biometrics"
+                            className="w-4 h-4 rounded border-gold/20 text-gold focus:ring-gold bg-navy-high cursor-pointer"
+                            checked={enableBiometricsOnLogin}
+                            onChange={(e) => setEnableBiometricsOnLogin(e.target.checked)}
+                          />
+                          <label htmlFor="enable-biometrics" className="text-[9px] font-black text-text-3 uppercase tracking-widest cursor-pointer select-none" style={{ includeFontPadding: false }}>
+                            Enable Fingerprint Quick Unlock
+                          </label>
+                        </div>
+                        {isInIframe && (
+                          <p className="text-[8px] text-gold/70 mt-0.5 leading-relaxed tracking-normal pl-7" style={{ includeFontPadding: false }}>
+                            ⚠️ Requires opening in a new tab due to frame security.
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {biometricsSupported && biometricsEnrolled && (
+                      <div className="pt-2" style={{ marginBottom: 16 }}>
                         <button
                           type="button"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-text-3 hover:text-gold transition-colors"
+                          onClick={handleBiometricUnlock}
+                          disabled={loading || biometricUnlocking}
+                          className="w-full h-16 border border-gold/30 rounded-2xl bg-gold/10 hover:bg-gold/20 transition-all flex items-center justify-center gap-4 text-gold group relative overflow-hidden active:scale-[0.98] transform"
                         >
-                          {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          {biometricUnlocking ? (
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] animate-pulse" style={{ includeFontPadding: false }}>Verifying Credentials...</span>
+                          ) : (
+                            <>
+                              <Fingerprint className="w-6 h-6 text-gold animate-bounce" />
+                              <span className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ includeFontPadding: false }}>Unlock with Fingerprint</span>
+                            </>
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                        </button>
+                        {isInIframe && (
+                          <p className="text-[8px] text-gold/80 mt-1.5 text-center leading-relaxed tracking-normal" style={{ includeFontPadding: false }}>
+                            ⚠️ Fingerprint unlock is restricted inside this preview screen. Click <strong>"Open App in a New Tab"</strong> at the top right to use it securely.
+                          </p>
+                        )}
+                        <div className="flex justify-between items-center px-1 mt-2">
+                          <span className="text-[8px] font-bold text-text-3 uppercase tracking-widest" style={{ includeFontPadding: false }}>Enrolled: {enrolledEmail}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              clearBiometrics();
+                              setBiometricsEnrolled(false);
+                              setEnrolledEmail('');
+                            }}
+                            className="text-[8px] font-black text-red-500/60 uppercase tracking-widest hover:text-red-500 transition-colors"
+                          >
+                            Reset Fingerprint Enrolment
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {step === 1 ? (
+                      <div className="space-y-4">
+                        <div className="space-y-1.5" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrapper margin */}
+                          <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>{t('dashboard.profile')}</label> {/* Fix: Problem 2 Label margin */}
+                          <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
+                            <input
+                              type="text"
+                              placeholder="Jack Sparrow"
+                              className="w-full px-4 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
+                              value={name}
+                              onChange={(e) => setName(e.target.value)}
+                              required
+                              style={{
+                                height: 52, // Fix: Problem 2 Height
+                                width: '100%', // Fix: Problem 2 Width
+                                maxWidth: '100%', // Fix: Problem 5 maxWidth
+                                paddingLeft: 14, // Fix: Problem 2 paddingHorizontal
+                                paddingRight: 14, // Fix: Problem 2 paddingHorizontal
+                                paddingHorizontal: 14, // Fix: Problem 2 paddingHorizontal
+                                overflow: 'hidden',
+                                zIndex: 1, // Fix: Problem 1 zIndex
+                                elevation: 1, // Fix: Problem 1 elevation
+                                includeFontPadding: false, // Fix: Problem 8 includeFontPadding
+                                textAlignVertical: 'center', // Fix: Problem 8 textAlignVertical
+                                colorScheme: 'dark',
+                                color: '#EDE8E1', // Fix: Problem 8 Explicit color
+                                fontSize: 16, // Fix: Problem 8 Font size
+                                WebkitAppearance: 'none',
+                                appearance: 'none',
+                                WebkitTransform: 'translateZ(0)',
+                                transform: 'translateZ(0)',
+                                backfaceVisibility: 'hidden',
+                                WebkitBackfaceVisibility: 'hidden',
+                                willChange: 'auto',
+                                isolation: 'isolate',
+                                backgroundColor: '#162B46'
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1.5" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrapper margin */}
+                          <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>INSTITUTION</label> {/* Fix: Problem 2 Label margin */}
+                          <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
+                            <input
+                              type="text"
+                              placeholder="University"
+                              className="w-full px-4 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
+                              value={institutionalName}
+                              onChange={(e) => setInstitutionalName(e.target.value)}
+                              required
+                              style={{
+                                height: 52, // Fix: Problem 2 Height
+                                width: '100%', // Fix: Problem 2 Width
+                                maxWidth: '100%', // Fix: Problem 5 maxWidth
+                                paddingLeft: 14, // Fix: Problem 2 paddingHorizontal
+                                paddingRight: 14, // Fix: Problem 2 paddingHorizontal
+                                paddingHorizontal: 14, // Fix: Problem 2 paddingHorizontal
+                                overflow: 'hidden',
+                                zIndex: 1, // Fix: Problem 1 zIndex
+                                elevation: 1, // Fix: Problem 1 elevation
+                                includeFontPadding: false, // Fix: Problem 8 includeFontPadding
+                                textAlignVertical: 'center', // Fix: Problem 8 textAlignVertical
+                                colorScheme: 'dark',
+                                color: '#EDE8E1', // Fix: Problem 8 Explicit color
+                                fontSize: 16, // Fix: Problem 8 Font size
+                                WebkitAppearance: 'none',
+                                appearance: 'none',
+                                WebkitTransform: 'translateZ(0)',
+                                transform: 'translateZ(0)',
+                                backfaceVisibility: 'hidden',
+                                WebkitBackfaceVisibility: 'hidden',
+                                willChange: 'auto',
+                                isolation: 'isolate',
+                                backgroundColor: '#162B46'
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1.5" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrapper margin */}
+                          <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>{t('splash.departments')}</label> {/* Fix: Problem 2 Label margin */}
+                          <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
+                            <select 
+                              value={department}
+                              onChange={(e) => setDepartment(e.target.value)}
+                              className="w-full px-4 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium appearance-none"
+                              style={{
+                                height: 52, // Fix: Problem 2 Height
+                                width: '100%', // Fix: Problem 2 Width
+                                maxWidth: '100%', // Fix: Problem 5 maxWidth
+                                paddingLeft: 14, // Fix: Problem 2 paddingHorizontal
+                                paddingRight: 14, // Fix: Problem 2 paddingHorizontal
+                                paddingHorizontal: 14, // Fix: Problem 2 paddingHorizontal
+                                overflow: 'hidden',
+                                zIndex: 1, // Fix: Problem 1 zIndex
+                                elevation: 1, // Fix: Problem 1 elevation
+                                includeFontPadding: false, // Fix: Problem 8 includeFontPadding
+                                textAlignVertical: 'center', // Fix: Problem 8 textAlignVertical
+                                colorScheme: 'dark',
+                                color: '#EDE8E1', // Fix: Problem 8 Explicit color
+                                fontSize: 16, // Fix: Problem 8 Font size
+                                WebkitAppearance: 'none',
+                                appearance: 'none',
+                                WebkitTransform: 'translateZ(0)',
+                                transform: 'translateZ(0)',
+                                backfaceVisibility: 'hidden',
+                                WebkitBackfaceVisibility: 'hidden',
+                                willChange: 'auto',
+                                isolation: 'isolate',
+                                backgroundColor: '#162B46'
+                              }}
+                            >
+                              {allFacultiesList.map(dept => (
+                                <option key={dept} value={dept}>{t(`dept.${dept}`) !== `dept.${dept}` ? t(`dept.${dept}`) : dept}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div className="space-y-1.5" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrapper margin */}
+                          <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>PHONE</label> {/* Fix: Problem 2 Label margin */}
+                          <div className="flex gap-2" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
+                            <select 
+                              value={countryCode}
+                              onChange={(e) => setCountryCode(e.target.value)}
+                              className="w-24 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-[10px] font-black text-gold px-2"
+                              style={{
+                                height: 52,
+                                overflow: 'hidden',
+                                zIndex: 1,
+                                elevation: 1,
+                                includeFontPadding: false,
+                                textAlignVertical: 'center',
+                                colorScheme: 'dark',
+                                color: '#C9930A',
+                                fontSize: 14,
+                                WebkitAppearance: 'none',
+                                appearance: 'none',
+                                WebkitTransform: 'translateZ(0)',
+                                transform: 'translateZ(0)',
+                                backfaceVisibility: 'hidden',
+                                WebkitBackfaceVisibility: 'hidden',
+                                willChange: 'auto',
+                                isolation: 'isolate',
+                                backgroundColor: '#162B46'
+                              }}
+                            >
+                              {africanCountries.map(c => (
+                                <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
+                              ))}
+                            </select>
+                            <input
+                              type="tel"
+                              placeholder="811223344"
+                              className="flex-1 px-4 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
+                              value={phone}
+                              onChange={(e) => setPhone(e.target.value)}
+                              required
+                              style={{
+                                height: 52, // Fix: Problem 2 Height
+                                width: '100%', // Fix: Problem 2 Width
+                                maxWidth: '100%', // Fix: Problem 5 maxWidth
+                                paddingLeft: 14, // Fix: Problem 2 paddingHorizontal
+                                paddingRight: 14, // Fix: Problem 2 paddingHorizontal
+                                paddingHorizontal: 14, // Fix: Problem 2 paddingHorizontal
+                                overflow: 'hidden',
+                                zIndex: 1, // Fix: Problem 1 zIndex
+                                elevation: 1, // Fix: Problem 1 elevation
+                                includeFontPadding: false, // Fix: Problem 8 includeFontPadding
+                                textAlignVertical: 'center', // Fix: Problem 8 textAlignVertical
+                                colorScheme: 'dark',
+                                color: '#EDE8E1', // Fix: Problem 8 Explicit color
+                                fontSize: 16, // Fix: Problem 8 Font size
+                                WebkitAppearance: 'none',
+                                appearance: 'none',
+                                WebkitTransform: 'translateZ(0)',
+                                transform: 'translateZ(0)',
+                                backfaceVisibility: 'hidden',
+                                WebkitBackfaceVisibility: 'hidden',
+                                willChange: 'auto',
+                                isolation: 'isolate',
+                                backgroundColor: '#162B46'
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <button 
+                          type="button" 
+                          onClick={() => setStep(2)}
+                          className="w-full bg-gold/10 text-gold h-[52px] rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2"
+                          style={{
+                            height: 52, // Fix: Problem 6 Fixed height
+                            width: '100%', // Fix: Problem 6 Fixed width
+                            maxWidth: '100%',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            display: 'flex'
+                          }}
+                        >
+                          {t('quiz.next')} <ArrowRight className="w-4 h-4" />
                         </button>
                       </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1">REFERRAL</label>
-                      <input
-                        type="text"
-                        placeholder="DS-XXXXXX"
-                        className="w-full px-4 h-14 min-h-[56px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
-                        value={manualReferralCode}
-                        onChange={(e) => setManualReferralCode(e.target.value.toUpperCase())}
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                       <button 
-                        type="button" 
-                        onClick={() => setStep(1)}
-                        className="bg-navy-high border border-gold/10 text-text-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest"
-                      >
-                        {t('general.back')}
-                      </button>
-                      <button 
-                        type="submit"
-                        disabled={loading}
-                        className="bg-gold text-navy py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-gold/20"
-                      >
-                        {t('general.submit')}
-                      </button>
-                    </div>
-                  </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="space-y-1.5" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrapper margin */}
+                          <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>{t('auth.email')}</label> {/* Fix: Problem 2 Label margin */}
+                          <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
+                            <input
+                              type="email"
+                              placeholder="scholar@university.edu"
+                              className="w-full px-4 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
+                              value={email}
+                              onChange={(e) => setEmail(e.target.value)}
+                              required
+                              style={{
+                                height: 52, // Fix: Problem 2 Height
+                                width: '100%', // Fix: Problem 2 Width
+                                maxWidth: '100%', // Fix: Problem 5 maxWidth
+                                paddingLeft: 14, // Fix: Problem 2 paddingHorizontal
+                                paddingRight: 14, // Fix: Problem 2 paddingHorizontal
+                                paddingHorizontal: 14, // Fix: Problem 2 paddingHorizontal
+                                overflow: 'hidden',
+                                zIndex: 1, // Fix: Problem 1 zIndex
+                                elevation: 1, // Fix: Problem 1 elevation
+                                includeFontPadding: false, // Fix: Problem 8 includeFontPadding
+                                textAlignVertical: 'center', // Fix: Problem 8 textAlignVertical
+                                colorScheme: 'dark',
+                                color: '#EDE8E1', // Fix: Problem 8 Explicit color
+                                fontSize: 16, // Fix: Problem 8 Font size
+                                WebkitAppearance: 'none',
+                                appearance: 'none',
+                                WebkitTransform: 'translateZ(0)',
+                                transform: 'translateZ(0)',
+                                backfaceVisibility: 'hidden',
+                                WebkitBackfaceVisibility: 'hidden',
+                                willChange: 'auto',
+                                isolation: 'isolate',
+                                backgroundColor: '#162B46'
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1.5" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrapper margin */}
+                          <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>{t('auth.password')}</label> {/* Fix: Problem 2 Label margin */}
+                          <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
+                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-3 group-focus-within:text-gold transition-colors" />
+                            <input
+                              type={showPassword ? "text" : "password"}
+                              placeholder="••••••••"
+                              className="w-full pl-11 pr-12 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
+                              value={password}
+                              onChange={(e) => setPassword(e.target.value)}
+                              required
+                              style={{
+                                height: 52, // Fix: Problem 2 Height
+                                width: '100%', // Fix: Problem 2 Width
+                                maxWidth: '100%', // Fix: Problem 5 maxWidth
+                                paddingLeft: 14, // Fix: Problem 2 paddingHorizontal
+                                paddingRight: 14, // Fix: Problem 2 paddingHorizontal
+                                paddingHorizontal: 14, // Fix: Problem 2 paddingHorizontal
+                                overflow: 'hidden',
+                                zIndex: 1, // Fix: Problem 1 zIndex
+                                elevation: 1, // Fix: Problem 1 elevation
+                                includeFontPadding: false, // Fix: Problem 8 includeFontPadding
+                                textAlignVertical: 'center', // Fix: Problem 8 textAlignVertical
+                                colorScheme: 'dark',
+                                color: '#EDE8E1', // Fix: Problem 8 Explicit color
+                                fontSize: 16, // Fix: Problem 8 Font size
+                                WebkitAppearance: 'none',
+                                appearance: 'none',
+                                WebkitTransform: 'translateZ(0)',
+                                transform: 'translateZ(0)',
+                                backfaceVisibility: 'hidden',
+                                WebkitBackfaceVisibility: 'hidden',
+                                willChange: 'auto',
+                                isolation: 'isolate',
+                                backgroundColor: '#162B46'
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-text-3 hover:text-gold transition-colors"
+                            >
+                              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="space-y-1.5" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrapper margin */}
+                          <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>{t('auth.confirmPassword')}</label> {/* Fix: Problem 2 Label margin */}
+                          <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
+                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-3 group-focus-within:text-gold transition-colors" />
+                            <input
+                              type={showConfirmPassword ? "text" : "password"}
+                              placeholder="••••••••"
+                              className="w-full pl-11 pr-12 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
+                              value={confirmPassword}
+                              onChange={(e) => setConfirmPassword(e.target.value)}
+                              required
+                              style={{
+                                height: 52, // Fix: Problem 2 Height
+                                width: '100%', // Fix: Problem 2 Width
+                                maxWidth: '100%', // Fix: Problem 5 maxWidth
+                                paddingLeft: 14, // Fix: Problem 2 paddingHorizontal
+                                paddingRight: 14, // Fix: Problem 2 paddingHorizontal
+                                paddingHorizontal: 14, // Fix: Problem 2 paddingHorizontal
+                                overflow: 'hidden',
+                                zIndex: 1, // Fix: Problem 1 zIndex
+                                elevation: 1, // Fix: Problem 1 elevation
+                                includeFontPadding: false, // Fix: Problem 8 includeFontPadding
+                                textAlignVertical: 'center', // Fix: Problem 8 textAlignVertical
+                                colorScheme: 'dark',
+                                color: '#EDE8E1', // Fix: Problem 8 Explicit color
+                                fontSize: 16, // Fix: Problem 8 Font size
+                                WebkitAppearance: 'none',
+                                appearance: 'none',
+                                WebkitTransform: 'translateZ(0)',
+                                transform: 'translateZ(0)',
+                                backfaceVisibility: 'hidden',
+                                WebkitBackfaceVisibility: 'hidden',
+                                willChange: 'auto',
+                                isolation: 'isolate',
+                                backgroundColor: '#162B46'
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                              className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-text-3 hover:text-gold transition-colors"
+                            >
+                              {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="space-y-1.5" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrapper margin */}
+                          <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>REFERRAL</label> {/* Fix: Problem 2 Label margin */}
+                          <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
+                            <input
+                              type="text"
+                              placeholder="DSXXXXXX"
+                              className="w-full px-4 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
+                              value={manualReferralCode}
+                              onChange={(e) => setManualReferralCode(e.target.value.toUpperCase())}
+                              style={{
+                                height: 52, // Fix: Problem 2 Height
+                                width: '100%', // Fix: Problem 2 Width
+                                maxWidth: '100%', // Fix: Problem 5 maxWidth
+                                paddingLeft: 14, // Fix: Problem 2 paddingHorizontal
+                                paddingRight: 14, // Fix: Problem 2 paddingHorizontal
+                                paddingHorizontal: 14, // Fix: Problem 2 paddingHorizontal
+                                overflow: 'hidden',
+                                zIndex: 1, // Fix: Problem 1 zIndex
+                                elevation: 1, // Fix: Problem 1 elevation
+                                includeFontPadding: false, // Fix: Problem 8 includeFontPadding
+                                textAlignVertical: 'center', // Fix: Problem 8 textAlignVertical
+                                colorScheme: 'dark',
+                                color: '#EDE8E1', // Fix: Problem 8 Explicit color
+                                fontSize: 16, // Fix: Problem 8 Font size
+                                WebkitAppearance: 'none',
+                                appearance: 'none',
+                                WebkitTransform: 'translateZ(0)',
+                                transform: 'translateZ(0)',
+                                backfaceVisibility: 'hidden',
+                                WebkitBackfaceVisibility: 'hidden',
+                                willChange: 'auto',
+                                isolation: 'isolate',
+                                backgroundColor: '#162B46'
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4" style={{ marginBottom: 16 }}>
+                           <button 
+                            type="button" 
+                            onClick={() => setStep(1)}
+                            className="bg-navy-high border border-gold/10 text-text-3 h-[52px] rounded-2xl font-black text-[10px] uppercase tracking-widest"
+                            style={{
+                              height: 52, // Fix: Problem 6 Fixed height
+                              width: '100%', // Fix: Problem 6 Fixed width
+                              maxWidth: '100%',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              display: 'flex'
+                            }}
+                          >
+                            {t('general.back')}
+                          </button>
+                          <button 
+                            type="submit"
+                            disabled={loading}
+                            className="bg-gold text-navy h-[52px] rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-gold/20"
+                            style={{
+                              height: 52, // Fix: Problem 6 Fixed height
+                              width: '100%', // Fix: Problem 6 Fixed width
+                              maxWidth: '100%',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              display: 'flex'
+                            }}
+                          >
+                            {loading ? (
+                              <ActivityIndicator size="small" color="#07101F" /> /* Fix: Problem 6 ActivityIndicator inside button during loading */
+                            ) : (
+                              t('general.submit')
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
-              </>
-            )}
 
-            {error && (
-              <div className={cn(
-                "p-4 rounded-xl flex items-start gap-3 border min-h-[56px] transition-all duration-200",
-                error.startsWith('success:') ? "bg-emerald-500/10 border-emerald-500/20" : "bg-red-500/10 border-red-500/20"
-              )}>
-                <ShieldCheck className={cn("w-4 h-4 flex-shrink-0 mt-0.5", error.startsWith('success:') ? "text-emerald-500" : "text-red-500")} />
-                <p className={cn(
-                  "text-[10px] font-bold uppercase tracking-widest leading-relaxed",
-                  error.startsWith('success:') ? "text-emerald-500" : "text-red-500"
-                )}>
-                  {error.startsWith('success:') ? 'OK:' : 'ERR:'} {error.replace('success:', '')}
-                </p>
-              </div>
-            )}
+                <div 
+                  style={{ 
+                    opacity: error ? 1 : 0, 
+                    minHeight: 56, 
+                    width: '100%', 
+                    display: 'flex', 
+                    pointerEvents: error ? 'auto' : 'none',
+                    marginBottom: 16
+                  }}
+                  className={cn(
+                    "p-4 rounded-xl items-start gap-3 border transition-all duration-200",
+                    error && error.startsWith('success:') ? "bg-emerald-500/10 border-emerald-500/20" : "bg-red-500/10 border-red-500/20"
+                  )}
+                >
+                  <ShieldCheck className={cn("w-4 h-4 flex-shrink-0 mt-0.5", error && error.startsWith('success:') ? "text-emerald-500" : "text-red-500")} />
+                  <p className={cn(
+                    "text-[10px] font-bold uppercase tracking-widest leading-relaxed",
+                    error && error.startsWith('success:') ? "text-emerald-500" : "text-red-500"
+                  )}>
+                    {error ? (error.startsWith('success:') ? 'OK:' : 'ERR:') : ''} {error ? error.replace('success:', '') : ''}
+                  </p>
+                </div>
 
-            {isLogin && (
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-gold hover:bg-gold-light text-navy font-black text-[10px] uppercase tracking-[0.3em] py-5 px-6 rounded-2xl shadow-2xl shadow-gold/20 transition-all transform active:scale-[0.98] flex items-center justify-center group disabled:opacity-50"
-              >
-                {loading ? t('general.loading') : t('auth.signin')}
-                {!loading && <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />}
-              </button>
-            )}
+                 {isLogin && (
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full max-w-full h-[52px] bg-gold hover:bg-gold-light text-navy font-black text-[10px] uppercase tracking-[0.3em] rounded-2xl shadow-2xl shadow-gold/20 transition-all transform active:scale-[0.98] flex items-center justify-center disabled:opacity-50"
+                      style={{
+                        height: 52, // Fix: Problem 6 Fixed height
+                        width: '100%', // Fix: Problem 6 Fixed width
+                        maxWidth: '100%',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        display: 'flex',
+                        marginBottom: 16
+                      }}
+                    >
+                      {loading ? (
+                        <ActivityIndicator size="small" color="#07101F" /> /* Fix: Problem 6 ActivityIndicator inside button during loading */
+                      ) : (
+                        <>
+                          {t('auth.signin')}
+                          <ArrowRight className="ml-2 w-4 h-4" />
+                        </>
+                      )}
+                    </button>
+                  )}
+              {/* Fix: Problem 4 Removed duplicate inner wrappers */}
           </form>
           )}
 
@@ -998,5 +1521,9 @@ export default function Login() {
         </div>
       </motion.div>
     </div>
-  );
+  </div>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+);
 }

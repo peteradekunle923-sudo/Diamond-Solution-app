@@ -15,6 +15,44 @@ interface TourStep {
   accent: string;
 }
 
+const steps: TourStep[] = [
+  {
+    title: "Welcome to the Elite Circle",
+    description: "You've successfully integrated into the Diamond Solution protocol. Prepare to redefine your clinical mastery.",
+    icon: GraduationCap,
+    color: "from-gold/20 to-gold/5",
+    accent: "text-gold"
+  },
+  {
+    title: "The 50-Question Protocol",
+    description: "Top-tier scholars maintain a daily regimen of 50 targeted questions. Consistency is the foundation of excellence.",
+    icon: Target,
+    color: "from-emerald-500/20 to-emerald-500/5",
+    accent: "text-emerald-400"
+  },
+  {
+    title: "Asset Redistribution ($DL)",
+    description: "Excel in your assessments to accumulate $DL. These institutional assets can be redistributed for exclusive benefits.",
+    icon: Sparkles,
+    color: "from-amber-500/20 to-amber-500/5",
+    accent: "text-amber-400"
+  },
+  {
+    title: "Institutional Leaderboard",
+    description: "Climb the hierarchy of scholars. Your clinical accuracy is your primary credential for status in the Diamond archives.",
+    icon: Trophy,
+    color: "from-blue-500/20 to-blue-500/5",
+    accent: "text-blue-400"
+  },
+  {
+    title: "Secure Support Channels",
+    description: "Should you encounter any systemic anomalies, our administrative support is available via secure institutional chat.",
+    icon: ShieldCheck,
+    color: "from-purple-500/20 to-purple-500/5",
+    accent: "text-purple-400"
+  }
+];
+
 export default function OnboardingTour() {
   const { profile, user } = useAuth();
   const [isVisible, setIsVisible] = useState(false);
@@ -30,43 +68,19 @@ export default function OnboardingTour() {
     }
   }, [profile, isVisible, hasFinishedSession]);
 
-  const steps: TourStep[] = [
-    {
-      title: "Welcome to the Elite Circle",
-      description: "You've successfully integrated into the Diamond Solution protocol. Prepare to redefine your clinical mastery.",
-      icon: GraduationCap,
-      color: "from-gold/20 to-gold/5",
-      accent: "text-gold"
-    },
-    {
-      title: "The 50-Question Protocol",
-      description: "Top-tier scholars maintain a daily regimen of 50 targeted questions. Consistency is the foundation of excellence.",
-      icon: Target,
-      color: "from-emerald-500/20 to-emerald-500/5",
-      accent: "text-emerald-400"
-    },
-    {
-      title: "Asset Redistribution ($DL)",
-      description: "Excel in your assessments to accumulate $DL. These institutional assets can be redistributed for exclusive benefits.",
-      icon: Sparkles,
-      color: "from-amber-500/20 to-amber-500/5",
-      accent: "text-amber-400"
-    },
-    {
-      title: "Institutional Leaderboard",
-      description: "Climb the hierarchy of scholars. Your clinical accuracy is your primary credential for status in the Diamond archives.",
-      icon: Trophy,
-      color: "from-blue-500/20 to-blue-500/5",
-      accent: "text-blue-400"
-    },
-    {
-      title: "Secure Support Channels",
-      description: "Should you encounter any systemic anomalies, our administrative support is available via secure institutional chat.",
-      icon: ShieldCheck,
-      color: "from-purple-500/20 to-purple-500/5",
-      accent: "text-purple-400"
-    }
-  ];
+  useEffect(() => {
+    if (!isVisible) return;
+
+    const timer = setInterval(() => {
+      if (step < steps.length - 1) {
+        setStep(s => s + 1);
+      } else {
+        handleFinish();
+      }
+    }, 6000);
+
+    return () => clearInterval(timer);
+  }, [isVisible, step]);
 
   const handleFinish = () => {
     setIsVisible(false);
@@ -176,24 +190,6 @@ export default function OnboardingTour() {
               >
                 Skip Induction
               </button>
-              
-              <div className="flex gap-4">
-                {step > 0 && (
-                  <button 
-                    onClick={() => setStep(s => s - 1)}
-                    className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-all active:scale-95"
-                  >
-                    <ArrowLeft className="w-5 h-5" />
-                  </button>
-                )}
-                <button 
-                  onClick={handleNext}
-                  className="px-10 py-5 rounded-2xl bg-gold text-navy font-black text-[11px] uppercase tracking-[0.2em] flex items-center gap-3 hover:bg-gold-light active:scale-95 transition-all shadow-2xl shadow-gold/20"
-                >
-                  {step === steps.length - 1 ? "Initiate Study" : "Next Segment"}
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
             </div>
           </div>
 

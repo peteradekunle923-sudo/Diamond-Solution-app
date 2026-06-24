@@ -179,9 +179,12 @@ export default function CourseDetail() {
       let referrerSnapData: any = null;
 
       if (!referrerUid && profile.referredBy) {
-        let refCode = String(profile.referredBy).trim().toUpperCase();
-        if (refCode.startsWith('DS-')) { } else if (refCode.startsWith('DS')) { refCode = 'DS-' + refCode.substring(2); } else { refCode = 'DS-' + refCode; }
-        const referrerQuery = query(collection(db, 'users'), where('referralCode', '==', refCode), limit(1));
+        let refCode = String(profile.referredBy).trim().toUpperCase().replace('-', '');
+        if (!refCode.startsWith('DS')) {
+          refCode = 'DS' + refCode;
+        }
+        const legacyRefCode = 'DS-' + refCode.substring(2);
+        const referrerQuery = query(collection(db, 'users'), where('referralCode', 'in', [refCode, legacyRefCode]), limit(1));
         const referrerSnap = await getDocs(referrerQuery);
         if (!referrerSnap.empty) {
           referrerUid = referrerSnap.docs[0].id;
@@ -247,6 +250,9 @@ export default function CourseDetail() {
           department: course.department,
           reference: reference.reference || reference,
           courseId: id,
+          studentName: profile.displayName || 'Scholar',
+          email: user.email || 'no-email',
+          paidAt: new Date().toISOString(),
           createdAt: new Date().toISOString()
         });
 

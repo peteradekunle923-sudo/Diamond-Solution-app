@@ -58,7 +58,7 @@ export default function Dashboard() {
          console.warn("Dashboard auto-activation endpoint failed, trying client fallback...", error.message);
          try {
            const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
-           const referralCode = loggedInProfile?.referralCode || `DS-${randomPart}`;
+           const referralCode = loggedInProfile?.referralCode || `DS${randomPart}`;
            await setDoc(doc(db, 'users', loggedInUser.uid), {
              affiliateStatus: "active",
              isAffiliate: true,
@@ -514,7 +514,7 @@ export default function Dashboard() {
               <h4 className="text-2xl font-serif font-black text-navy tracking-tight">{t('dashboard.refer_earn')}</h4>
               <p className="text-navy/70 text-sm font-medium">{t('dashboard.refer_sub')}</p>
               <div className="inline-block mt-4 px-6 py-2 bg-navy rounded-xl font-black text-gold tracking-[0.4em] text-lg font-mono">
-                {activeProfile?.referralCode || `DS-${activeUserUid?.substring(0, 6).toUpperCase() || 'REF'}`}
+                {activeProfile?.referralCode || `DS${activeUserUid?.substring(0, 6).toUpperCase() || 'REF'}`}
               </div>
             </div>
             <div className="hidden sm:flex w-24 h-24 bg-navy/10 rounded-full items-center justify-center group-hover:rotate-12 transition-transform">

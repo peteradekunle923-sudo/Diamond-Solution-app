@@ -20,6 +20,7 @@ export default function AffiliateDashboard() {
   const [commissions, setCommissions] = useState<any[]>([]);
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [copied, setCopied] = useState(false);
+  const [shared, setShared] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showBankForm, setShowBankForm] = useState(false);
   const [bankDetails, setBankDetails] = useState({
@@ -28,6 +29,10 @@ export default function AffiliateDashboard() {
     accountName: '',
     bankCode: ''
   });
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawError, setWithdrawError] = useState<string | null>(null);
+  const [withdrawSuccess, setWithdrawSuccess] = useState(false);
 
   useEffect(() => {
     if (user?.uid) {
@@ -85,8 +90,9 @@ export default function AffiliateDashboard() {
   const totalEarned = commissions.reduce((acc, curr) => acc + (curr.commissionAmount || 0), 0);
   const totalWithdrawn = withdrawals.filter(w => w.status !== 'failed').reduce((acc, curr) => acc + (curr.amount || 0), 0);
   const calculatedBalance = Math.max(0, totalEarned - totalWithdrawn);
+  const userCurrency = profile?.currency || 'NGN';
 
-  const handleWithdrawal = async () => {
+  const handleWithdrawalClick = () => {
     if (!user || !profile) return;
     if (!profile.bankDetails?.accountNumber) {
       alert('Please configure your institutional payment credentials first.');
@@ -94,18 +100,40 @@ export default function AffiliateDashboard() {
       return;
     }
     
-    const amount = calculatedBalance;
     const minThreshold = userCurrency === 'USD' ? 10 : 10000;
     const currencySymbol = userCurrency === 'USD' ? '$' : '₦';
 
-    if (amount < minThreshold) {
+    if (calculatedBalance < minThreshold) {
       alert(`Minimum withdrawal threshold is ${currencySymbol}${minThreshold.toLocaleString()}`);
       return;
     }
 
-    if (!window.confirm(`Request withdrawal of ${currencySymbol}${amount.toLocaleString()}?`)) return;
+    setWithdrawAmount(calculatedBalance.toString());
+    setWithdrawError(null);
+    setWithdrawSuccess(false);
+    setShowWithdrawModal(true);
+  };
+
+  const submitWithdrawalRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !profile) return;
+
+    const amount = parseFloat(withdrawAmount);
+    const minThreshold = userCurrency === 'USD' ? 10 : 10000;
+    const currencySymbol = userCurrency === 'USD' ? '$' : '₦';
+
+    if (isNaN(amount) || amount < minThreshold) {
+      setWithdrawError(`Minimum withdrawal threshold is ${currencySymbol}${minThreshold.toLocaleString()}`);
+      return;
+    }
+
+    if (amount > calculatedBalance) {
+      setWithdrawError(`Amount exceeds your maximum available balance of ${currencySymbol}${calculatedBalance.toLocaleString()}`);
+      return;
+    }
 
     setLoading(true);
+    setWithdrawError(null);
     try {
       const withdrawalId = `WD_${user.uid}_${Date.now()}`;
       await setDoc(doc(db, 'withdrawals', withdrawalId), {
@@ -120,25 +148,17 @@ export default function AffiliateDashboard() {
         createdAt: new Date().toISOString()
       });
 
-      // No longer mandatory to update user.balance here as we use calculatedBalance
-      // but we can still try for consistency if rules allow (though they probably won't for non-admins)
-      try {
-        await setDoc(doc(db, 'users', user.uid), {
-          balance: 0
-        }, { merge: true });
-      } catch (e) {
-        console.warn('Sync balance field failed, but withdrawal record created.');
-      }
-
-      alert('Withdrawal request dispatched to administrative archives.');
+      setWithdrawSuccess(true);
+      setTimeout(() => {
+        setShowWithdrawModal(false);
+        setWithdrawSuccess(false);
+      }, 2500);
     } catch (error) {
       console.error(error);
-      alert('Critical transmission failure. Request aborted.');
+      setWithdrawError('Critical transmission failure. Request aborted.');
     }
     setLoading(false);
   };
-
-  const userCurrency = profile?.currency || 'NGN';
 
   const [activationFailed, setActivationFailed] = useState(false);
 
@@ -156,7 +176,7 @@ export default function AffiliateDashboard() {
       console.warn('Backend activation failed, using client-side fallback:', error.response?.data?.error || error.message);
       try {
         const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
-        const referralCode = profile?.referralCode || `DS-${randomPart}`;
+        const referralCode = profile?.referralCode || `DS${randomPart}`;
         const userRef = doc(db, 'users', user.uid);
         await setDoc(userRef, {
           affiliateStatus: "active",
@@ -184,13 +204,32 @@ export default function AffiliateDashboard() {
   const isPlatformActive = profile?.affiliateStatus === 'active' || profile?.affiliateStatus === 'approved';
   const isAwaitingApproval = profile?.affiliateStatus === 'pending';
 
-  const fallbackCode = `DS-${user?.uid?.substring(0, 6).toUpperCase() || 'REF'}`;
-  const referralLink = `${window.location.origin}/login?ref=${profile?.referralCode || fallbackCode}`;
+  const fallbackCode = `DS${user?.uid?.substring(0, 6).toUpperCase() || 'REF'}`;
+  const referralLink = `${window.location.origin}/?ref=${profile?.referralCode || fallbackCode}`;
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(referralLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Diamond Solution Affiliate',
+          text: `Join Diamond Solution using my referral link and learn!`,
+          url: referralLink,
+        });
+        setShared(true);
+        setTimeout(() => setShared(false), 2000);
+      } catch (err) {
+        console.warn('Web Share failed or cancelled:', err);
+        copyToClipboard();
+      }
+    } else {
+      copyToClipboard();
+    }
   };
 
   useEffect(() => {
@@ -298,9 +337,22 @@ export default function AffiliateDashboard() {
             <h2 className="text-3xl font-serif font-black text-text-1 tracking-tight">{t('affiliate.title')}</h2>
             <p className="text-[10px] font-black text-text-3 uppercase tracking-[0.4em] leading-none">{t('affiliate.subtitle')}</p>
           </div>
-          <div className="w-12 h-12 bg-gold/10 rounded-2xl border border-gold/20 flex items-center justify-center text-gold shadow-lg shadow-gold/5">
-            <Share2 className="w-6 h-6" />
-          </div>
+          <button 
+            onClick={handleShare}
+            className="w-12 h-12 bg-gold/10 hover:bg-gold/20 active:scale-95 transition-all rounded-2xl border border-gold/20 flex items-center justify-center text-gold shadow-lg shadow-gold/5 relative group cursor-pointer"
+            title="Share Referral Link"
+          >
+            {shared || copied ? (
+              <Check className="w-5 h-5 text-emerald-400 animate-pulse" />
+            ) : (
+              <Share2 className="w-5 h-5" />
+            )}
+            {(shared || copied) && (
+              <span className="absolute -bottom-8 right-0 bg-navy border border-gold/20 text-gold text-[8px] font-black uppercase tracking-[0.2em] px-2.5 py-1 rounded-lg shadow-xl whitespace-nowrap z-50 animate-bounce">
+                {shared ? 'SHARED!' : 'COPIED!'}
+              </span>
+            )}
+          </button>
         </header>
 
         {(!isPlatformActive && loading) ? (
@@ -323,7 +375,7 @@ export default function AffiliateDashboard() {
                     <span className="text-gold text-4xl mr-2">{userCurrency === 'USD' ? '$' : '₦'}</span>{calculatedBalance.toLocaleString()}
                   </p>
                   <button 
-                    onClick={handleWithdrawal}
+                    onClick={handleWithdrawalClick}
                     disabled={loading || calculatedBalance < (userCurrency === 'USD' ? 10 : 10000)}
                     className="bg-emerald-500 text-white px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-30 disabled:grayscale flex items-center gap-2"
                   >
@@ -631,6 +683,118 @@ export default function AffiliateDashboard() {
                   )}
                 </button>
               </form>
+            </motion.div>
+          </div>
+        )}
+
+        {showWithdrawModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowWithdrawModal(false)}
+              className="absolute inset-0 bg-navy/80 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="w-full max-w-md bg-navy-card border border-gold/30 rounded-[2.5rem] p-10 shadow-[0_50px_100px_rgba(0,0,0,0.8)] relative z-10 space-y-8"
+            >
+              <div className="text-center space-y-2">
+                <div className="w-16 h-16 bg-gold/10 rounded-2xl flex items-center justify-center text-gold mx-auto border border-gold/20 mb-4">
+                  <Wallet className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-serif font-black text-white tracking-tight">
+                  {language === 'fr' ? 'Sélectionner le montant' : 'Select Withdrawal Amount'}
+                </h3>
+                <p className="text-[10px] font-black text-text-3 uppercase tracking-widest">
+                  {language === 'fr' ? 'Solde disponible :' : 'Available Balance:'} <span className="text-gold">{userCurrency === 'USD' ? '$' : '₦'}{calculatedBalance.toLocaleString()}</span>
+                </p>
+              </div>
+
+              {withdrawSuccess ? (
+                <div className="text-center py-8 space-y-4">
+                  <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center justify-center text-emerald-500 mx-auto">
+                    <CheckCircle className="w-8 h-8 animate-bounce" />
+                  </div>
+                  <p className="text-sm font-bold text-text-1">
+                    {language === 'fr' ? 'Demande de retrait enregistrée !' : 'Withdrawal Request Dispatched!'}
+                  </p>
+                  <p className="text-[10px] text-text-3 uppercase tracking-widest leading-relaxed">
+                    {language === 'fr' ? 'La demande a été envoyée aux archives administratives.' : 'Your request has been sent for administrative approval.'}
+                  </p>
+                </div>
+              ) : (
+                <form onSubmit={submitWithdrawalRequest} className="space-y-6">
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black text-text-3 uppercase tracking-widest ml-1">
+                      {language === 'fr' ? 'Montant à retirer' : 'Amount to Withdraw'}
+                    </label>
+                    <div className="relative">
+                      <div className="absolute left-6 top-1/2 -translate-y-1/2 text-gold font-serif font-black text-lg">
+                        {userCurrency === 'USD' ? '$' : '₦'}
+                      </div>
+                      <input 
+                        type="number"
+                        step={userCurrency === 'USD' ? '0.01' : '1'}
+                        min={userCurrency === 'USD' ? '10' : '10000'}
+                        max={calculatedBalance}
+                        required
+                        value={withdrawAmount}
+                        onChange={(e) => {
+                          setWithdrawAmount(e.target.value);
+                          setWithdrawError(null);
+                        }}
+                        className="w-full bg-navy-high/50 border border-gold/20 rounded-2xl pl-12 pr-24 py-4 text-[15px] font-black text-white focus:border-gold outline-none transition-all font-mono tracking-widest"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setWithdrawAmount(calculatedBalance.toString())}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 bg-gold/10 hover:bg-gold/20 text-gold border border-gold/25 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
+                      >
+                        MAX
+                      </button>
+                    </div>
+                    <div className="flex justify-between items-center px-1">
+                      <p className="text-[9px] text-text-3 uppercase tracking-widest font-black opacity-60">
+                        {language === 'fr' ? 'Minimum requis :' : 'Minimum Required:'} <span className="text-gold-light">{userCurrency === 'USD' ? '$10' : '₦10,000'}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {withdrawError && (
+                    <p className="text-red-500 text-[10px] font-black uppercase tracking-widest text-center animate-pulse">
+                      {withdrawError}
+                    </p>
+                  )}
+
+                  <div className="flex gap-4">
+                    <button 
+                      type="button"
+                      onClick={() => setShowWithdrawModal(false)}
+                      className="w-1/2 h-16 bg-white/5 border border-white/10 text-gray-400 rounded-2xl font-black text-[11px] uppercase tracking-widest hover:border-white/20 transition-all"
+                    >
+                      {language === 'fr' ? 'Annuler' : 'Cancel'}
+                    </button>
+                    <button 
+                      type="submit"
+                      disabled={loading}
+                      className="w-1/2 h-16 bg-emerald-500 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-2xl shadow-emerald-500/20 hover:bg-emerald-600 active:scale-95 transition-all flex items-center justify-center gap-2"
+                    >
+                      {loading ? (
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <ArrowUpRight className="w-4 h-4" />
+                          {language === 'fr' ? 'Confirmer' : 'Confirm'}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              )}
             </motion.div>
           </div>
         )}
