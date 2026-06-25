@@ -77,6 +77,11 @@ export default function Login() {
   const [phone, setPhone] = useState('');
   const [countryCode, setCountryCode] = useState('+234');
   const [error, setError] = useState('');
+  const [securityModal, setSecurityModal] = useState<{ isOpen: boolean; title: string; message: string }>({
+    isOpen: false,
+    title: '',
+    message: ''
+  });
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
   const [showOtpStep, setShowOtpStep] = useState(false);
@@ -137,6 +142,27 @@ export default function Login() {
       }
     }
   }, [referralFromUrl, navigate, searchParams]);
+
+  useEffect(() => {
+    const reason = searchParams.get('reason');
+    if (reason === 'multi_device') {
+      setError("Your account has been logged in on another device. You have been signed out.");
+      setSecurityModal({
+        isOpen: true,
+        title: 'Multiple Device Login',
+        message: 'Your account has been logged in on another device. You have been signed out to protect your account security.'
+      });
+      navigate('/login', { replace: true });
+    } else if (reason === 'session_expired') {
+      setError("Your session has expired. Please log in again.");
+      setSecurityModal({
+        isOpen: true,
+        title: 'Session Expired',
+        message: 'Your session has expired due to inactivity. Please log in again.'
+      });
+      navigate('/login', { replace: true });
+    }
+  }, [searchParams, navigate]);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'faculties'), (snap) => {
@@ -217,16 +243,9 @@ export default function Login() {
             console.warn("Device id generation failed", e);
           }
 
-          const sessionToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
-          setSessionToken(sessionToken);
-          
-          // Fire and forget session update
-          setDoc(doc(db, "user_sessions", res.user.uid), {
-            deviceId,
-            sessionToken,
-            lastLogin: new Date().toISOString(),
-            deviceInfo
-          }, { merge: true }).catch(e => console.warn("Client session save failed", e));
+          // Start single-session validation
+          const { SessionService } = await import('../lib/SessionService');
+          await SessionService.startSession(res.user.uid);
           
           sessionStorage.removeItem('diamond_onboard_shown');
           
@@ -368,20 +387,9 @@ export default function Login() {
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         const deviceId = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-        const sessionRef = doc(db, 'user_sessions', res.user.uid);
-        const sessionToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
-        setSessionToken(sessionToken);
-
-        try {
-          await setDoc(sessionRef, {
-            deviceId,
-            sessionToken,
-            lastLogin: new Date().toISOString(),
-            deviceInfo
-          }, { merge: true });
-        } catch (e) {
-          console.warn("Client session save failed:", e);
-        }
+        // Start single-session validation
+        const { SessionService } = await import('../lib/SessionService');
+        await SessionService.startSession(res.user.uid);
 
         await res.user.getIdToken(true);
         sessionStorage.removeItem('diamond_onboard_shown');
@@ -463,20 +471,9 @@ export default function Login() {
            return;
         }
 
-        // Generate session token on client fallback
-        const sessionToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
-        setSessionToken(sessionToken);
-        
-        try {
-          await setDoc(sessionRef, {
-            deviceId,
-            sessionToken,
-            lastLogin: new Date().toISOString(),
-            deviceInfo
-          }, { merge: true });
-        } catch (e) {
-          console.warn("Client session save failed:", e);
-        }
+        // Start single-session validation
+        const { SessionService } = await import('../lib/SessionService');
+        await SessionService.startSession(res.user.uid);
         
         if (enableBiometricsOnLogin && biometricsSupported) {
           try {
@@ -507,22 +504,9 @@ export default function Login() {
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         const deviceId = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-        const sessionToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
-        setSessionToken(sessionToken);
-        
-        try {
-          const { doc, setDoc } = await import('firebase/firestore');
-          const { db } = await import('../lib/firebase');
-          
-          await setDoc(doc(db, "user_sessions", userCredential.user.uid), {
-            deviceId,
-            sessionToken,
-            lastLogin: new Date().toISOString(),
-            deviceInfo
-          }, { merge: true });
-        } catch (e) {
-          console.warn("Client fallback session save failed:", e);
-        }
+        // Start single-session validation
+        const { SessionService } = await import('../lib/SessionService');
+        await SessionService.startSession(userCredential.user.uid);
         
         await userCredential.user.getIdToken(true);
 
@@ -618,6 +602,23 @@ export default function Login() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#07101F' }}>
+      {securityModal.isOpen && (
+        <div className="fixed inset-0 bg-[#07101F]/85 backdrop-blur-md flex items-center justify-center z-[9999] p-4">
+          <div className="bg-[#0D1B2E] border-2 border-[#C9930A]/40 rounded-2xl max-w-md w-full p-6 space-y-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 text-[#C9930A]">
+              <Diamond className="w-6 h-6 animate-pulse text-[#C9930A]" />
+              <h3 className="text-base font-serif font-black uppercase tracking-wider text-[#EDE8E1]">{securityModal.title}</h3>
+            </div>
+            <p className="text-[#A4B8C9] text-xs font-medium leading-relaxed">{securityModal.message}</p>
+            <button
+              onClick={() => setSecurityModal(prev => ({ ...prev, isOpen: false }))}
+              className="w-full bg-[#C9930A] hover:bg-[#C9930A]/90 text-[#07101F] font-black text-[10px] uppercase tracking-[0.3em] py-4 rounded-xl shadow-lg transition-all transform active:scale-[0.98] cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

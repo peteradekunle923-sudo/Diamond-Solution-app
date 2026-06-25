@@ -15,6 +15,14 @@ export default function Profile() {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
+    if (user) {
+      try {
+        const { SessionService } = await import('../lib/SessionService');
+        await SessionService.clearSession(user.uid);
+      } catch (e) {
+        console.warn("Session clean up failed on logout:", e);
+      }
+    }
     await signOut(auth);
     sessionStorage.removeItem('diamond_onboard_shown');
     navigate('/login');

@@ -264,7 +264,17 @@ export default function AdminDashboard() {
             <div className="text-[11px] text-gray-500 truncate">{t('admin.superAdmin')}</div>
           </div>
           <button 
-            onClick={() => auth.signOut()}
+            onClick={async () => {
+              if (auth.currentUser) {
+                try {
+                  const { SessionService } = await import('../lib/SessionService');
+                  await SessionService.clearSession(auth.currentUser.uid);
+                } catch (e) {
+                  console.warn("Session clear failed in AdminDashboard:", e);
+                }
+              }
+              auth.signOut();
+            }}
             className="ml-auto text-gray-500 hover:text-red-400 transition-colors"
           >
             <LogOut className="w-4 h-4" />

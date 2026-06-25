@@ -66,74 +66,108 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isVerified, setIsVerified] = useState(false);
 
   useEffect(() => {
-    let sessionUnsub: (() => void) | null = null;
-    let oldSessionToken: string | null = null;
+    let backgroundTime: number | null = null;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        backgroundTime = Date.now();
+      } else if (document.visibilityState === 'visible' && backgroundTime !== null) {
+        const elapsedMinutes = (Date.now() - backgroundTime) / (1000 * 60);
+        if (elapsedMinutes > 30) {
+          import('../lib/SessionService').then(({ SessionService }) => {
+            SessionService.forceSignOut('session_expired');
+          });
+        }
+        backgroundTime = null;
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     const unsubscribeAuth = onIdTokenChanged(auth, async (u) => {
       setUser(u);
       if (u) {
-        // Fallback: Listen to Firestore instead of JWT since Admin SDK can't set custom claims
-        sessionUnsub = onSnapshot(doc(db, 'user_sessions', u.uid), (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            const tokenSession = data.sessionToken;
-            
-            if (!inMemorySessionToken && tokenSession) {
-               inMemorySessionToken = tokenSession;
-               oldSessionToken = tokenSession;
-            } else if (inMemorySessionToken === 'PENDING_LOGIN') {
-               // Bypass log out during login transitions
-            } else if (inMemorySessionToken && tokenSession && inMemorySessionToken !== tokenSession) {
-              alert("You’ve been logged out because account was accessed from another device");
-              signOut(auth);
-            }
+        // App launch / page refresh session timeout validation
+        const lastActive = localStorage.getItem(`last_active_${u.uid}`);
+        if (lastActive) {
+          const elapsedMinutes = (Date.now() - parseInt(lastActive, 10)) / (1000 * 60);
+          if (elapsedMinutes > 30) {
+            import('../lib/SessionService').then(({ SessionService }) => {
+              SessionService.forceSignOut('session_expired');
+            });
+            return;
           }
-        }, (error) => {
-          console.warn("Session snapshot listener error (could be normal during logout):", error);
-        });
-      } else {
-        if (sessionUnsub) {
-          sessionUnsub();
-          sessionUnsub = null;
         }
+        localStorage.setItem(`last_active_${u.uid}`, Date.now().toString());
+      } else {
         setProfile(null);
         setIsAdmin(false);
         setIsModerator(false);
         setIsVerified(false);
         setLoading(false);
         inMemorySessionToken = null;
-        oldSessionToken = null;
       }
     });
 
     return () => {
       unsubscribeAuth();
-      if (sessionUnsub) sessionUnsub();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
+
+  // Update last active time on user events
+  useEffect(() => {
+    if (!user) return;
+
+    const updateActiveTime = () => {
+      localStorage.setItem(`last_active_${user.uid}`, Date.now().toString());
+    };
+
+    window.addEventListener('mousemove', updateActiveTime);
+    window.addEventListener('keydown', updateActiveTime);
+    window.addEventListener('click', updateActiveTime);
+    window.addEventListener('scroll', updateActiveTime);
+
+    return () => {
+      window.removeEventListener('mousemove', updateActiveTime);
+      window.removeEventListener('keydown', updateActiveTime);
+      window.removeEventListener('click', updateActiveTime);
+      window.removeEventListener('scroll', updateActiveTime);
+    };
+  }, [user]);
 
   useEffect(() => {
     if (user) {
       const unsubProfile = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setProfile(data);
-        setIsAdmin(data.role === 'admin' || user.email === 'peteradekunle923@gmail.com');
-        setIsModerator(data.role === 'moderator');
-        setIsVerified(data.emailVerified === true);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setProfile(data);
+          setIsAdmin(data.role === 'admin' || user.email === 'peteradekunle923@gmail.com');
+          setIsModerator(data.role === 'moderator');
+          setIsVerified(data.emailVerified === true);
 
-        // Sync verification status to Firestore
-        /* Verification protocol disabled by administrative order */
-      } else {
-        // Handle case where user is authenticated but profile doc doesn't exist yet
-        setProfile(null);
-        setIsAdmin(user.email === 'peteradekunle923@gmail.com');
-        setIsModerator(false);
-        
-        // Even if profile doesn't exist, we can try to create a basic one or just wait
-      }
-      setLoading(false);
-    }, (err) => {
+          // FEATURE 1: Check session token mismatch
+          const tokenSession = data.sessionToken;
+          const localToken = localStorage.getItem(`session_token_${user.uid}`);
+
+          if (!inMemorySessionToken && tokenSession) {
+            inMemorySessionToken = tokenSession;
+          }
+
+          if (inMemorySessionToken === 'PENDING_LOGIN') {
+            // Bypass during active transitions
+          } else if (localToken && tokenSession && localToken !== tokenSession) {
+            import('../lib/SessionService').then(({ SessionService }) => {
+              SessionService.forceSignOut('multi_device');
+            });
+          }
+        } else {
+          setProfile(null);
+          setIsAdmin(user.email === 'peteradekunle923@gmail.com');
+          setIsModerator(false);
+        }
+        setLoading(false);
+      }, (err) => {
         handleFirestoreError(err, OperationType.GET, `users/${user.uid}`);
         setLoading(false);
       });

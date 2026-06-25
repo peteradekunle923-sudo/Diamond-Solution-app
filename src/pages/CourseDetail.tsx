@@ -159,6 +159,21 @@ export default function CourseDetail() {
     }
   };
 
+  const handleOutlineClick = (range: { start: number; end: number | null; text: string }) => {
+    if (!hasPaid) {
+      handlePayment();
+      return;
+    }
+
+    if (range.start < 1) {
+      alert("Invalid starting question number detected.");
+      return;
+    }
+
+    sessionStorage.setItem(`active_study_range_${id}`, JSON.stringify(range));
+    handleStartProtocol(range.start - 1, false);
+  };
+
   const onSuccess = async (reference: any) => {
     if (!user || !course || !profile) return;
     setPaying(true);
@@ -475,7 +490,15 @@ export default function CourseDetail() {
               {course.objectives.split('\n').map((line: string, idx: number) => {
                 const trimmed = line.trim();
                 if (!trimmed) return null;
-                return <ObjectiveItem key={idx} text={trimmed} />;
+                const range = extractQuestionRange(trimmed);
+                return (
+                  <ObjectiveItem 
+                    key={idx} 
+                    text={trimmed} 
+                    isClickable={!!range}
+                    onClick={range ? () => handleOutlineClick({ ...range, text: trimmed }) : undefined}
+                  />
+                );
               })}
             </div>
           </div>
@@ -493,6 +516,36 @@ export default function CourseDetail() {
   );
 }
 
+function extractQuestionRange(text: string): { start: number; end: number | null } | null {
+  const patterns = [
+    /(?:questions?|qn?|q)\s*(\d+)\s*(?:-|to|–)\s*(?:questions?|qn?|q)?\s*(\d+)/i,
+    /[(\[]\s*(\d+)\s*(?:-|to|–)\s*(\d+)\s*[)\]]/,
+    /(\d+)\s*(?:-|to|–)\s*(\d+)/
+  ];
+
+  for (const regex of patterns) {
+    const match = text.match(regex);
+    if (match) {
+      const start = parseInt(match[1], 10);
+      const end = parseInt(match[2], 10);
+      if (!isNaN(start) && !isNaN(end)) {
+        return { start, end };
+      }
+    }
+  }
+
+  const singleRegex = /(?:questions?|qn?|q)\s*(\d+)/i;
+  const singleMatch = text.match(singleRegex);
+  if (singleMatch) {
+    const start = parseInt(singleMatch[1], 10);
+    if (!isNaN(start)) {
+      return { start, end: null };
+    }
+  }
+
+  return null;
+}
+
 function Feature({ icon: Icon, label, value }: any) {
   return (
     <div className="flex flex-col items-center text-center space-y-2">
@@ -507,13 +560,35 @@ function Feature({ icon: Icon, label, value }: any) {
   );
 }
 
-function ObjectiveItem({ text }: { text: string; key?: React.Key }) {
+function ObjectiveItem({ text, onClick, isClickable }: { text: string; onClick?: () => void; isClickable?: boolean; key?: React.Key }) {
   return (
-    <div className="card-luxury p-6 flex items-start gap-4 bg-navy-mid/40">
-      <div className="w-6 h-6 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500 flex-shrink-0 border border-emerald-500/20 mt-1">
-        <CheckCircle2 className="w-3.5 h-3.5" />
+    <div 
+      onClick={onClick}
+      className={`card-luxury p-6 flex items-start gap-4 transition-all duration-200 ${
+        isClickable 
+          ? 'bg-navy-mid/40 hover:bg-gold/5 hover:border-gold/30 cursor-pointer group/item active:scale-[0.99]' 
+          : 'bg-navy-mid/40'
+      }`}
+    >
+      <div className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 border mt-1 transition-colors ${
+        isClickable
+          ? 'bg-gold/10 text-gold border-gold/20 group-hover/item:bg-gold group-hover/item:text-navy'
+          : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+      }`}>
+        {isClickable ? <Play className="w-3 h-3 fill-current" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
       </div>
-      <p className="text-text-2 font-semibold text-sm leading-relaxed">{text}</p>
+      <div className="flex-1">
+        <p className={`font-semibold text-sm leading-relaxed transition-colors ${
+          isClickable ? 'text-text-2 group-hover/item:text-gold' : 'text-text-2'
+        }`}>
+          {text}
+        </p>
+        {isClickable && (
+          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-gold/60 mt-1.5 block">
+            Click to launch section
+          </span>
+        )}
+      </div>
     </div>
   );
 }

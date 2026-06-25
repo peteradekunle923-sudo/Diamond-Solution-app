@@ -47,6 +47,27 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, profile, loading } = useAuth();
   const location = useLocation();
+
+  React.useEffect(() => {
+    if (user) {
+      import('./lib/SessionService').then(({ SessionService }) => {
+        // Validate ID token on screen load
+        SessionService.validateIdToken(user.uid).then((isValidToken) => {
+          if (!isValidToken) {
+            SessionService.forceSignOut('session_expired');
+          }
+        });
+
+        // Compare local session token with Firestore on screen load
+        SessionService.validateSessionOnServer(user.uid).then((isValidSession) => {
+          if (!isValidSession) {
+            SessionService.forceSignOut('multi_device');
+          }
+        });
+      });
+    }
+  }, [location.pathname, user]);
+
   if (loading) return <PageLoader />;
   
   if (user && profile?.status === 'suspended' && location.pathname !== '/reactivate') {
