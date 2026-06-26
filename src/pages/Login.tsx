@@ -440,7 +440,34 @@ export default function Login() {
         const deviceId = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
         const userDocRef = doc(db, 'users', res.user.uid);
-        const userDocSnap = await getDoc(userDocRef);
+        let userDocSnap = await getDoc(userDocRef);
+
+        if (!userDocSnap.exists()) {
+          // Self-healing: create the missing user profile
+          const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+          const defaultProfile = {
+            uid: res.user.uid,
+            email: res.user.email || email,
+            displayName: res.user.displayName || email.split('@')[0],
+            role: 'student',
+            createdAt: new Date().toISOString(),
+            referralCode: `DS${randomPart}`,
+            affiliateStatus: 'active',
+            isAffiliate: true,
+            isPartner: true,
+            hasPaidAffiliateFee: true,
+            hasSeenTour: true,
+            hasSeenProfessionalTour: false,
+            balance: 0,
+            currency: 'NGN',
+            language: 'en',
+            emailVerified: false
+          };
+          await setDoc(userDocRef, defaultProfile);
+          // Refetch
+          userDocSnap = await getDoc(userDocRef);
+        }
+
         const userData = userDocSnap.data() || {};
         const isUserAdmin = userData.role === 'admin' || email === 'peteradekunle923@gmail.com';
 
@@ -503,12 +530,6 @@ export default function Login() {
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         const deviceId = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-        // Start single-session validation
-        const { SessionService } = await import('../lib/SessionService');
-        await SessionService.startSession(userCredential.user.uid);
-        
-        await userCredential.user.getIdToken(true);
-
         let finalReferralCode = (referralFromUrl || manualReferralCode || '').trim();
         let referredByUid = null;
         
@@ -535,6 +556,7 @@ export default function Login() {
         const country = africanCountries.find(c => c.code === countryCode);
         const currency = country?.currency || 'USD';
 
+        // Write the users document first to satisfy firestore.rules create schema requirements
         await setDoc(doc(db, 'users', userCredential.user.uid), {
           uid: userCredential.user.uid,
           email,
@@ -558,6 +580,12 @@ export default function Login() {
           language,
           emailVerified: false 
         });
+
+        // Start single-session validation safely AFTER user profile document exists
+        const { SessionService } = await import('../lib/SessionService');
+        await SessionService.startSession(userCredential.user.uid);
+        
+        await userCredential.user.getIdToken(true);
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         setGeneratedOtp(otp);

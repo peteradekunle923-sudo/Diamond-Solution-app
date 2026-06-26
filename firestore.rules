@@ -18,8 +18,7 @@ service cloud.firestore {
     function isSuspended() {
       return isSignedIn() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        'status' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'suspended';
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('status', 'active') == 'suspended';
     }
     
     // Admin check: Hardcoded SuperAdmin + Admins collection lookup + users role
@@ -28,7 +27,7 @@ service cloud.firestore {
         (request.auth.token.email != null && request.auth.token.email.matches('(?i)^peteradekunle923@gmail\\.com$')) ||
         exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'student') == 'admin')
       );
     }
 
@@ -36,14 +35,13 @@ service cloud.firestore {
     function hasPaidCourse() {
       return isSignedIn() &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        'hasPaidCourse' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hasPaidCourse == true;
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('hasPaidCourse', false) == true;
     }
 
     // 3. VALIDATION BLUEPRINTS
     
     function isValidUser(data) {
-      return data.keys().hasAll(['uid', 'email', 'role']) &&
+      return ('uid' in data && 'email' in data && 'role' in data) &&
              data.uid == request.auth.uid &&
              data.role in ['student', 'admin', 'moderator'] &&
              data.email is string && data.email.size() <= 255 &&
@@ -72,7 +70,7 @@ service cloud.firestore {
     }
 
     function isValidPayment(data) {
-      return data.keys().hasAll(['userId', 'amount', 'status']) &&
+      return ('userId' in data && 'amount' in data && 'status' in data) &&
              data.userId == request.auth.uid &&
              data.status in ['pending', 'success', 'failed'] &&
              data.amount is number && data.amount > 0 &&
@@ -82,7 +80,7 @@ service cloud.firestore {
     }
 
     function isValidWithdrawal(data) {
-      return data.keys().hasAll(['userId', 'amount', 'status', 'createdAt', 'currency']) &&
+      return ('userId' in data && 'amount' in data && 'status' in data && 'createdAt' in data && 'currency' in data) &&
              data.userId == request.auth.uid &&
              data.amount is number && 
              ((data.currency == 'USD' && data.amount >= 10) || (data.currency == 'NGN' && data.amount >= 10000)) &&

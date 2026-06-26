@@ -11,6 +11,7 @@ import { usePaystackPayment } from 'react-paystack';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from '../context/LanguageContext';
 import { cn } from '../lib/utils';
+import axios from 'axios';
 
 export default function CourseList() {
   const { user, profile, isAdmin } = useAuth();
@@ -109,6 +110,20 @@ export default function CourseList() {
 
   const [selectedDeptWithPrice, setSelectedDeptWithPrice] = useState<{name: string, price: number, priceUSD: number} | null>(null);
 
+  const [dynamicPublicKey, setDynamicPublicKey] = useState<string>('');
+
+  useEffect(() => {
+    axios.get('/api/config')
+      .then(res => {
+        if (res.data.paystackPublicKey) {
+          setDynamicPublicKey(res.data.paystackPublicKey);
+        }
+      })
+      .catch(err => {
+        console.warn("Failed to fetch dynamic configuration:", err);
+      });
+  }, []);
+
   const userCurrency = profile?.currency || 'NGN';
   const currentPrice = selectedDeptWithPrice ? (userCurrency === 'USD' ? selectedDeptWithPrice.priceUSD : selectedDeptWithPrice.price) : 0;
 
@@ -116,7 +131,7 @@ export default function CourseList() {
     reference: (new Date()).getTime().toString(),
     email: user?.email || '',
     amount: currentPrice * 100,
-    publicKey: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '',
+    publicKey: dynamicPublicKey || import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '',
     currency: userCurrency,
     metadata: {
       custom_fields: [
@@ -271,7 +286,8 @@ export default function CourseList() {
   const handleDeptPayment = (dept: string) => {
     if (paying) return;
     
-    if (!import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || import.meta.env.VITE_PAYSTACK_PUBLIC_KEY === 'pk_test_placeholder') {
+    const activeKey = dynamicPublicKey || import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '';
+    if (!activeKey || activeKey === 'pk_test_placeholder') {
       if (window.confirm("DEBUG MODE: Paystack key missing. Would you like to SIMULATE a successful payment for " + dept + "?")) {
         onSuccess({ reference: 'sim_dept_' + Date.now() });
       }

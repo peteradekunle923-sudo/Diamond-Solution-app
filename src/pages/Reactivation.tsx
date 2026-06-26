@@ -8,6 +8,7 @@ import { usePaystackPayment } from 'react-paystack';
 import { ShieldAlert, CreditCard, Loader2, Globe, Clock, Banknote } from 'lucide-react';
 import { motion } from 'motion/react';
 import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
+import axios from 'axios';
 
 export default function Reactivation() {
   const { user, profile } = useAuth();
@@ -27,11 +28,25 @@ export default function Reactivation() {
   const amount = isNigerian ? feeNGN : feeUSD;
   const currency = isNigerian ? 'NGN' : 'USD';
 
+  const [dynamicPublicKey, setDynamicPublicKey] = useState<string>('');
+
+  useEffect(() => {
+    axios.get('/api/config')
+      .then(res => {
+        if (res.data.paystackPublicKey) {
+          setDynamicPublicKey(res.data.paystackPublicKey);
+        }
+      })
+      .catch(err => {
+        console.warn("Failed to fetch dynamic configuration:", err);
+      });
+  }, []);
+
   const config = {
     reference: `reactivate_${new Date().getTime()}_${user?.uid}`,
     email: user?.email || '',
     amount: isNigerian ? feeNGN * 100 : Math.round(feeUSD * 1500 * 100), // Approximate USD to NGN for Paystack if it doesn't support USD directly in this setup
-    publicKey: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '',
+    publicKey: dynamicPublicKey || import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '',
   };
 
   const onSuccess = async (reference: any) => {
@@ -124,7 +139,16 @@ export default function Reactivation() {
 
            <div className="space-y-4">
               <button 
-                onClick={() => initializePayment({onSuccess, onClose})}
+                onClick={() => {
+                  const activeKey = dynamicPublicKey || import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '';
+                  if (!activeKey || activeKey === 'pk_test_placeholder') {
+                    if (window.confirm("DEBUG MODE: Paystack key missing. Would you like to SIMULATE successful reactivation payment?")) {
+                      onSuccess({ reference: 'sim_reactivate_' + Date.now() });
+                    }
+                    return;
+                  }
+                  initializePayment({onSuccess, onClose});
+                }}
                 disabled={loading}
                 className="w-full bg-gold text-navy py-6 rounded-2xl font-black text-sm uppercase tracking-[0.4em] shadow-[0_20px_50px_rgba(201,147,10,0.3)] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-4"
               >

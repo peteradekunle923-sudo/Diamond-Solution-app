@@ -67,11 +67,17 @@ export default function ActivityLog() {
 
       snapshot.forEach((doc) => {
         const data = doc.data();
+        // Standardize timestamp: handle both string formats and Firestore Timestamp objects safely
+        const logTimestampStr = typeof data.timestamp === 'string' 
+          ? data.timestamp 
+          : data.timestamp?.toDate?.()?.toISOString() || '';
+
         // Client-side filter for previous 7 days to avoid composite index requirements
-        if (data.timestamp && data.timestamp >= sevenDaysAgoStr) {
+        if (logTimestampStr && logTimestampStr >= sevenDaysAgoStr) {
           fetchedLogs.push({
             id: doc.id,
-            ...data
+            ...data,
+            timestamp: logTimestampStr
           } as LogItem);
         }
       });

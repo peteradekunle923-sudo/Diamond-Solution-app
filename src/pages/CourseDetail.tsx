@@ -29,6 +29,20 @@ export default function CourseDetail() {
   const [facultyPrice, setFacultyPrice] = useState({ ngn: 10000, usd: 7 });
   const userCurrency = profile?.currency || 'NGN';
   
+  const [dynamicPublicKey, setDynamicPublicKey] = useState<string>('');
+
+  useEffect(() => {
+    axios.get('/api/config')
+      .then(res => {
+        if (res.data.paystackPublicKey) {
+          setDynamicPublicKey(res.data.paystackPublicKey);
+        }
+      })
+      .catch(err => {
+        console.warn("Failed to fetch dynamic configuration:", err);
+      });
+  }, []);
+
   const displayPrice = userCurrency === 'USD' ? facultyPrice.usd : facultyPrice.ngn;
   const paystackAmount = displayPrice * 100;
 
@@ -36,7 +50,7 @@ export default function CourseDetail() {
     reference: (new Date()).getTime().toString(),
     email: user?.email || '',
     amount: paystackAmount,
-    publicKey: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 'pk_test_placeholder',
+    publicKey: dynamicPublicKey || import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 'pk_test_placeholder',
     currency: userCurrency,
     metadata: {
       custom_fields: [
@@ -319,7 +333,8 @@ export default function CourseDetail() {
     if (paying) return;
     if (!user) return navigate('/login');
     
-    if (!import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || import.meta.env.VITE_PAYSTACK_PUBLIC_KEY === 'pk_test_placeholder') {
+    const activeKey = dynamicPublicKey || import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '';
+    if (!activeKey || activeKey === 'pk_test_placeholder') {
       if (window.confirm("DEBUG MODE: Paystack key missing. SIMULATE course purchase?")) {
         onSuccess({ reference: 'sim_course_' + Date.now() });
       }

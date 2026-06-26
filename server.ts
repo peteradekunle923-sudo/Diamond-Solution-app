@@ -242,6 +242,13 @@ async function startServer() {
     }
   });
 
+  // Config endpoint for client-side keys
+  app.get("/api/config", (req, res) => {
+    res.json({
+      paystackPublicKey: process.env.VITE_PAYSTACK_PUBLIC_KEY || process.env.PAYSTACK_PUBLIC_KEY || ""
+    });
+  });
+
   // Payout endpoint
   app.post("/api/payout", async (req, res) => {
     const { amount, accountNumber, bankCode, accountName, reference, userId, hasPaidCourse: clientHasPaid, currency: clientCurrency } = req.body;
