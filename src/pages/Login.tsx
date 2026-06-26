@@ -96,6 +96,7 @@ export default function Login() {
   const [enableBiometricsOnLogin, setEnableBiometricsOnLogin] = useState(false);
   const [enrolledEmail, setEnrolledEmail] = useState('');
   const [biometricUnlocking, setBiometricUnlocking] = useState(false);
+  const [useFingerprintToUnlock, setUseFingerprintToUnlock] = useState(false);
   const [isInIframe, setIsInIframe] = useState(false);
 
   const [deletedStaticNames, setDeletedStaticNames] = useState<string[]>([]);
@@ -114,6 +115,7 @@ export default function Login() {
           setEnrolledEmail(emailStr);
           // Auto fill email if biometrics enrolled
           setEmail(emailStr);
+          setUseFingerprintToUnlock(true);
         }
       }
     }
@@ -408,6 +410,11 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    if (useFingerprintToUnlock) {
+      handleBiometricUnlock();
+      return;
+    }
     
     if (!isLogin) {
       if (password !== confirmPassword) {
@@ -880,6 +887,74 @@ export default function Login() {
                   {t('general.back')}
                 </button>
               </div>
+            ) : (isLogin && useFingerprintToUnlock) ? (
+              <div className="space-y-6 text-center py-4">
+                <div className="flex flex-col items-center justify-center gap-3">
+                  <div className="w-16 h-16 rounded-full bg-gold/10 border border-gold/30 flex items-center justify-center">
+                    <Fingerprint className="w-8 h-8 text-gold animate-bounce" />
+                  </div>
+                  <h3 className="text-sm font-black text-[#EDE8E1] uppercase tracking-[0.2em]" style={{ includeFontPadding: false }}>
+                    Quick Fingerprint Unlock
+                  </h3>
+                  <p className="text-[10px] font-bold text-text-3 uppercase tracking-widest leading-relaxed">
+                    Account: <span className="text-gold font-black">{enrolledEmail}</span>
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleBiometricUnlock}
+                  disabled={loading || biometricUnlocking}
+                  className="w-full h-16 border border-gold/30 rounded-2xl bg-gold/10 hover:bg-gold/20 transition-all flex items-center justify-center gap-4 text-gold group relative overflow-hidden active:scale-[0.98] transform"
+                >
+                  {biometricUnlocking ? (
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] animate-pulse" style={{ includeFontPadding: false }}>
+                      Verifying Credentials...
+                    </span>
+                  ) : (
+                    <>
+                      <Fingerprint className="w-6 h-6 text-gold animate-bounce" />
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ includeFontPadding: false }}>
+                        Unlock with Fingerprint
+                      </span>
+                    </>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                </button>
+
+                {isInIframe && (
+                  <p className="text-[8px] text-gold/80 leading-relaxed tracking-normal font-sans" style={{ includeFontPadding: false }}>
+                    ⚠️ Fingerprint unlock is restricted inside this preview screen. Click <strong>"Open App in a New Tab"</strong> at the top right to use it securely.
+                  </p>
+                )}
+
+                <div className="flex flex-col gap-2 pt-2 border-t border-gold/10">
+                  <button
+                    type="button"
+                    onClick={() => setUseFingerprintToUnlock(false)}
+                    className="text-[9px] font-black text-gold uppercase tracking-[0.2em] hover:underline"
+                    style={{ includeFontPadding: false }}
+                  >
+                    Sign in with password
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await clearBiometrics();
+                      setBiometricsEnrolled(false);
+                      setEnrolledEmail('');
+                      setUseFingerprintToUnlock(false);
+                      setEmail('');
+                      setPassword('');
+                    }}
+                    className="text-[9px] font-black text-red-500/60 uppercase tracking-[0.2em] hover:text-red-500 transition-colors"
+                    style={{ includeFontPadding: false }}
+                  >
+                    Reset Fingerprint Enrolment
+                  </button>
+                </div>
+              </div>
             ) : isLogin ? (
                   <>
                     <div className="space-y-1.5" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrapper margin */}
@@ -1001,42 +1076,15 @@ export default function Login() {
                     )}
 
                     {biometricsSupported && biometricsEnrolled && (
-                      <div className="pt-2" style={{ marginBottom: 16 }}>
+                      <div className="pt-2 text-center" style={{ marginBottom: 16 }}>
                         <button
                           type="button"
-                          onClick={handleBiometricUnlock}
-                          disabled={loading || biometricUnlocking}
-                          className="w-full h-16 border border-gold/30 rounded-2xl bg-gold/10 hover:bg-gold/20 transition-all flex items-center justify-center gap-4 text-gold group relative overflow-hidden active:scale-[0.98] transform"
+                          onClick={() => setUseFingerprintToUnlock(true)}
+                          className="text-[10px] font-black text-gold uppercase tracking-[0.2em] hover:underline"
+                          style={{ includeFontPadding: false }}
                         >
-                          {biometricUnlocking ? (
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] animate-pulse" style={{ includeFontPadding: false }}>Verifying Credentials...</span>
-                          ) : (
-                            <>
-                              <Fingerprint className="w-6 h-6 text-gold animate-bounce" />
-                              <span className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ includeFontPadding: false }}>Unlock with Fingerprint</span>
-                            </>
-                          )}
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                          ← Switch to Fingerprint Quick Unlock
                         </button>
-                        {isInIframe && (
-                          <p className="text-[8px] text-gold/80 mt-1.5 text-center leading-relaxed tracking-normal" style={{ includeFontPadding: false }}>
-                            ⚠️ Fingerprint unlock is restricted inside this preview screen. Click <strong>"Open App in a New Tab"</strong> at the top right to use it securely.
-                          </p>
-                        )}
-                        <div className="flex justify-between items-center px-1 mt-2">
-                          <span className="text-[8px] font-bold text-text-3 uppercase tracking-widest" style={{ includeFontPadding: false }}>Enrolled: {enrolledEmail}</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              clearBiometrics();
-                              setBiometricsEnrolled(false);
-                              setEnrolledEmail('');
-                            }}
-                            className="text-[8px] font-black text-red-500/60 uppercase tracking-widest hover:text-red-500 transition-colors"
-                          >
-                            Reset Fingerprint Enrolment
-                          </button>
-                        </div>
                       </div>
                     )}
                   </>
@@ -1475,7 +1523,7 @@ export default function Login() {
                   </p>
                 </div>
 
-                 {isLogin && (
+                 {isLogin && !useFingerprintToUnlock && (
                     <button
                       type="submit"
                       disabled={loading}

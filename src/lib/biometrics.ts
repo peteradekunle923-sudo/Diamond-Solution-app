@@ -3,6 +3,9 @@
  * Coupled with local storage of obscured credentials to support automated sign-in on standard single-tenant Firebase layouts.
  */
 
+import { doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { db, auth } from './firebase';
+
 // Simple obfuscation helper to avoid storing plain text passwords in localStorage
 const OBFUSCATION_KEY = "diamond-learning-key-928374982";
 
@@ -63,6 +66,15 @@ export async function getEnrolledEmail(): Promise<string> {
   }
 }
 
+function getOrGenerateDeviceBiometricId(): string {
+  let devId = localStorage.getItem("diamond_device_biometric_id");
+  if (!devId) {
+    devId = "bio_dev_" + Math.random().toString(36).substring(2, 15) + "_" + Date.now().toString(36);
+    localStorage.setItem("diamond_device_biometric_id", devId);
+  }
+  return devId;
+}
+
 /**
  * Register the user's platform biometrics (Fingerprint)
  * triggers standard navigator.credentials.create
@@ -70,6 +82,39 @@ export async function getEnrolledEmail(): Promise<string> {
 export async function enrollBiometrics(email: string, password: string): Promise<boolean> {
   if (!window.PublicKeyCredential) {
     throw new Error("Biometric authentication is not supported on this browser.");
+  }
+
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    throw new Error("You must be logged in to enroll biometrics.");
+  }
+
+  const deviceId = getOrGenerateDeviceBiometricId();
+
+  // Guard: Check if this device is already enrolled to another user
+  try {
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('biometricDeviceId', '==', deviceId));
+    const querySnapshot = await getDocs(q);
+
+    let isLinkedToOther = false;
+    let linkedEmail = "";
+    querySnapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (docSnap.id !== currentUser.uid && data.email !== email) {
+        isLinkedToOther = true;
+        linkedEmail = data.email || "another account";
+      }
+    });
+
+    if (isLinkedToOther) {
+      throw new Error(`This device is already enrolled to another account (${linkedEmail}). A physical device can only be used to unlock a single account.`);
+    }
+  } catch (err: any) {
+    if (err.message && err.message.includes("physical device can only")) {
+      throw err;
+    }
+    console.warn("Could not verify unique device biometric enrolment in database:", err);
   }
 
   const randomChallenge = new Uint8Array(32);
@@ -106,6 +151,13 @@ export async function enrollBiometrics(email: string, password: string): Promise
     });
 
     if (credential) {
+      // Save device ID to user's Firestore document
+      const userRef = doc(db, 'users', currentUser.uid);
+      await updateDoc(userRef, {
+        biometricDeviceId: deviceId,
+        biometricEnrolledAt: new Date().toISOString()
+      });
+
       // Obfuscate and store credentials locally
       const payload: BiometricCredentials = {
         email,
@@ -181,6 +233,18 @@ export async function authenticateBiometrics(): Promise<{ email: string; passwor
   }
 }
 
-export function clearBiometrics() {
+export async function clearBiometrics() {
   localStorage.removeItem("diamond_biometric_credentials");
+  const currentUser = auth.currentUser;
+  if (currentUser) {
+    try {
+      const userRef = doc(db, 'users', currentUser.uid);
+      await updateDoc(userRef, {
+        biometricDeviceId: null,
+        biometricEnrolledAt: null
+      });
+    } catch (e) {
+      console.warn("Could not clear biometricDeviceId from Firestore:", e);
+    }
+  }
 }
