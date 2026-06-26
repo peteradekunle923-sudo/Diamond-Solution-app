@@ -32,7 +32,9 @@
         "language": { "type": "string", "enum": ["en", "fr"] },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" },
-        "isVerified": { "type": "boolean" }
+        "isVerified": { "type": "boolean" },
+        "biometricDeviceId": { "type": "string" },
+        "biometricEnrolledAt": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "email", "role"]
     },

@@ -66,7 +66,9 @@ service cloud.firestore {
              (!('createdAt' in data) || (data.createdAt is string || data.createdAt == request.time)) &&
              (!('updatedAt' in data) || (data.updatedAt is string || data.updatedAt == request.time)) &&
              (!('bankDetails' in data) || (data.bankDetails is map)) &&
-             (!('currency' in data) || data.currency in ['NGN', 'USD']);
+             (!('currency' in data) || data.currency in ['NGN', 'USD']) &&
+             (!('biometricDeviceId' in data) || (data.biometricDeviceId is string || data.biometricDeviceId == null)) &&
+             (!('biometricEnrolledAt' in data) || (data.biometricEnrolledAt is string || data.biometricEnrolledAt == null));
     }
 
     function isValidPayment(data) {
