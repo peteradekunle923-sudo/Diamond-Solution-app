@@ -9,7 +9,7 @@ import { Diamond, Mail, Lock, ArrowRight, ShieldCheck, Send, MessageCircle, Face
 import { useLanguage } from '../context/LanguageContext';
 import { setSessionToken } from '../context/AuthContext';
 import { cn } from '../lib/utils';
-import { isBiometricsSupported, hasEnrolledBiometrics, enrollBiometrics, authenticateBiometrics, getEnrolledEmail, clearBiometrics } from '../lib/biometrics';
+import { isBiometricsSupported, hasEnrolledBiometrics, enrollBiometrics, authenticateBiometrics, getEnrolledEmail, clearBiometrics, getDeviceBiometricId } from '../lib/biometrics';
 
 import { DEPARTMENTS } from '../constants';
 
@@ -375,6 +375,21 @@ export default function Login() {
         
         const res = await signInWithEmailAndPassword(auth, credentials.email, credentials.password);
         
+        // Safety verification: verify that this user is indeed registered on this device
+        const userDoc = await getDoc(doc(db, 'users', res.user.uid));
+        const userData = userDoc.exists() ? userDoc.data() : null;
+        const localDeviceId = getDeviceBiometricId();
+        
+        if (userData && userData.biometricDeviceId && userData.biometricDeviceId !== localDeviceId) {
+          await signOut(auth);
+          // Clear cached credentials since they do not belong to this physical device
+          await clearBiometrics();
+          setBiometricsEnrolled(false);
+          setEnrolledEmail('');
+          setUseFingerprintToUnlock(false);
+          throw new Error("This fingerprint credential is registered on a different device and cannot be used on this device.");
+        }
+
         const deviceInfo = {
           userAgent: navigator.userAgent,
           screen: `${window.screen.width}x${window.screen.height}`,
@@ -513,6 +528,7 @@ export default function Login() {
             await enrollBiometrics(email, password);
           } catch (e: any) {
             console.warn("Could not enroll biometrics:", e);
+            alert(e?.message || "Could not enroll fingerprint biometrics.");
           }
         }
         
@@ -937,22 +953,6 @@ export default function Login() {
                   >
                     Sign in with password
                   </button>
-
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await clearBiometrics();
-                      setBiometricsEnrolled(false);
-                      setEnrolledEmail('');
-                      setUseFingerprintToUnlock(false);
-                      setEmail('');
-                      setPassword('');
-                    }}
-                    className="text-[9px] font-black text-red-500/60 uppercase tracking-[0.2em] hover:text-red-500 transition-colors"
-                    style={{ includeFontPadding: false }}
-                  >
-                    Reset Fingerprint Enrolment
-                  </button>
                 </div>
               </div>
             ) : isLogin ? (
@@ -1075,7 +1075,7 @@ export default function Login() {
                       </div>
                     )}
 
-                    {biometricsSupported && biometricsEnrolled && (
+                    {biometricsSupported && biometricsEnrolled && email === enrolledEmail && (
                       <div className="pt-2 text-center" style={{ marginBottom: 16 }}>
                         <button
                           type="button"

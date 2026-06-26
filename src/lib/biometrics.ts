@@ -248,3 +248,7 @@ export async function clearBiometrics() {
     }
   }
 }
+
+export function getDeviceBiometricId(): string {
+  return getOrGenerateDeviceBiometricId();
+}
