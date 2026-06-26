@@ -213,6 +213,29 @@
         "supportEmail": { "type": "string" },
         "updatedAt": { "type": "string", "format": "date-time" }
       }
+    },
+    "ActivityLog": {
+      "title": "ActivityLog",
+      "description": "Log of question, answer, and explanation for revision and progress tracking",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "courseId": { "type": "string" },
+        "courseTitle": { "type": "string" },
+        "questionId": { "type": "string" },
+        "questionText": { "type": "string" },
+        "options": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "selectedAnswer": { "type": "string" },
+        "correctAnswer": { "type": "number" },
+        "isCorrect": { "type": "boolean" },
+        "explanation": { "type": "string" },
+        "type": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "courseId", "questionId", "questionText", "isCorrect", "timestamp"]
     }
   },
   "firestore": {
@@ -228,6 +251,7 @@
     "/dailyPractice/{practiceId}": { "schema": "DailyPractice", "description": "User daily practice stats" },
     "/faculties/{facultyId}": { "schema": "Faculty", "description": "Custom faculties and pricing" },
     "/admin_tokens/{tokenId}": { "schema": "AdminToken", "description": "Security tokens for sensitive actions" },
-    "/settings/{settingId}": { "schema": "Setting", "description": "Global institutional settings" }
+    "/settings/{settingId}": { "schema": "Setting", "description": "Global institutional settings" },
+    "/activityLogs/{logId}": { "schema": "ActivityLog", "description": "User study activity logs for revision" }
   }
 }

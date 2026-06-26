@@ -60,10 +60,8 @@ export default function Login() {
     const modeParam = params.get('mode');
     if (modeParam === 'signup') return false;
     if (modeParam === 'login') return true;
-    const refParam = params.get('ref');
-    const storedCode = sessionStorage.getItem('referralCode');
-    if (refParam && !modeParam) return true; // Will redirect to splash anyway
-    return !(refParam || storedCode);
+    // Anytime they land on login without explicit mode, show the login page
+    return true;
   });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -137,8 +135,9 @@ export default function Login() {
         setIsLogin(false);
       } else if (modeParam === 'login') {
         setIsLogin(true);
-      } else if (code) {
-        setIsLogin(false);
+      } else {
+        // Default to login unless explicitly requested as signup
+        setIsLogin(true);
       }
     }
   }, [referralFromUrl, navigate, searchParams]);

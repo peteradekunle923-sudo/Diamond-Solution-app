@@ -98,6 +98,10 @@ service cloud.firestore {
       return !('userId' in data) || data.userId == request.auth.uid;
     }
 
+    function isValidActivityLog(data) {
+      return data.userId == request.auth.uid;
+    }
+
     // 4. COLLECTION RULES
 
     match /users/{userId} {
@@ -241,6 +245,13 @@ service cloud.firestore {
     // --- Admin Tokens ---
     match /admin_tokens/{tokenId} {
       allow read, write: if isAdmin();
+    }
+
+    // --- Activity Logs ---
+    match /activityLogs/{logId} {
+      allow read: if isAdmin() || (isSignedIn() && !isSuspended() && (resource == null || resource.data.userId == request.auth.uid));
+      allow create: if isSignedIn() && !isSuspended() && isValidActivityLog(incoming());
+      allow update, delete: if isAdmin();
     }
   }
 }

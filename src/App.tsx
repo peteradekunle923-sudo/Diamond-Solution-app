@@ -13,6 +13,7 @@ const CourseDetail = React.lazy(() => import('./pages/CourseDetail'));
 const StudyPage = React.lazy(() => import('./pages/StudyPage'));
 const AffiliateDashboard = React.lazy(() => import('./pages/AffiliateDashboard'));
 const Profile = React.lazy(() => import('./pages/Profile'));
+const ActivityLog = React.lazy(() => import('./pages/ActivityLog'));
 const Chat = React.lazy(() => import('./pages/Chat'));
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
 const Notifications = React.lazy(() => import('./pages/Notifications'));
@@ -92,6 +93,7 @@ export default function App() {
               <Route path="/courses/:id/study" element={<ProtectedRoute><StudyPage /></ProtectedRoute>} />
               <Route path="/affiliate" element={<ProtectedRoute><AffiliateDashboard /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              <Route path="/activity-log" element={<ProtectedRoute><ActivityLog /></ProtectedRoute>} />
               <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
               <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
               <Route path="/account" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />

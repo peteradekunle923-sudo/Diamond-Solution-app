@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, query, orderBy, doc, getDoc, getDocs, where, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, getDoc, getDocs, where, setDoc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { ChevronLeft, CheckCircle, ArrowRight, ArrowLeft, Trophy, RotateCcw, XCircle, Info, Lock, BookOpen, Sparkles, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -597,6 +597,31 @@ export default function StudyPage() {
       isSubmitted: true
     });
     updateDailyPractice(false);
+    logStudyActivity(currentQ, null, false);
+  };
+
+  const logStudyActivity = async (question: any, selectedAns: string | null, isCorrect: boolean) => {
+    if (!user || !id || !question) return;
+    try {
+      // Clean data to prevent undefined values which crash Firestore addDoc calls
+      const logData = {
+        userId: user.uid,
+        courseId: id,
+        courseTitle: course?.title || 'Course',
+        questionId: question.id || '',
+        questionText: question.question || question.text || 'No question text',
+        options: Array.isArray(question.options) ? question.options : [],
+        selectedAnswer: selectedAns !== undefined ? selectedAns : null,
+        correctAnswer: typeof question.correctAnswer === 'number' ? question.correctAnswer : null,
+        isCorrect: !!isCorrect,
+        explanation: question.explanation || question.answerText || '',
+        type: question.type || 'mcq',
+        timestamp: new Date().toISOString()
+      };
+      await addDoc(collection(db, 'activityLogs'), logData);
+    } catch (err) {
+      console.error("Failed to log study activity:", err);
+    }
   };
 
   const saveProgress = async (updates: any) => {
@@ -647,6 +672,7 @@ export default function StudyPage() {
       isSubmitted: true
     });
     updateDailyPractice(isCorrect);
+    logStudyActivity(currentQ, selectedAnswer, isCorrect);
   };
 
   const handleProceedToNextSection = (targetRange: typeof activeRange) => {

@@ -123,7 +123,7 @@ export default function AccountSettings() {
     setLoading(true);
     try {
       await updatePassword(user!, passwords.new);
-      alert('Institutional Access Key successfully updated.');
+      alert('Institutional Password successfully updated.');
       navigate('/profile');
     } catch (err: any) {
       setError(err.message || 'Failed to update password');
@@ -390,7 +390,7 @@ export default function AccountSettings() {
               <h4 className="text-[10px] font-black uppercase tracking-[0.3em]">Institutional Protocol</h4>
            </div>
            <p className="text-xs text-text-3 leading-relaxed">
-             Access key revisions require multi-layer authentication. Your institutional email serves as the primary verification vector. Ensure you maintain access to your email account at all times.
+             Password revisions require multi-layer authentication. Your institutional email serves as the primary verification vector. Ensure you maintain access to your email account at all times.
            </p>
         </div>
       </div>

@@ -24,11 +24,11 @@ const translations: Record<Language, Record<string, string>> = {
     // Auth
     'auth.login': 'Access Terminal',
     'auth.email': 'Institutional Email',
-    'auth.password': 'Access Key',
+    'auth.password': 'Password',
     'auth.signin': 'Authorize Access',
     'auth.noAccount': 'Need clearance? Register with Registrar',
-    'auth.forgotPassword': 'Reset Access Key',
-    'auth.confirmPassword': 'Confirm Access Key',
+    'auth.forgotPassword': 'Reset Password',
+    'auth.confirmPassword': 'Confirm Password',
     'auth.resetSent': 'Reset Protocol Initiated. Check Email.',
     'auth.verifyEmail': 'Security Verification Required',
     'auth.otpSent': 'OTP code dispatched to your institutional email.',
@@ -133,6 +133,7 @@ const translations: Record<Language, Record<string, string>> = {
     'profile.notConfigured': 'Not Configured',
     'profile.settings': 'Institutional Settings',
     'profile.notifications': 'Notification Center',
+    'profile.activityLog': 'Revision & Activity Logs',
     'profile.account': 'Account Settings',
     'profile.partnerProgram': 'Partner Program',
     'profile.affiliateRepo': 'Affiliate Repository',
@@ -140,6 +141,8 @@ const translations: Record<Language, Record<string, string>> = {
     'profile.admin': 'System Administration',
     'profile.requestAdmin': 'Request Admin Privileges',
     'profile.adminRequested': 'Admin request dispatched to central authority.',
+    'profile.current_password': 'Current Password',
+    'profile.new_password': 'New Password',
     
     // Quiz/Study Page
     'quiz.question': 'Query',
@@ -415,11 +418,11 @@ const translations: Record<Language, Record<string, string>> = {
     // Auth
     'auth.login': 'Terminal d\'Accès',
     'auth.email': 'Email Institutionnel',
-    'auth.password': 'Clé d\'Accès',
+    'auth.password': 'Mot de Passe',
     'auth.signin': 'Autoriser l\'Accès',
     'auth.noAccount': 'Besoin d\'autorisation? S\'inscrire au Registre',
-    'auth.forgotPassword': 'Réinitialiser la Clé d\'Accès',
-    'auth.confirmPassword': 'Confirmer la Clé d\'Accès',
+    'auth.forgotPassword': 'Réinitialiser le Mot de Passe',
+    'auth.confirmPassword': 'Confirmer le Mot de Passe',
     'auth.resetSent': 'Protocole de Réinitialisation Initié. Vérifiez vos Emails.',
     'auth.verifyEmail': 'Vérification de Sécurité Requise',
     'auth.otpSent': 'Code OTP envoyé à votre email institutionnel.',
@@ -524,6 +527,7 @@ const translations: Record<Language, Record<string, string>> = {
     'profile.notConfigured': 'Non Configuré',
     'profile.settings': 'Paramètres Institutionnels',
     'profile.notifications': 'Centre de Notifications',
+    'profile.activityLog': 'Journaux de Révision et d\'Activité',
     'profile.account': 'Paramètres du Compte',
     'profile.partnerProgram': 'Programme de Partenariat',
     'profile.affiliateRepo': 'Dépôt d\'Affiliation',
@@ -531,6 +535,8 @@ const translations: Record<Language, Record<string, string>> = {
     'profile.admin': 'Administration du Système',
     'profile.requestAdmin': 'Demander des privilèges d\'administrateur',
     'profile.adminRequested': 'Demande d\'administration envoyée à l\'autorité centrale.',
+    'profile.current_password': 'Mot de Passe Actuel',
+    'profile.new_password': 'Nouveau Mot de Passe',
     
     // Quiz/Study Page
     'quiz.question': 'Requête',

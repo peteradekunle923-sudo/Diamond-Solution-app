@@ -7,7 +7,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { User, Shield, LogOut, ChevronRight, Bell, CreditCard, HelpCircle, Gift } from 'lucide-react';
+import { User, Shield, LogOut, ChevronRight, Bell, CreditCard, HelpCircle, Gift, History } from 'lucide-react';
 
 export default function Profile() {
   const { user, profile, isAdmin } = useAuth();
@@ -74,6 +74,7 @@ export default function Profile() {
            <h3 className="text-[10px] font-black text-text-3 uppercase tracking-[0.3em] px-2">{t('profile.settings')}</h3>
            <div className="card-luxury divide-y divide-gold/10 shadow-2xl shadow-black/20">
                <NavItem icon={Bell} label={t('profile.notifications')} to="/notifications" />
+               <NavItem icon={History} label={t('profile.activityLog')} to="/activity-log" />
                <NavItem icon={Shield} label={t('profile.account')} to="/account" border={false} />
            </div>
         </section>
