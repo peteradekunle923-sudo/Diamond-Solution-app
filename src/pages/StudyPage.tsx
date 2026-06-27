@@ -883,14 +883,14 @@ export default function StudyPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[110] bg-navy/95 backdrop-blur-md flex items-center justify-center p-6"
+            className="fixed inset-0 z-[110] bg-navy/95 backdrop-blur-md overflow-y-auto flex justify-center items-start p-4 sm:p-6 md:p-10"
           >
             {showBalloons && <BalloonContainer />}
             <motion.div 
               initial={{ scale: 0.95, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 20 }}
-              className="card-luxury max-w-xl w-full p-10 space-y-8 bg-gradient-to-b from-navy-mid to-navy shadow-[0_50px_100px_rgba(0,0,0,0.8)] border-gold/20"
+              className="card-luxury max-w-xl w-full p-6 sm:p-10 space-y-6 sm:space-y-8 bg-gradient-to-b from-navy-mid to-navy shadow-[0_50px_100px_rgba(0,0,0,0.8)] border-gold/20 my-auto"
             >
               {(() => {
                 // Calculate score only for this specific active range

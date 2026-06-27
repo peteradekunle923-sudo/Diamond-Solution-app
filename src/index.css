@@ -77,6 +77,51 @@
   input, textarea, select {
     -webkit-appearance: none;
     border-radius: 8px;
-    transform: translateZ(0);
   }
 }
+
+/* GPU Compositing fixes for page wrapper, cards, and section containers */
+.page-wrapper, .card, .section-container {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  isolation: isolate;
+  will-change: auto;
+}
+
+/* Striped pattern and mix-blend-mode removal on mobile */
+@media (max-width: 768px) {
+  .overlay, .pattern-layer, .bg-decoration {
+    mix-blend-mode: normal;
+    background-image: none;
+  }
+}
+
+/* Prevent canvas/WebGL background flickering and enforce layout rules */
+canvas {
+  position: fixed;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Mobile GPU compositing fix */
+@media (max-width: 768px) {
+  .card-luxury,
+  .glass-panel,
+  .bg-navy-mid,
+  [class*="backdrop-blur"] {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    will-change: auto;
+  }
+  
+  /* Disable motion animations on mobile to prevent scan-line artifacts */
+  .motion-safe\:animate-none {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+

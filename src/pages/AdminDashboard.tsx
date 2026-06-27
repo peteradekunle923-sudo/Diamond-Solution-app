@@ -25,6 +25,7 @@ type Tab = 'dashboard' | 'users' | 'affiliates' | 'withdrawals' | 'payments' | '
 
 export default function AdminDashboard() {
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [selectedDeptFilter, setSelectedDeptFilter] = useState<string | null>(null);
@@ -218,7 +219,7 @@ export default function AdminDashboard() {
       {/* ... existing code ... */}
       {/* Sidebar */}
       <aside className={cn(
-        "w-60 min-h-screen bg-[#111420] border-r border-[#1e2540] flex flex-col fixed top-0 left-0 z-50 transition-transform duration-300",
+        "w-60 h-screen bg-[#111420] border-r border-[#1e2540] flex flex-col fixed top-0 left-0 z-50 transition-transform duration-300",
         isSidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="p-7 flex items-center justify-between border-b border-[#1e2540]">
@@ -237,6 +238,7 @@ export default function AdminDashboard() {
         <nav className="flex-1 py-4 overflow-y-auto no-scrollbar">
           <div className="px-4 py-2 text-[10px] font-black text-gray-500 uppercase tracking-widest mt-2">{t('admin.main')}</div>
           <NavItem active={activeTab === 'dashboard'} icon={LayoutDashboard} label={t('admin.dashboard')} onClick={() => { setActiveTab('dashboard'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} />
+          <NavItem active={false} icon={Layers} label="User Dashboard" onClick={() => { navigate('/dashboard'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} />
           <NavItem active={activeTab === 'users'} icon={Users} label={t('admin.users')} onClick={() => { setActiveTab('users'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} />
           <NavItem active={activeTab === 'affiliates'} icon={LinkIcon} label={t('admin.affiliates')} onClick={() => { setActiveTab('affiliates'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} badge={stats.pendingCommissions} />
           <NavItem active={activeTab === 'withdrawals'} icon={Wallet} label={t('admin.withdrawals')} onClick={() => { setActiveTab('withdrawals'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} badge={stats.pendingWithdrawals} />

@@ -122,8 +122,7 @@ function Tab({ icon: Icon, label, to, badge }: { icon: any, label: string, to: s
       {({ isActive }: { isActive: boolean }) => (
         <>
           {isActive && (
-            <motion.div 
-              layoutId="tab-dot"
+            <div 
               className="absolute top-2.5 w-1 h-1 rounded-full bg-gold shadow-[0_0_8px_rgba(201,147,10,0.8)]"
             />
           )}

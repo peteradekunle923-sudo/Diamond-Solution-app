@@ -366,7 +366,7 @@ export default function CourseDetail() {
 
   return (
     <Layout>
-      <div className="pt-8 px-6 max-w-4xl mx-auto w-full relative z-20">
+      <div className="pt-8 px-6 max-w-4xl mx-auto w-full relative z-20 page-wrapper">
         <button 
           onClick={() => navigate('/courses')}
           className="w-10 h-10 md:w-12 md:h-12 bg-navy-mid/80 backdrop-blur-xl border border-gold/20 rounded-2xl flex items-center justify-center text-gold hover:bg-gold hover:text-navy transition-all shadow-xl"
@@ -375,14 +375,17 @@ export default function CourseDetail() {
         </button>
       </div>
 
-      <div className="px-3 pt-8 relative z-10 space-y-12 pb-24 max-w-4xl mx-auto w-full">
-        <motion.div 
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
+      <div className="px-3 pt-8 relative z-10 space-y-12 pb-24 max-w-4xl mx-auto w-full section-container">
+        <div 
           className="card-luxury p-10 bg-gradient-to-br from-navy-card to-navy-mid shadow-[0_50px_100px_rgba(0,0,0,0.6)]"
+          style={{ willChange: 'auto', transform: 'translateZ(0)', backfaceVisibility: 'hidden' }}
         >
           <div className="space-y-10">
-            <div className="space-y-6">
+            <motion.div 
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-6"
+            >
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-[10px] font-black uppercase tracking-[0.4em] text-gold-light bg-gold/10 px-4 py-2 rounded-xl border border-gold/20 shadow-lg">
                   {t(`dept.${course.department}`)}
@@ -394,17 +397,27 @@ export default function CourseDetail() {
               <h2 className="text-2xl sm:text-3xl font-serif font-black text-text-1 leading-tight tracking-tight drop-shadow-2xl">
                 {course.title}
               </h2>
-            </div>
+            </motion.div>
             
-            <p className="text-text-2 leading-relaxed text-lg font-medium opacity-90 border-l-2 border-gold/20 pl-6 italic">
+            <motion.p 
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 }}
+              className="text-text-2 leading-relaxed text-lg font-medium opacity-90 border-l-2 border-gold/20 pl-6 italic"
+            >
               {course.description || "Synthesize your academic competence with expert-reviewed examination protocols and exhaustive logical explanations curated by Diamond's internal collegiate board."}
-            </p>
+            </motion.p>
             
-            <div className="grid grid-cols-3 gap-6 py-10 border-y border-gold/10">
+            <motion.div 
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="grid grid-cols-3 gap-6 py-10 border-y border-gold/10"
+            >
               <Feature icon={Award} label={t('course.status')} value={t('course.institutional')} />
               <Feature icon={ShieldCheck} label={t('course.security')} value={t('course.encrypted')} />
               <Feature icon={Share2} label={t('course.endowment')} value={t('course.yield')} />
-            </div>
+            </motion.div>
 
             <div className="pt-4">
               {hasPaid ? (
@@ -490,7 +503,7 @@ export default function CourseDetail() {
               </p>
             </div>
           </div>
-        </motion.div>
+        </div>
 
 
 
