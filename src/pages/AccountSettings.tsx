@@ -76,31 +76,22 @@ export default function AccountSettings() {
       const credential = EmailAuthProvider.credential(user?.email || '', passwords.current);
       await reauthenticateWithCredential(user!, credential);
       
-      // 2. Generate and send OTP via API
-      const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
-      setGeneratedOtp(newOtp);
-      
+      // 2. Request OTP via server API
       try {
-        const res = await axios.post('/api/send-otp', {
-          email: user?.email,
-          token: newOtp,
-          action: 'password_change'
-        });
-        if (res.data && res.data.emailSent === false) {
-          alert(`[DEVELOPMENT MODE] Email delivery failed or key missing.\nToken bypassed for preview:\n\n${newOtp}`);
-        }
-      } catch (emailErr) {
-        console.error('Email send failed:', emailErr);
-        // Fallback visibility for user since they are reporting email issues
-        alert(`Verification Code: ${newOtp}`);
-        // Fallback to system logs for visibility
-        await setDoc(doc(db, 'system_logs', `otp_${user?.uid}`), {
+        const res = await axios.post('/api/otp/request', {
           userId: user?.uid,
           email: user?.email,
-          otp: newOtp,
           purpose: 'password_change',
-          createdAt: new Date().toISOString()
+          name: user?.displayName || 'Scholar'
         });
+        if (res.data && res.data.emailSent === false) {
+          alert(`[PREVIEW MODE] Verification Code bypassed for preview:\n\nGo to developer tools or check backend system logs (collection system_logs) to find your verification code.`);
+        }
+      } catch (otpErr: any) {
+        console.error('OTP request failed:', otpErr);
+        setError('Failed to initiate verification: ' + (otpErr.response?.data?.error || otpErr.message));
+        setLoading(false);
+        return;
       }
 
       setStep('otp');
@@ -114,19 +105,26 @@ export default function AccountSettings() {
   const handleVerifyAndSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
-    if (otp !== generatedOtp) {
-      setError('Invalid security token. Please check your email.');
-      return;
-    }
 
     setLoading(true);
     try {
+      const verifyRes = await axios.post('/api/otp/verify', {
+        userId: user?.uid,
+        purpose: 'password_change',
+        code: otp
+      });
+
+      if (!verifyRes.data || !verifyRes.data.success) {
+        setError('Invalid security token. Please check your email.');
+        setLoading(false);
+        return;
+      }
+
       await updatePassword(user!, passwords.new);
       alert('Institutional Password successfully updated.');
       navigate('/profile');
     } catch (err: any) {
-      setError(err.message || 'Failed to update password');
+      setError(err.response?.data?.error || err.message || 'Failed to update password');
     } finally {
       setLoading(false);
     }

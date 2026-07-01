@@ -78,7 +78,7 @@ export default function CourseList() {
     }
 
     const unsub = onSnapshot(q, (snapshot) => {
-      setCourses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setCourses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter((c: any) => !c.isDeleted));
       setLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'courses');
@@ -206,6 +206,7 @@ export default function CourseList() {
       else if (reference && typeof reference === 'object') finalRef = reference.reference || reference.transaction || reference.trans || reference.trxref;
 
       const { default: axios } = await import('axios');
+      const idToken = await user.getIdToken();
       const response = await axios.post('/api/verify-departmental-payment', {
         reference: finalRef,
         userId: user.uid,
@@ -218,6 +219,8 @@ export default function CourseList() {
         referrerName,
         finalCommissionValue,
         referrerId: referrerUid
+      }, {
+        headers: { Authorization: `Bearer ${idToken}` }
       });
 
       if (response.data.success) {

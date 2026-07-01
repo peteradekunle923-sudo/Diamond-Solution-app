@@ -73,7 +73,7 @@ export default function CourseDetail() {
   useEffect(() => {
     const fetchCourseAndPrice = async () => {
       const d = await getDoc(doc(db, 'courses', id!));
-      if (d.exists()) {
+      if (d.exists() && !d.data()?.isDeleted) {
         const courseData = d.data();
         setCourse(courseData);
 
@@ -101,7 +101,7 @@ export default function CourseDetail() {
         if (userHasPaidLocal) {
           try {
             const qSnap = await getDocs(query(collection(db, 'courses', id!, 'content'), orderBy('order', 'asc')));
-            const fetchedQuestions = qSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const fetchedQuestions = qSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter((q: any) => !q.isDeleted);
             setQuestions(fetchedQuestions);
           } catch (err) {
             console.error("Failed to fetch course content queries:", err);
@@ -251,20 +251,25 @@ export default function CourseDetail() {
       if (typeof reference === 'string') finalRef = reference;
       else if (reference && typeof reference === 'object') finalRef = reference.reference || reference.transaction || reference.trans || reference.trxref;
 
-      // Use backend for verification and email dispatch
-      const response = await axios.post('/api/verify-departmental-payment', {
-        reference: finalRef,
-        userId: user.uid,
-        department: course.department,
-        amount: displayPrice,
-        currency: userCurrency,
-        courseId: id,
-        userData: profile,
-        referrerEmail,
-        referrerName,
-        finalCommissionValue,
-        referrerId: referrerUid
-      });
+       const idToken = await user.getIdToken();
+       // Use backend for verification and email dispatch
+       const response = await axios.post('/api/verify-departmental-payment', {
+         reference: finalRef,
+         department: course.department,
+         amount: displayPrice,
+         currency: userCurrency,
+         userData: {
+           uid: user.uid,
+           email: user.email || '',
+           displayName: profile?.displayName || ''
+         },
+         referrerEmail,
+         referrerName,
+         finalCommissionValue,
+         referrerId: referrerUid
+       }, {
+         headers: { Authorization: `Bearer ${idToken}` }
+       });
 
       if (response.data.success) {
         // Record payment locally

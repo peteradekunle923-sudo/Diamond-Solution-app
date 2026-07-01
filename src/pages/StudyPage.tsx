@@ -192,7 +192,7 @@ export default function StudyPage() {
       // Only sync questions if verified
       const q = query(collection(db, 'courses', id!, 'content'), orderBy('order', 'asc'));
       unsubQuestions = onSnapshot(q, async (snapshot) => {
-        const fetchedQuestions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const fetchedQuestions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter((q: any) => !q.isDeleted);
         setQuestions(fetchedQuestions);
 
         // Load Progress
@@ -256,7 +256,7 @@ export default function StudyPage() {
         }
 
         const d = await getDoc(doc(db, 'courses', id));
-        if (d.exists()) {
+        if (d.exists() && !d.data()?.isDeleted) {
           const courseData = d.data();
           setCourse(courseData);
           console.log("Course data found:", courseData);

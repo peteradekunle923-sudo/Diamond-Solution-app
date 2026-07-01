@@ -166,8 +166,11 @@ export default function AffiliateDashboard() {
     if (!user || loading) return;
     setLoading(true);
     try {
+      const idToken = await user.getIdToken();
       const response = await axios.post('/api/activate-affiliate', {
         userId: user.uid
+      }, {
+        headers: { Authorization: `Bearer ${idToken}` }
       });
       if (response.data.success) {
         // Success handled by backend, profile listener will pick up changes

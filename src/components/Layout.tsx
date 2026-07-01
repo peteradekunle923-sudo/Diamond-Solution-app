@@ -44,23 +44,20 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const handleResend = async () => {
     if (!user || resending) return;
     setResending(true);
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
     try {
-      
-      await axios.post('/api/send-otp', {
+      await axios.post('/api/otp/request', {
+        userId: user.uid,
         email: user.email,
-        token: otp,
-        action: 'registration'
+        purpose: 'registration'
       });
       
-      alert(t('auth.otpSent') + ` Token: ${otp}`);
+      alert(t('auth.otpSent') + `. Please check your registered email.`);
       setSent(true);
       setTimeout(() => setSent(false), 5000);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert(t('auth.otpSent') + ` Token: ${otp} (Fallback)`);
-      setSent(true);
-      setTimeout(() => setSent(false), 5000);
+      const errMsg = error.response?.data?.error || error.message;
+      alert(`Failed to resend code: ${errMsg}`);
     } finally {
       setResending(false);
     }

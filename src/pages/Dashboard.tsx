@@ -54,22 +54,28 @@ export default function Dashboard() {
     // Automated Activation: ensure every user has a referral code and is an affiliate
     if (loggedInUser?.uid && loggedInProfile && (!loggedInProfile.referralCode || loggedInProfile.affiliateStatus !== 'active')) {
        // Silent background activation
-       axios.post('/api/activate-affiliate', { userId: loggedInUser.uid }).catch(async (error) => {
-         console.warn("Dashboard auto-activation endpoint failed, trying client fallback...", error.message);
-         try {
-           const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
-           const referralCode = loggedInProfile?.referralCode || `DS${randomPart}`;
-           await setDoc(doc(db, 'users', loggedInUser.uid), {
-             affiliateStatus: "active",
-             isAffiliate: true,
-             isPartner: true,
-             referralCode: referralCode,
-             activatedAt: new Date().toISOString(),
-             updatedAt: new Date().toISOString()
-           }, { merge: true });
-         } catch (err: any) {
-           console.error("Dashboard auto-activation client-side fallback failed:", err.message);
-         }
+       loggedInUser.getIdToken().then((idToken) => {
+         axios.post('/api/activate-affiliate', { userId: loggedInUser.uid }, {
+           headers: { Authorization: `Bearer ${idToken}` }
+         }).catch(async (error) => {
+           console.warn("Dashboard auto-activation endpoint failed, trying client fallback...", error.message);
+           try {
+             const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+             const referralCode = loggedInProfile?.referralCode || `DS${randomPart}`;
+             await setDoc(doc(db, 'users', loggedInUser.uid), {
+               affiliateStatus: "active",
+               isAffiliate: true,
+               isPartner: true,
+               referralCode: referralCode,
+               activatedAt: new Date().toISOString(),
+               updatedAt: new Date().toISOString()
+             }, { merge: true });
+           } catch (err: any) {
+             console.error("Dashboard auto-activation client-side fallback failed:", err.message);
+           }
+         });
+       }).catch((tokenErr) => {
+         console.error("Failed to retrieve ID token for auto-activation:", tokenErr);
        });
     }
   }, [loggedInUser?.uid, loggedInProfile?.referralCode, loggedInProfile?.affiliateStatus, isViewingOther]);

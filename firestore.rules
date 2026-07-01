@@ -105,7 +105,7 @@ service cloud.firestore {
     // 4. COLLECTION RULES
 
     match /users/{userId} {
-      allow get: if isSignedIn();
+      allow get: if true;
       allow list: if isAdmin() || (isSignedIn() && !isSuspended() && (
         // Allow users to see their referrals
         resource.data.referredByUid == request.auth.uid ||
@@ -240,6 +240,11 @@ service cloud.firestore {
     // --- User Sessions ---
     match /user_sessions/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // --- OTP Codes (Server side only) ---
+    match /otp_codes/{id} {
+      allow read, write: if false;
     }
 
     // --- Admin Tokens ---

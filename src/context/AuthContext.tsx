@@ -12,22 +12,13 @@ export const setSessionToken = (token: string | null) => { inMemorySessionToken 
 axios.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.data?.error === 'permission-denied' || error.response?.status === 403 || error.code === 'permission-denied') {
-      alert("You’ve been logged out because account was accessed from another device");
-      await signOut(auth);
-    }
     return Promise.reject(error);
   }
 );
 
 // Global unhandled error interception for rogue Firestore snapshot listeners
 const handleGlobalPermError = async (errMsg: string) => {
-  if (errMsg.includes('permission-denied') || errMsg.includes('Missing or insufficient permissions')) {
-    if (auth.currentUser) {
-      alert("You’ve been logged out because account was accessed from another device");
-      await signOut(auth);
-    }
-  }
+  // Let the session mismatch logic handle actual logouts
 }
 
 if (typeof window !== 'undefined') {

@@ -45,11 +45,6 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   }
   
   const errMsg = String(errInfo.error);
-  if (errMsg.includes('permission-denied') || errMsg.includes('Missing or insufficient permissions')) {
-    alert("You’ve been logged out because account was accessed from another device");
-    auth.signOut();
-  }
-  
   console.error('Firestore Error: ', JSON.stringify(errInfo));
   throw new Error(JSON.stringify(errInfo));
 }

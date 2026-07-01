@@ -87,6 +87,7 @@ export default function Login() {
   const [tempPassword, setTempPassword] = useState('');
   const [otpInput, setOtpInput] = useState('');
   const [generatedOtp, setGeneratedOtp] = useState('');
+  const [tempUserId, setTempUserId] = useState('');
   const [registrationData, setRegistrationData] = useState<any>(null);
   const navigate = useNavigate();
   const [dynamicSocialLinks, setDynamicSocialLinks] = useState<any[]>([]);
@@ -213,55 +214,76 @@ export default function Login() {
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (otpInput === generatedOtp) {
-      setLoading(true);
-      if (otpAction === 'deviceCheck') {
-        try {
-          setSessionToken('PENDING_LOGIN'); // Bypass onSnapshot auto-logout
-          
-          // Add timeout to prevent hanging
-          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Sign in timeout")), 15000));
-          const res = await Promise.race([
-            signInWithEmailAndPassword(auth, email, tempPassword),
-            timeoutPromise
-          ]) as any;
+    setLoading(true);
+    setError('');
 
-          const deviceInfo = {
-            userAgent: navigator.userAgent,
-            screen: `${window.screen.width}x${window.screen.height}`,
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-          };
-          
-          let deviceId = 'unknown';
-          try {
-            const deviceString = `${deviceInfo.userAgent || ''}-${deviceInfo.screen || ''}-${deviceInfo.timezone || ''}`;
-            const encoder = new TextEncoder();
-            const data = encoder.encode(deviceString);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            deviceId = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-          } catch (e) {
-            console.warn("Device id generation failed", e);
-          }
+    if (otpAction === 'deviceCheck') {
+      try {
+        const verifyRes = await axios.post('/api/otp/verify', {
+          userId: tempUserId,
+          purpose: 'device_verification',
+          code: otpInput
+        });
 
-          // Start single-session validation
-          const { SessionService } = await import('../lib/SessionService');
-          await SessionService.startSession(res.user.uid);
-          
-          sessionStorage.removeItem('diamond_onboard_shown');
-          
-          // Delay navigation so AuthContext state updates first (preventing route bounce)
-          setTimeout(() => {
-            navigate('/dashboard');
-            setLoading(false);
-          }, 500);
-          return; // Skip the finally block to allow navigate to unmount smoothly
-        } catch (err: any) {
-          setError('Login verification failed: ' + err.message);
+        if (!verifyRes.data || !verifyRes.data.success) {
+          setError('Invalid verification code. Please try again.');
           setLoading(false);
+          return;
         }
-      } else {
+
+        setSessionToken('PENDING_LOGIN'); // Bypass onSnapshot auto-logout
+        
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Sign in timeout")), 15000));
+        const res = await Promise.race([
+          signInWithEmailAndPassword(auth, email, tempPassword),
+          timeoutPromise
+        ]) as any;
+
+        const deviceInfo = {
+          userAgent: navigator.userAgent,
+          screen: `${window.screen.width}x${window.screen.height}`,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        };
+        
+        let deviceId = 'unknown';
         try {
+          const deviceString = `${deviceInfo.userAgent || ''}-${deviceInfo.screen || ''}-${deviceInfo.timezone || ''}`;
+          const encoder = new TextEncoder();
+          const data = encoder.encode(deviceString);
+          const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+          const hashArray = Array.from(new Uint8Array(hashBuffer));
+          deviceId = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        } catch (e) {
+          console.warn("Device id generation failed", e);
+        }
+
+        // Start single-session validation
+        const { SessionService } = await import('../lib/SessionService');
+        await SessionService.startSession(res.user.uid);
+        
+        sessionStorage.removeItem('diamond_onboard_shown');
+        
+        // Delay navigation so AuthContext state updates first (preventing route bounce)
+        setTimeout(() => {
+          navigate('/dashboard');
+          setLoading(false);
+        }, 500);
+        return;
+      } catch (err: any) {
+        setError('Login verification failed: ' + (err.response?.data?.error || err.message));
+        setLoading(false);
+      }
+    } else {
+      try {
+        const userId = auth.currentUser?.uid || tempUserId;
+        const verifyRes = await axios.post('/api/otp/verify', {
+          userId,
+          purpose: 'registration',
+          code: otpInput
+        });
+
+        if (verifyRes.data && verifyRes.data.success) {
           // Fire and forget verification update
           if (auth.currentUser) {
             setDoc(doc(db, 'users', auth.currentUser.uid), {
@@ -273,13 +295,14 @@ export default function Login() {
             setLoading(false);
           }, 500);
           return;
-        } catch (err: any) {
-          setError('Verification Error: ' + err.message);
+        } else {
+          setError('Verification failed. Invalid code.');
           setLoading(false);
         }
+      } catch (err: any) {
+        setError('Verification Error: ' + (err.response?.data?.error || err.message));
+        setLoading(false);
       }
-    } else {
-      setError(t('auth.otpSent') + ' ERROR: Incorrect Code');
     }
   };
 
@@ -497,21 +520,26 @@ export default function Login() {
         const oldSessionSnap = await getDoc(sessionRef);
         
         let requireVerification = false;
-        // Verification protocol bypassed by administrative order to allow multi-device sign-in freely
+        if (oldSessionSnap.exists()) {
+          const oldData = oldSessionSnap.data();
+          if (oldData && oldData.deviceId && oldData.deviceId !== deviceId) {
+            requireVerification = true;
+          }
+        }
 
         if (requireVerification) {
-           const code = Math.floor(100000 + Math.random() * 900000).toString();
-           setGeneratedOtp(code);
-           await axios.post('/api/send-otp', {
-             email,
-             token: code,
-             action: 'Unrecognized Device Login Request'
-           }).catch((err) => {
+           try {
+             await axios.post('/api/otp/request', {
+               userId: res.user.uid,
+               email,
+               purpose: 'device_verification'
+             });
+           } catch (err) {
              console.error(err);
-             alert(`Notice: Mail server delivery failed (likely due to trial restrictions). For this preview, your OTP is: ${code}`);
-           });
+           }
 
            await signOut(auth);
+           setTempUserId(res.user.uid);
            setOtpAction('deviceCheck');
            setTempPassword(password);
            setShowOtpStep(true);
@@ -610,18 +638,15 @@ export default function Login() {
         
         await userCredential.user.getIdToken(true);
 
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        setGeneratedOtp(otp);
-        
         try {
-          const res = await axios.post('/api/send-otp', {
+          const resOtp = await axios.post('/api/otp/request', {
+            userId: userCredential.user.uid,
             email,
-            token: otp,
-            action: 'registration'
+            purpose: 'registration'
           });
           
-          if (res.data && res.data.emailSent === false) {
-             alert(`[DEVELOPMENT MODE] Email delivery failed or key missing.\nToken bypassed for preview:\n\n${otp}`);
+          if (resOtp.data && resOtp.data.emailSent === false) {
+             alert(`[PREVIEW MODE] Verification Code bypassed for preview:\n\nGo to developer tools or check backend system logs (collection system_logs) to find your verification code.`);
           }
           
           // Sign out so they are "directed to login page" after registration as requested

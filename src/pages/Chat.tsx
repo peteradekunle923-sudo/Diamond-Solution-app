@@ -64,10 +64,13 @@ export default function Chat() {
       });
 
       // Notify Admin via WhatsApp
+      const idToken = await user.getIdToken();
       await axios.post('/api/whatsapp/notify-admin', {
         userId: user.uid,
         userName: profile?.displayName || user.displayName || 'Scholar',
         text
+      }, {
+        headers: { Authorization: `Bearer ${idToken}` }
       }).catch(err => console.error("WhatsApp notification failed:", err));
 
     } catch (err) {

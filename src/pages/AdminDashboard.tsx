@@ -9,7 +9,7 @@ import {
   Shield, LayoutDashboard, Users, Link as LinkIcon, CreditCard, Wallet,
   BarChart2, Building2, FileText, Bell, Quote, LogOut, Search, 
   Filter, Plus, Edit3, Trash2, CheckCircle2, AlertCircle, XCircle, ArrowRight, ArrowLeft,
-  Layers, X, Download, MessageCircle, Check, Target, ShieldAlert, Clock, Menu, BookOpen
+  Layers, X, Download, MessageCircle, Check, Target, ShieldAlert, Clock, Menu, BookOpen, RotateCcw
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { downloadCSV } from '../lib/csvUtils';
@@ -1891,6 +1891,7 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
   const [bulkDeleteConfirmText, setBulkDeleteConfirmText] = useState('');
   const [showCourseContentModal, setShowCourseContentModal] = useState(false);
   const [courseContentInput, setCourseContentInput] = useState('');
+  const [showTrash, setShowTrash] = useState(false);
 
   useEffect(() => {
     setQuestionSearch('');
@@ -1942,23 +1943,25 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
 
   const filteredCourses = deptFilter ? courses.filter(c => c.department === deptFilter) : courses;
 
-  const searchedCourses = filteredCourses.filter(c => 
+  const coursesByTrashState = filteredCourses.filter(c => showTrash ? c.isDeleted === true : !c.isDeleted);
+
+  const searchedCourses = coursesByTrashState.filter(c => 
     c.title.toLowerCase().includes(courseSearch.toLowerCase()) || 
     c.level.toLowerCase().includes(courseSearch.toLowerCase())
   );
 
   useEffect(() => {
     if (courses.length > 0) {
-      if (filteredCourses.length > 0) {
+      if (coursesByTrashState.length > 0) {
         // If current active course is not in filtered list, pick the first one
-        if (!activeCourse || !filteredCourses.find(c => c.id === activeCourse.id)) {
-          setActiveCourse(filteredCourses[0]);
+        if (!activeCourse || !coursesByTrashState.find(c => c.id === activeCourse.id)) {
+          setActiveCourse(coursesByTrashState[0]);
         }
       } else {
         setActiveCourse(null);
       }
     }
-  }, [deptFilter, courses]);
+  }, [deptFilter, courses, showTrash]);
 
   const exportQuestionsCSV = () => {
     if (!questions.length || !activeCourse) return;
@@ -2130,7 +2133,9 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
     }
   }, [activeCourse]);
 
-  const filteredQuestionsList = questions.filter(q => {
+  const questionsByTrashState = questions.filter(q => showTrash ? q.isDeleted === true : !q.isDeleted);
+
+  const filteredQuestionsList = questionsByTrashState.filter(q => {
     if (!questionSearch) return true;
     const term = questionSearch.toLowerCase();
     const matchesText = q.question?.toLowerCase().includes(term);
@@ -2308,11 +2313,153 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
 
   const [deleteConfirmation, setDeleteConfirmation] = useState<{ type: 'course' | 'question', id: string } | null>(null);
 
+  const restoreDefaultArchives = async () => {
+    try {
+      setLoading(true);
+      let restoredCount = 0;
+      let createdCount = 0;
+
+      const existingCourseMap = new Map();
+      courses.forEach(c => {
+        const key = `${c.title.trim().toLowerCase()}|${c.department.trim().toLowerCase()}|${c.level.trim().toLowerCase()}`;
+        existingCourseMap.set(key, c);
+      });
+
+      let batch = writeBatch(db);
+      let batchOperations = 0;
+
+      for (const [dept, deptData] of Object.entries(DEPARTMENT_STRUCTURE)) {
+        if (!deptData.coursesByLevel) continue;
+        
+        for (const [catName, catData] of Object.entries(deptData.coursesByLevel)) {
+          for (const [levelName, coursesList] of Object.entries(catData as any)) {
+            const actualLevel = levelName === 'default' ? 'General' : levelName;
+            
+            for (const courseTitle of coursesList as string[]) {
+              const key = `${courseTitle.trim().toLowerCase()}|${dept.trim().toLowerCase()}|${actualLevel.trim().toLowerCase()}`;
+              
+              if (existingCourseMap.has(key)) {
+                const existingCourse = existingCourseMap.get(key);
+                if (existingCourse.isDeleted) {
+                  const ref = doc(db, 'courses', existingCourse.id);
+                  batch.update(ref, { isDeleted: false, updatedAt: new Date().toISOString() });
+                  batchOperations++;
+                  restoredCount++;
+                }
+              } else {
+                const ref = doc(collection(db, 'courses'));
+                batch.set(ref, {
+                  title: courseTitle.trim(),
+                  department: dept,
+                  level: actualLevel,
+                  description: `Default academic curriculum archive for ${dept} (${actualLevel}) under category ${catName}.`,
+                  price: 0,
+                  thumbnail: 'https://images.unsplash.com/photo-1532187875685-d6d1dd2e43f5?auto=format&fit=crop&q=80',
+                  createdAt: new Date().toISOString()
+                });
+                batchOperations++;
+                createdCount++;
+              }
+
+              if (batchOperations >= 400) {
+                await batch.commit();
+                batch = writeBatch(db);
+                batchOperations = 0;
+              }
+            }
+          }
+        }
+      }
+
+      if (batchOperations > 0) {
+        await batch.commit();
+      }
+
+      alert(`Restoration Complete! Created ${createdCount} new default archives and restored ${restoredCount} archived ones.`);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to complete default archives restoration. Please retry.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const restoreAllQuestionsInTrash = async () => {
+    if (!activeCourse) return;
+    const trashedQuestions = questions.filter(q => q.isDeleted === true);
+    if (trashedQuestions.length === 0) {
+      alert("No trashed questions found to restore in this archive.");
+      return;
+    }
+    setLoading(true);
+    try {
+      let batch = writeBatch(db);
+      let count = 0;
+      for (const q of trashedQuestions) {
+        const ref = doc(db, 'courses', activeCourse.id, 'content', q.id);
+        batch.update(ref, { isDeleted: false, updatedAt: new Date().toISOString() });
+        count++;
+        if (count >= 400) {
+          await batch.commit();
+          batch = writeBatch(db);
+          count = 0;
+        }
+      }
+      if (count > 0) {
+        await batch.commit();
+      }
+      alert(`Successfully restored all ${trashedQuestions.length} questions to "${activeCourse.title}".`);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to restore questions from trash. Please retry.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const restoreAllCoursesInTrash = async () => {
+    const trashedCourses = courses.filter(c => c.isDeleted === true);
+    if (trashedCourses.length === 0) {
+      alert("No trashed archives found to restore.");
+      return;
+    }
+    setLoading(true);
+    try {
+      let batch = writeBatch(db);
+      let count = 0;
+      for (const c of trashedCourses) {
+        const ref = doc(db, 'courses', c.id);
+        batch.update(ref, { isDeleted: false, updatedAt: new Date().toISOString() });
+        count++;
+        if (count >= 400) {
+          await batch.commit();
+          batch = writeBatch(db);
+          count = 0;
+        }
+      }
+      if (count > 0) {
+        await batch.commit();
+      }
+      alert(`Successfully restored all ${trashedCourses.length} course archives.`);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to restore archives. Please retry.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const deleteQuestion = async (qId: string) => {
     if (!activeCourse) return;
     const path = `courses/${activeCourse.id}/content/${qId}`;
     try {
-      await deleteDoc(doc(db, 'courses', activeCourse.id, 'content', qId));
+      if (showTrash) {
+        await deleteDoc(doc(db, 'courses', activeCourse.id, 'content', qId));
+        alert('Question permanently deleted.');
+      } else {
+        await updateDoc(doc(db, 'courses', activeCourse.id, 'content', qId), { isDeleted: true });
+        alert('Question sent to Trash.');
+      }
       setDeleteConfirmation(null);
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, path);
@@ -2321,9 +2468,18 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
 
   const deleteCourse = async (courseId: string) => {
     try {
-      await deleteDoc(doc(db, 'courses', courseId));
-      if (activeCourse?.id === courseId) {
-        setActiveCourse(null);
+      if (showTrash) {
+        await deleteDoc(doc(db, 'courses', courseId));
+        if (activeCourse?.id === courseId) {
+          setActiveCourse(null);
+        }
+        alert('Course archive permanently deleted.');
+      } else {
+        await updateDoc(doc(db, 'courses', courseId), { isDeleted: true });
+        if (activeCourse?.id === courseId) {
+          setActiveCourse(null);
+        }
+        alert('Course archive sent to Trash.');
       }
       setDeleteConfirmation(null);
     } catch (err) {
@@ -2364,12 +2520,57 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
               />
             </div>
           </div>
-          <button 
-            onClick={() => setShowAddCourse(true)}
-            className="p-3 bg-gold/10 text-gold border border-gold/20 rounded-xl hover:bg-gold/20 active:scale-95 transition-all text-nowrap self-end md:self-auto"
-          >
-            <Plus className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-3 self-end md:self-auto">
+            <button 
+              onClick={() => setShowTrash(!showTrash)}
+              className={cn(
+                "p-3 rounded-xl border active:scale-95 transition-all text-[11px] font-bold uppercase tracking-widest flex items-center gap-2",
+                showTrash 
+                  ? "bg-rose-500/15 border-rose-500/30 text-rose-400 animate-pulse" 
+                  : "bg-white/5 border-white/10 text-gray-400 hover:border-gold/30 hover:text-gold"
+              )}
+              title={showTrash ? "Show Active Archives" : "Show Trash Bin"}
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>{showTrash ? "Trash Bin" : "Trash Bin"}</span>
+            </button>
+
+            {showTrash && (
+              <button 
+                onClick={restoreAllCoursesInTrash}
+                disabled={loading}
+                className={cn(
+                  "p-3 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-xl hover:bg-emerald-500/20 active:scale-95 transition-all text-[11px] font-bold uppercase tracking-widest flex items-center gap-2",
+                  loading && "opacity-50 cursor-not-allowed"
+                )}
+                title="Restore All Trashed Course Archives"
+              >
+                <Check className="w-4 h-4" />
+                <span>Restore All Archives</span>
+              </button>
+            )}
+
+            <button 
+              onClick={restoreDefaultArchives}
+              disabled={loading}
+              className={cn(
+                "p-3 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-xl hover:bg-emerald-500/20 active:scale-95 transition-all text-[11px] font-bold uppercase tracking-widest flex items-center gap-2",
+                loading && "opacity-50 cursor-not-allowed"
+              )}
+              title="Restore All Default Academic Archives"
+            >
+              <RotateCcw className={cn("w-4 h-4", loading && "animate-spin")} />
+              <span>Restore Defaults</span>
+            </button>
+
+            <button 
+              onClick={() => setShowAddCourse(true)}
+              className="p-3 bg-gold/10 text-gold border border-gold/20 rounded-xl hover:bg-gold/20 active:scale-95 transition-all text-nowrap"
+              title="Add New Course Archive"
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+          </div>
        </div>
 
        {/* Course Selection Row */}
@@ -2389,15 +2590,46 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
                 >
                   {c.title} ({c.level})
                 </button>
-                <button 
-                 onClick={(e) => { 
-                   e.stopPropagation(); 
-                   setDeleteConfirmation({ type: 'course', id: c.id });
-                 }}
-                 className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-20"
-                >
-                 <X className="w-3 h-3" />
-                </button>
+                {showTrash ? (
+                  <>
+                    <button 
+                     onClick={async (e) => { 
+                       e.stopPropagation(); 
+                       try {
+                         await updateDoc(doc(db, 'courses', c.id), { isDeleted: false });
+                         alert(`Course "${c.title}" successfully restored.`);
+                       } catch (err) {
+                         handleFirestoreError(err, OperationType.UPDATE, `courses/${c.id}`);
+                       }
+                     }}
+                     title="Restore Course Archive"
+                     className="absolute -top-2 -left-2 bg-emerald-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-20 hover:scale-110 active:scale-95 transition-transform"
+                    >
+                     <Check className="w-3 h-3" />
+                    </button>
+                    <button 
+                     onClick={(e) => { 
+                       e.stopPropagation(); 
+                       setDeleteConfirmation({ type: 'course', id: c.id });
+                     }}
+                     title="Permanently Delete Course Archive"
+                     className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-20 hover:scale-110 active:scale-95 transition-transform"
+                    >
+                     <Trash2 className="w-3 h-3" />
+                    </button>
+                  </>
+                ) : (
+                  <button 
+                   onClick={(e) => { 
+                     e.stopPropagation(); 
+                     setDeleteConfirmation({ type: 'course', id: c.id });
+                   }}
+                   title="Move Course Archive to Trash"
+                   className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-20 hover:scale-110 active:scale-95 transition-transform"
+                  >
+                   <X className="w-3 h-3" />
+                  </button>
+                )}
               </div>
             ))}
             {searchedCourses.length === 0 && (
@@ -2435,14 +2667,24 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
                     <Edit3 className="w-3 h-3" />
                     Edit Details
                   </button>
-                  {questions.length > 0 && (
+                  {showTrash && questions.filter(q => q.isDeleted === true).length > 0 ? (
                     <button
-                      onClick={handleBulkDeleteQuestions}
-                      className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 text-[9px] font-black uppercase tracking-widest border border-rose-500/30 transition-all ml-2"
+                      onClick={restoreAllQuestionsInTrash}
+                      className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 text-[9px] font-black uppercase tracking-widest border border-emerald-500/30 transition-all ml-2"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      Bulk Delete ({questions.length})
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      Restore All Questions ({questions.filter(q => q.isDeleted === true).length})
                     </button>
+                  ) : (
+                    !showTrash && questions.length > 0 && (
+                      <button
+                        onClick={handleBulkDeleteQuestions}
+                        className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 text-[9px] font-black uppercase tracking-widest border border-rose-500/30 transition-all ml-2"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Bulk Delete ({questions.length})
+                      </button>
+                    )
                   )}
                 </div>
               </div>
@@ -2582,18 +2824,46 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
                         )}
                       </div>
                       <div className="flex flex-col gap-2">
-                        <button 
-                          onClick={() => startEditQuestion(q)}
-                          className="p-2 text-gray-600 hover:text-gold transition-colors"
-                        >
-                          <Edit3 className="w-5 h-5" />
-                        </button>
-                        <button 
-                          onClick={() => setDeleteConfirmation({ type: 'question', id: q.id })}
-                          className="p-2 text-gray-600 hover:text-red-500 transition-colors"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
+                        {showTrash ? (
+                          <>
+                            <button 
+                              onClick={async () => {
+                                try {
+                                  await updateDoc(doc(db, 'courses', activeCourse.id, 'content', q.id), { isDeleted: false });
+                                  alert('Question successfully restored.');
+                                } catch (err) {
+                                  handleFirestoreError(err, OperationType.UPDATE, `courses/${activeCourse.id}/content/${q.id}`);
+                                }
+                              }}
+                              title="Restore Question"
+                              className="p-2 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-lg transition-all"
+                            >
+                              <Check className="w-5 h-5" />
+                            </button>
+                            <button 
+                              onClick={() => setDeleteConfirmation({ type: 'question', id: q.id })}
+                              title="Permanently Delete Question"
+                              className="p-2 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg transition-all"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button 
+                              onClick={() => startEditQuestion(q)}
+                              className="p-2 text-gray-600 hover:text-gold transition-colors"
+                            >
+                              <Edit3 className="w-5 h-5" />
+                            </button>
+                            <button 
+                              onClick={() => setDeleteConfirmation({ type: 'question', id: q.id })}
+                              className="p-2 text-gray-600 hover:text-red-500 transition-colors"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -2634,11 +2904,17 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
                <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
                  <AlertCircle className="w-8 h-8 text-red-500" />
                </div>
-               <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2">Confirm Destruction</h3>
+               <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2">
+                  {showTrash ? "Confirm Destruction" : "Move to Trash Bin"}
+                </h3>
                <p className="text-sm text-gray-400 mb-8">
                  {deleteConfirmation.type === 'course' 
-                   ? 'This will permanently erase the entire archive and all its associated queries from the database.'
-                   : 'Are you sure you want to erase this specific query? This action cannot be undone.'}
+                   ? (showTrash 
+                        ? 'This will permanently erase the entire archive and all its associated queries from the database. This cannot be undone.'
+                        : 'This will move this archive to the Trash Bin, where you can restore it or permanently delete it later.')
+                   : (showTrash 
+                        ? 'Are you sure you want to permanently erase this specific query? This action cannot be undone.'
+                        : 'This will move this query to the Trash Bin, where you can restore it or permanently delete it later.')}
                </p>
                <div className="flex gap-4">
                  <button 
@@ -3547,9 +3823,13 @@ function WithdrawalsManager({ requestClearance }: { requestClearance: any }) {
     requestClearance(withdrawal.id, 'withdraw', async () => {
       setLoading(withdrawal.id);
       try {
+        const idToken = await auth.currentUser?.getIdToken();
         const response = await fetch('/api/payout', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
           body: JSON.stringify({
             amount: withdrawal.amount,
             accountNumber: withdrawal.bankDetails?.accountNumber,
