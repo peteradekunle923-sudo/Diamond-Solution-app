@@ -70,6 +70,7 @@ export default function Login() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [manualReferralCode, setManualReferralCode] = useState(() => referralFromUrl || sessionStorage.getItem('referralCode') || '');
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [institutionalName, setInstitutionalName] = useState('');
   const [department, setDepartment] = useState(DEPARTMENTS[0]);
   const [phone, setPhone] = useState('');
@@ -494,6 +495,7 @@ export default function Login() {
             uid: res.user.uid,
             email: res.user.email || email,
             displayName: res.user.displayName || email.split('@')[0],
+            username: (res.user.displayName || email.split('@')[0]).toLowerCase().replace(/\s/g, ''),
             role: 'student',
             createdAt: new Date().toISOString(),
             referralCode: `DS${randomPart}`,
@@ -612,6 +614,7 @@ export default function Login() {
           uid: userCredential.user.uid,
           email,
           displayName: name,
+          username: username.toLowerCase().trim() || email.split('@')[0],
           institutionalName: institutionalName,
           department: department,
           phone: `${countryCode}${phone}`,
@@ -1126,6 +1129,44 @@ export default function Login() {
                               className="w-full px-4 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
                               value={name}
                               onChange={(e) => setName(e.target.value)}
+                              required
+                              style={{
+                                height: 52, // Fix: Problem 2 Height
+                                width: '100%', // Fix: Problem 2 Width
+                                maxWidth: '100%', // Fix: Problem 5 maxWidth
+                                paddingLeft: 14, // Fix: Problem 2 paddingHorizontal
+                                paddingRight: 14, // Fix: Problem 2 paddingHorizontal
+                                paddingHorizontal: 14, // Fix: Problem 2 paddingHorizontal
+                                overflow: 'hidden',
+                                zIndex: 1, // Fix: Problem 1 zIndex
+                                elevation: 1, // Fix: Problem 1 elevation
+                                includeFontPadding: false, // Fix: Problem 8 includeFontPadding
+                                textAlignVertical: 'center', // Fix: Problem 8 textAlignVertical
+                                colorScheme: 'dark',
+                                color: '#EDE8E1', // Fix: Problem 8 Explicit color
+                                fontSize: 16, // Fix: Problem 8 Font size
+                                WebkitAppearance: 'none',
+                                appearance: 'none',
+                                WebkitTransform: 'translateZ(0)',
+                                transform: 'translateZ(0)',
+                                backfaceVisibility: 'hidden',
+                                WebkitBackfaceVisibility: 'hidden',
+                                willChange: 'auto',
+                                isolation: 'isolate',
+                                backgroundColor: '#162B46'
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1.5" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrapper margin */}
+                          <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>USERNAME</label> {/* Fix: Problem 2 Label margin */}
+                          <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
+                            <input
+                              type="text"
+                              placeholder="jacksparrow"
+                              className="w-full px-4 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
+                              value={username}
+                              onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s/g, ''))}
                               required
                               style={{
                                 height: 52, // Fix: Problem 2 Height

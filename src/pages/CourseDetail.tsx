@@ -261,7 +261,8 @@ export default function CourseDetail() {
          userData: {
            uid: user.uid,
            email: user.email || '',
-           displayName: profile?.displayName || ''
+           displayName: profile?.displayName || '',
+           username: profile?.username || ''
          },
          referrerEmail,
          referrerName,

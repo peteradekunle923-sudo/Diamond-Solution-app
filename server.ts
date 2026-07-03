@@ -755,7 +755,8 @@ async function startServer() {
         userData: z.object({
           uid: z.string().min(1),
           email: z.string().email(),
-          displayName: z.string().optional()
+          displayName: z.string().optional(),
+          username: z.string().optional()
         }),
         department: z.string().min(1, "Department is required"),
         amount: z.number().positive(),

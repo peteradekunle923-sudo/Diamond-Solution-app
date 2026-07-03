@@ -44,6 +44,9 @@ export default function Profile() {
            </div>
            <div className="text-center space-y-2">
               <h2 className="text-3xl font-serif font-black text-text-1 tracking-tight">{profile?.displayName || t('profile.defaultName')}</h2>
+              {profile?.username && (
+                <p className="text-sm font-bold text-gold font-mono tracking-wide">@{profile.username}</p>
+              )}
               <p className="text-[10px] font-black text-text-3 uppercase tracking-[0.4em]">{user?.email}</p>
            </div>
            <div className="bg-gold text-navy px-5 py-1.5 rounded-lg flex items-center space-x-2 shadow-lg shadow-gold/20">

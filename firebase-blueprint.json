@@ -8,6 +8,7 @@
         "uid": { "type": "string" },
         "email": { "type": "string", "format": "email" },
         "displayName": { "type": "string" },
+        "username": { "type": "string" },
         "institutionalName": { "type": "string" },
         "phone": { "type": "string" },
         "role": { "type": "string", "enum": ["student", "admin", "moderator"] },

@@ -6,7 +6,7 @@ import { doc, setDoc, getDoc } from 'firebase/firestore';
 import Layout from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { Key, ShieldCheck, Mail, ArrowLeft, Loader2, Landmark, Save } from 'lucide-react';
+import { Key, ShieldCheck, Mail, ArrowLeft, Loader2, Landmark, Save, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import axios from 'axios';
 
@@ -33,6 +33,36 @@ export default function AccountSettings() {
     accountName: '',
     bankCode: ''
   });
+
+  const [newUsername, setNewUsername] = useState('');
+  const [usernameLoading, setUsernameLoading] = useState(false);
+
+  useEffect(() => {
+    if (profile?.username) {
+      setNewUsername(profile.username);
+    }
+  }, [profile]);
+
+  const saveUsername = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    const cleanUsername = newUsername.toLowerCase().replace(/\s/g, '').trim();
+    if (!cleanUsername) {
+      alert('Username cannot be empty.');
+      return;
+    }
+    setUsernameLoading(true);
+    try {
+      await setDoc(doc(db, 'users', user.uid), {
+        username: cleanUsername
+      }, { merge: true });
+      alert('Username updated successfully.');
+    } catch (err: any) {
+      console.error(err);
+      alert('Failed to update username: ' + err.message);
+    }
+    setUsernameLoading(false);
+  };
 
   useEffect(() => {
     if (profile?.bankDetails) {
@@ -145,6 +175,45 @@ export default function AccountSettings() {
             <p className="text-[10px] font-black text-text-3 uppercase tracking-[0.4em] mt-1">Security Configuration</p>
           </div>
         </header>
+
+        <section className="card-luxury p-8 bg-navy-mid/40">
+           <header className="flex items-center gap-4 mb-8">
+             <div className="w-10 h-10 bg-gold/10 rounded-xl flex items-center justify-center text-gold border border-gold/20">
+               <User className="w-5 h-5" />
+             </div>
+             <div>
+               <h3 className="text-lg font-serif font-black text-white uppercase">User Identity</h3>
+               <p className="text-[10px] text-text-3 font-medium uppercase tracking-widest">Update Your Academic Username</p>
+             </div>
+           </header>
+
+           <form onSubmit={saveUsername} className="space-y-6">
+             <div className="space-y-1.5">
+               <label className="text-[9px] font-black text-text-3 uppercase tracking-widest ml-1">Username</label>
+               <input 
+                 required
+                 type="text"
+                 placeholder="jacksparrow"
+                 value={newUsername}
+                 onChange={(e) => setNewUsername(e.target.value.toLowerCase().replace(/\s/g, ''))}
+                 className="w-full bg-navy-high border border-gold/20 rounded-xl px-5 py-3.5 text-xs text-white focus:border-gold outline-none transition-all lowercase"
+               />
+             </div>
+
+             <button 
+               type="submit"
+               disabled={usernameLoading}
+               className="w-full h-14 bg-white/5 border border-white/10 text-gold rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gold hover:text-navy hover:border-gold transition-all flex items-center justify-center gap-3 active:scale-95"
+             >
+               {usernameLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                 <>
+                   <Save className="w-4 h-4" />
+                   <span>Save Username</span>
+                 </>
+               )}
+             </button>
+           </form>
+        </section>
 
         <section className="card-luxury p-8 bg-navy-mid/40">
            <header className="flex items-center gap-4 mb-8">
