@@ -2522,48 +2522,6 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
           </div>
           <div className="flex items-center gap-3 self-end md:self-auto">
             <button 
-              onClick={() => setShowTrash(!showTrash)}
-              className={cn(
-                "p-3 rounded-xl border active:scale-95 transition-all text-[11px] font-bold uppercase tracking-widest flex items-center gap-2",
-                showTrash 
-                  ? "bg-rose-500/15 border-rose-500/30 text-rose-400 animate-pulse" 
-                  : "bg-white/5 border-white/10 text-gray-400 hover:border-gold/30 hover:text-gold"
-              )}
-              title={showTrash ? "Show Active Archives" : "Show Trash Bin"}
-            >
-              <Trash2 className="w-4 h-4" />
-              <span>{showTrash ? "Trash Bin" : "Trash Bin"}</span>
-            </button>
-
-            {showTrash && (
-              <button 
-                onClick={restoreAllCoursesInTrash}
-                disabled={loading}
-                className={cn(
-                  "p-3 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-xl hover:bg-emerald-500/20 active:scale-95 transition-all text-[11px] font-bold uppercase tracking-widest flex items-center gap-2",
-                  loading && "opacity-50 cursor-not-allowed"
-                )}
-                title="Restore All Trashed Course Archives"
-              >
-                <Check className="w-4 h-4" />
-                <span>Restore All Archives</span>
-              </button>
-            )}
-
-            <button 
-              onClick={restoreDefaultArchives}
-              disabled={loading}
-              className={cn(
-                "p-3 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-xl hover:bg-emerald-500/20 active:scale-95 transition-all text-[11px] font-bold uppercase tracking-widest flex items-center gap-2",
-                loading && "opacity-50 cursor-not-allowed"
-              )}
-              title="Restore All Default Academic Archives"
-            >
-              <RotateCcw className={cn("w-4 h-4", loading && "animate-spin")} />
-              <span>Restore Defaults</span>
-            </button>
-
-            <button 
               onClick={() => setShowAddCourse(true)}
               className="p-3 bg-gold/10 text-gold border border-gold/20 rounded-xl hover:bg-gold/20 active:scale-95 transition-all text-nowrap"
               title="Add New Course Archive"
