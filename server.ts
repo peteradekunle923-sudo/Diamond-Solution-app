@@ -312,6 +312,23 @@ async function startServer() {
                 <p style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 2px; text-align: center; margin: 0;">Diamond Solution Security Protocol</p>
               </div>
             `;
+          } else if (purpose === 'device_reactivation') {
+            subject = `Diamond Solution: Reactivation OTP Code`;
+            htmlContent = `
+              <div style="font-family: sans-serif; padding: 25px; color: #0a0c10; max-width: 600px; margin: auto; border: 1px solid #C9930A; border-radius: 12px; background-color: #ffffff;">
+                <h2 style="color: #C9930A; border-bottom: 2px solid #C9930A; padding-bottom: 10px; margin-top: 0;">Device Reactivation Code</h2>
+                <p>Hello ${name || "Scholar"},</p>
+                <p>We received your reactivation fee payment of ₦1,000 for your Diamond Solution account.</p>
+                <p>To finalize your reactivation and enroll your current device, please enter the following 6-digit verification code:</p>
+                <div style="background-color: #fdfaf2; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #C9930A; text-align: center;">
+                  <span style="font-size: 32px; font-weight: 900; color: #C9930A; letter-spacing: 5px;">${code}</span>
+                </div>
+                <p>Entering this code allows you to register your current device as your primary device. This action will log you out from all other devices.</p>
+                <p>If you did not make this request, please contact institutional support immediately.</p>
+                <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 25px 0;" />
+                <p style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 2px; text-align: center; margin: 0;">Institutional Access Control • Diamond Solution</p>
+              </div>
+            `;
           } else {
             const actionLabel = purpose === 'password_change' ? 'Password Reset / Authority Verification' : 'Institutional Protocol Verification';
             htmlContent = `

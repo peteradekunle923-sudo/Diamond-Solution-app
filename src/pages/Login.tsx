@@ -10,6 +10,8 @@ import { useLanguage } from '../context/LanguageContext';
 import { setSessionToken } from '../context/AuthContext';
 import { cn } from '../lib/utils';
 import { isBiometricsSupported, hasEnrolledBiometrics, enrollBiometrics, authenticateBiometrics, getEnrolledEmail, clearBiometrics, getDeviceBiometricId } from '../lib/biometrics';
+import { getFriendlyErrorMessage } from '../utils/firebaseError';
+import { getOrGenerateDeviceId } from '../utils/deviceHelper';
 
 import { DEPARTMENTS } from '../constants';
 
@@ -380,7 +382,7 @@ export default function Login() {
       await sendPasswordResetEmail(auth, resetEmail);
       setResetSent(true);
     } catch (err: any) {
-      setError(err.message);
+      setError(getFriendlyErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -412,6 +414,35 @@ export default function Login() {
           setEnrolledEmail('');
           setUseFingerprintToUnlock(false);
           throw new Error("This fingerprint credential is registered on a different device and cannot be used on this device.");
+        }
+
+        if (userData) {
+          const isUserAdmin = userData.role === 'admin' || userData.email === 'peteradekunle923@gmail.com';
+          if (!isUserAdmin) {
+            const currentDeviceId = getOrGenerateDeviceId();
+            const registeredDevices: string[] = userData.registeredDeviceIds || [];
+
+            if (!registeredDevices.includes(currentDeviceId)) {
+              if (registeredDevices.length >= 2) {
+                const isBlocked = userData.status === 'device_blocked' || userData.deviceBlockPending;
+                if (!isBlocked) {
+                  const blockDuration = 24 * 60 * 60 * 1000;
+                  const futureBlockedUntil = Date.now() + blockDuration;
+                  await updateDoc(doc(db, 'users', res.user.uid), {
+                    status: 'device_blocked',
+                    deviceBlockPending: true,
+                    blockedUntil: futureBlockedUntil,
+                    reactivationPaid: false
+                  });
+                }
+              } else {
+                const updatedDevices = [...registeredDevices, currentDeviceId];
+                await updateDoc(doc(db, 'users', res.user.uid), {
+                  registeredDeviceIds: updatedDevices
+                });
+              }
+            }
+          }
         }
 
         const deviceInfo = {
@@ -471,20 +502,6 @@ export default function Login() {
       if (isLogin) {
         setSessionToken('PENDING_LOGIN'); // Bypass onSnapshot auto-logout
         const res = await signInWithEmailAndPassword(auth, email, password);
-        const deviceInfo = {
-          userAgent: navigator.userAgent,
-          screen: `${window.screen.width}x${window.screen.height}`,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-        };
-
-        // Client-side device ID generation matching the server method:
-        const deviceString = `${deviceInfo.userAgent || ''}-${deviceInfo.screen || ''}-${deviceInfo.timezone || ''}`;
-        const encoder = new TextEncoder();
-        const data = encoder.encode(deviceString);
-        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const deviceId = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
         const userDocRef = doc(db, 'users', res.user.uid);
         let userDocSnap = await getDoc(userDocRef);
 
@@ -518,35 +535,30 @@ export default function Login() {
         const userData = userDocSnap.data() || {};
         const isUserAdmin = userData.role === 'admin' || email === 'peteradekunle923@gmail.com';
 
-        const sessionRef = doc(db, 'user_sessions', res.user.uid);
-        const oldSessionSnap = await getDoc(sessionRef);
-        
-        let requireVerification = false;
-        if (oldSessionSnap.exists()) {
-          const oldData = oldSessionSnap.data();
-          if (oldData && oldData.deviceId && oldData.deviceId !== deviceId) {
-            requireVerification = true;
+        if (!isUserAdmin) {
+          const currentDeviceId = getOrGenerateDeviceId();
+          const registeredDevices: string[] = userData.registeredDeviceIds || [];
+
+          if (!registeredDevices.includes(currentDeviceId)) {
+            if (registeredDevices.length >= 2) {
+              const isBlocked = userData.status === 'device_blocked' || userData.deviceBlockPending;
+              if (!isBlocked) {
+                const blockDuration = 24 * 60 * 60 * 1000;
+                const futureBlockedUntil = Date.now() + blockDuration;
+                await updateDoc(userDocRef, {
+                  status: 'device_blocked',
+                  deviceBlockPending: true,
+                  blockedUntil: futureBlockedUntil,
+                  reactivationPaid: false
+                });
+              }
+            } else {
+              const updatedDevices = [...registeredDevices, currentDeviceId];
+              await updateDoc(userDocRef, {
+                registeredDeviceIds: updatedDevices
+              });
+            }
           }
-        }
-
-        if (requireVerification) {
-           try {
-             await axios.post('/api/otp/request', {
-               userId: res.user.uid,
-               email,
-               purpose: 'device_verification'
-             });
-           } catch (err) {
-             console.error(err);
-           }
-
-           await signOut(auth);
-           setTempUserId(res.user.uid);
-           setOtpAction('deviceCheck');
-           setTempPassword(password);
-           setShowOtpStep(true);
-           setLoading(false);
-           return;
         }
 
         // Start single-session validation
@@ -610,6 +622,7 @@ export default function Login() {
         const currency = country?.currency || 'USD';
 
         // Write the users document first to satisfy firestore.rules create schema requirements
+        const currentDeviceId = getOrGenerateDeviceId();
         await setDoc(doc(db, 'users', userCredential.user.uid), {
           uid: userCredential.user.uid,
           email,
@@ -632,7 +645,8 @@ export default function Login() {
           balance: 0,
           currency,
           language,
-          emailVerified: false 
+          emailVerified: false,
+          registeredDeviceIds: [currentDeviceId]
         });
 
         // Start single-session validation safely AFTER user profile document exists
@@ -672,7 +686,7 @@ export default function Login() {
         }
       }
     } catch (err: any) {
-      setError(err.message);
+      setError(getFriendlyErrorMessage(err));
     } finally {
       setLoading(false);
     }

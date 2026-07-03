@@ -71,7 +71,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (loading) return <PageLoader />;
   
-  if (user && profile?.status === 'suspended' && location.pathname !== '/reactivate') {
+  if (user && (profile?.status === 'suspended' || profile?.status === 'device_blocked' || profile?.deviceBlockPending) && location.pathname !== '/reactivate') {
     return <Navigate to="/reactivate" replace />;
   }
 

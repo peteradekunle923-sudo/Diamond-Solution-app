@@ -9,6 +9,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { Key, ShieldCheck, Mail, ArrowLeft, Loader2, Landmark, Save, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import axios from 'axios';
+import { getFriendlyErrorMessage } from '../utils/firebaseError';
 
 export default function AccountSettings() {
   const { user, profile } = useAuth();
@@ -126,7 +127,7 @@ export default function AccountSettings() {
 
       setStep('otp');
     } catch (err: any) {
-      setError(err.message || 'Authentication failed');
+      setError(getFriendlyErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -154,7 +155,7 @@ export default function AccountSettings() {
       alert('Institutional Password successfully updated.');
       navigate('/profile');
     } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Failed to update password');
+      setError(err.response?.data?.error || getFriendlyErrorMessage(err));
     } finally {
       setLoading(false);
     }
