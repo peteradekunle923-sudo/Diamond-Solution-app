@@ -45,6 +45,7 @@ export default function CourseList() {
         name: doc.data().name, 
         price: doc.data().price || 10000,
         priceUSD: doc.data().priceUSD || Math.ceil((doc.data().price || 10000) / 1500),
+        levels: doc.data().levels || null,
         isCustom: true 
       }));
       
@@ -54,6 +55,7 @@ export default function CourseList() {
         name,
         price: DEPARTMENT_PRICES[name]?.ngn || 10000,
         priceUSD: DEPARTMENT_PRICES[name]?.usd || 7,
+        levels: null,
         isCustom: false
       }));
 
@@ -318,7 +320,8 @@ export default function CourseList() {
   }, [selectedDeptWithPrice, paying]);
 
   const hasAccess = isAdmin || deptAccess[deptFilter];
-  const originalLevels = DEPARTMENT_STRUCTURE[deptFilter]?.levels || ['100L', '200L', '300L', '400L', '500L'];
+  const matchedCustomDept = allFaculties.find(f => f.name === deptFilter);
+  const originalLevels = matchedCustomDept?.levels || DEPARTMENT_STRUCTURE[deptFilter]?.levels || ['100L', '200L', '300L', '400L', '500L'];
   const levels = hasAccess 
     ? originalLevels.filter(lvl => lvl !== 'All') 
     : ['All', ...originalLevels];
@@ -334,7 +337,7 @@ export default function CourseList() {
   // Set default level (either 200L or MB 1) when entering a department to prevent blank states
   useEffect(() => {
     if (deptFilter && deptFilter !== 'All') {
-      const deptLevels = DEPARTMENT_STRUCTURE[deptFilter]?.levels || [];
+      const deptLevels = matchedCustomDept?.levels || DEPARTMENT_STRUCTURE[deptFilter]?.levels || [];
       if (deptLevels.length > 0) {
         if (deptLevels.includes('MB 1')) {
           setLevelFilter('MB 1');
@@ -347,7 +350,7 @@ export default function CourseList() {
         setLevelFilter('200L');
       }
     }
-  }, [deptFilter]);
+  }, [deptFilter, allFaculties]);
 
   const filteredCourses = courses.filter(c => {
     const matchesSearch = c.title.toLowerCase().includes(search.toLowerCase());

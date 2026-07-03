@@ -411,14 +411,14 @@ export default function StudyPage() {
     }
   }, [selectedAnswer, isSubmitted, loading]);
 
-  const [timeLeft, setTimeLeft] = useState(30);
+  const [timeLeft, setTimeLeft] = useState(60);
 
   useEffect(() => {
     if (questions.length > 0 && Array.isArray(questions) && questions[currentIndex]) {
       const q = questions[currentIndex];
-      setTimeLeft(q.type === 'application' ? 120 : 30);
+      setTimeLeft(q.type === 'application' ? 120 : 60);
     } else {
-      setTimeLeft(30);
+      setTimeLeft(60);
     }
   }, [currentIndex, questions]);
 
@@ -692,7 +692,7 @@ export default function StudyPage() {
       setCurrentIndex(nextIdx);
       setSelectedAnswer(savedNext.selectedAnswer);
       setIsSubmitted(savedNext.isSubmitted);
-      setTimeLeft(nextQ?.type === 'application' ? 120 : 30);
+      setTimeLeft(nextQ?.type === 'application' ? 120 : 60);
 
       saveProgress({
         currentIndex: nextIdx,
@@ -716,7 +716,7 @@ export default function StudyPage() {
       setCurrentIndex(nextIndex);
       setSelectedAnswer(savedNext.selectedAnswer);
       setIsSubmitted(savedNext.isSubmitted);
-      setTimeLeft(nextQ?.type === 'application' ? 120 : 30);
+      setTimeLeft(nextQ?.type === 'application' ? 120 : 60);
 
       saveProgress({
         currentIndex: nextIndex,
@@ -748,7 +748,7 @@ export default function StudyPage() {
       setCurrentIndex(nextIndex);
       setSelectedAnswer(savedNext.selectedAnswer);
       setIsSubmitted(savedNext.isSubmitted);
-      setTimeLeft(nextQ?.type === 'application' ? 120 : 30);
+      setTimeLeft(nextQ?.type === 'application' ? 120 : 60);
 
       saveProgress({
         currentIndex: nextIndex,

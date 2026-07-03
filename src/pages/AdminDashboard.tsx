@@ -1491,6 +1491,8 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
   const [facultyPriceUSD, setFacultyPriceUSD] = useState(7);
   const [loading, setLoading] = useState(false);
   const [customFaculties, setCustomFaculties] = useState<any[]>([]);
+  const [selectedLevels, setSelectedLevels] = useState<string[]>([]);
+  const [manualLevelInput, setManualLevelInput] = useState('');
 
   useEffect(() => {
     return onSnapshot(collection(db, 'faculties'), (snap) => {
@@ -1605,12 +1607,26 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
     e.preventDefault();
     if (!facultyName) return;
     setLoading(true);
+
+    const standardLevels = ['200L', '300L', '400L', '500L', '600L', 'Application Questions'];
+    const finalLevels = standardLevels.filter(lvl => selectedLevels.includes(lvl));
+    
+    if (manualLevelInput.trim()) {
+      const customs = manualLevelInput.split(',').map(s => s.trim()).filter(Boolean);
+      customs.forEach(c => {
+        if (!finalLevels.includes(c)) {
+          finalLevels.push(c);
+        }
+      });
+    }
+
     try {
       if (editingFacultyId) {
         await updateDoc(doc(db, 'faculties', editingFacultyId), {
           name: facultyName,
           price: facultyPrice,
           priceUSD: facultyPriceUSD,
+          levels: finalLevels,
           updatedAt: new Date().toISOString()
         });
         alert('Faculty record successfully updated in archives.');
@@ -1619,6 +1635,7 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
           name: facultyName,
           price: facultyPrice,
           priceUSD: facultyPriceUSD,
+          levels: finalLevels,
           createdAt: new Date().toISOString()
         });
         alert('Faculty successfully manifested in archives.');
@@ -1628,6 +1645,8 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
       setFacultyName('');
       setFacultyPrice(10000);
       setFacultyPriceUSD(7);
+      setSelectedLevels([]);
+      setManualLevelInput('');
     } catch (err) {
       handleFirestoreError(err, editingFacultyId ? OperationType.UPDATE : OperationType.CREATE, 'faculties');
     } finally {
@@ -1640,6 +1659,14 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
     setFacultyName(faculty.name);
     setFacultyPrice(faculty.price);
     setFacultyPriceUSD(faculty.priceUSD || Math.ceil(faculty.price / 1500));
+    
+    const levels = faculty.levels || [];
+    const standardLevels = ['200L', '300L', '400L', '500L', '600L', 'Application Questions'];
+    const matchedStandards = levels.filter((l: string) => standardLevels.includes(l));
+    const customOnes = levels.filter((l: string) => !standardLevels.includes(l));
+    
+    setSelectedLevels(matchedStandards);
+    setManualLevelInput(customOnes.join(', '));
     setShowAddFaculty(true);
   };
 
@@ -1658,6 +1685,8 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
             setFacultyName('');
             setFacultyPrice(10000);
             setFacultyPriceUSD(7);
+            setSelectedLevels([]);
+            setManualLevelInput('');
             setShowAddFaculty(true);
           }}
           className="bg-gold text-navy px-8 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-2xl shadow-gold/20 flex items-center gap-3 hover:scale-105 active:scale-95 transition-all text-nowrap"
@@ -1798,6 +1827,44 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
                     />
                   </div>
                 </div>
+                
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-text-3 uppercase tracking-widest block">Select Department Levels</label>
+                  <div className="grid grid-cols-2 gap-2 bg-navy/40 p-4 border border-white/5 rounded-xl">
+                    {['200L', '300L', '400L', '500L', '600L', 'Application Questions'].map((lvl) => {
+                      const isChecked = selectedLevels.includes(lvl);
+                      return (
+                        <label key={lvl} className="flex items-center gap-2 cursor-pointer text-xs font-mono text-gray-300 hover:text-white select-none">
+                          <input 
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              if (isChecked) {
+                                setSelectedLevels(selectedLevels.filter(x => x !== lvl));
+                              } else {
+                                setSelectedLevels([...selectedLevels, lvl]);
+                              }
+                            }}
+                            className="rounded border-white/10 text-gold bg-navy focus:ring-0 focus:ring-offset-0 focus:border-gold"
+                          />
+                          <span>{lvl === 'Application Questions' ? 'App. Questions' : lvl}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-text-3 uppercase tracking-widest mb-2 block">Manual Level Input (Optional)</label>
+                  <input 
+                    value={manualLevelInput}
+                    onChange={e => setManualLevelInput(e.target.value)}
+                    placeholder="e.g., MB 1, MB 2 (comma separated)"
+                    className="w-full bg-navy border border-white/10 rounded-xl p-4 text-sm text-white focus:border-gold outline-none"
+                  />
+                  <p className="text-[9px] text-gray-500 mt-1">If you need other custom levels, type them above. Separate multiple entries with commas.</p>
+                </div>
+
                 <button 
                   type="submit" 
                   disabled={loading}
@@ -1908,6 +1975,11 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
     const deletedStaticNames = customFaculties.filter(f => f.isDeleted).map(f => f.name);
     return Array.from(new Set([...DEPARTMENTS.filter(d => !deletedStaticNames.includes(d)), ...activeCustomFaculties.map(f => f.name)]));
   })();
+
+  const getDeptLevels = (deptName: string) => {
+    const matched = customFaculties.find(f => f.name === deptName);
+    return matched?.levels || DEPARTMENT_STRUCTURE[deptName]?.levels || ['100L', '200L', '300L', '400L', '500L', '600L'];
+  };
   
   // States for new course
   const [newCourse, setNewCourse] = useState({ title: '', department: initialFilter || allDepts[0], level: '100L', description: '' });
@@ -2952,7 +3024,7 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
                         value={newCourse.department}
                         onChange={e => {
                           const newDept = e.target.value;
-                          const levelsArr = DEPARTMENT_STRUCTURE[newDept]?.levels || ['100L', '200L', '300L', '400L', '500L', '600L'];
+                          const levelsArr = getDeptLevels(newDept);
                           setNewCourse({ ...newCourse, department: newDept, level: levelsArr[0] });
                         }}
                         className="w-full bg-navy border border-white/10 rounded-xl p-4 text-[12px] text-white focus:border-gold outline-none"
@@ -2971,7 +3043,7 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
                         onChange={e => setNewCourse({ ...newCourse, level: e.target.value })}
                         className="w-full bg-navy border border-white/10 rounded-xl p-4 text-sm text-white focus:border-gold outline-none"
                       >
-                        {(DEPARTMENT_STRUCTURE[newCourse.department]?.levels || ['100L', '200L', '300L', '400L', '500L', '600L']).map((l: string) => <option key={l} value={l}>{l}</option>)}
+                        {getDeptLevels(newCourse.department).map((l: string) => <option key={l} value={l}>{l}</option>)}
                       </select>
                     </div>
                  </div>
@@ -3025,7 +3097,7 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
                         value={editCourseData.department}
                         onChange={e => {
                           const newDept = e.target.value;
-                          const levelsArr = DEPARTMENT_STRUCTURE[newDept]?.levels || ['100L', '200L', '300L', '400L', '500L', '600L'];
+                          const levelsArr = getDeptLevels(newDept);
                           setEditCourseData({ ...editCourseData, department: newDept, level: levelsArr[0] });
                         }}
                         className="w-full bg-navy border border-white/10 rounded-xl p-4 text-[12px] text-white focus:border-gold outline-none animate-none"
@@ -3044,7 +3116,7 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
                         onChange={e => setEditCourseData({ ...editCourseData, level: e.target.value })}
                         className="w-full bg-navy border border-white/10 rounded-xl p-4 text-sm text-white focus:border-gold outline-none"
                       >
-                        {(DEPARTMENT_STRUCTURE[editCourseData.department]?.levels || ['100L', '200L', '300L', '400L', '500L', '600L']).map((l: string) => <option key={l} value={l}>{l}</option>)}
+                        {getDeptLevels(editCourseData.department).map((l: string) => <option key={l} value={l}>{l}</option>)}
                       </select>
                     </div>
                  </div>
