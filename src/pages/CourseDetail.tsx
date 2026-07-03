@@ -251,24 +251,6 @@ export default function CourseDetail() {
       if (typeof reference === 'string') finalRef = reference;
       else if (reference && typeof reference === 'object') finalRef = reference.reference || reference.transaction || reference.trans || reference.trxref;
 
-      // Record payment as pending first (client-initiated creates must be pending)
-      await setDoc(doc(db, 'payments', paymentId), {
-        id: paymentId,
-        userId: user.uid,
-        amount: displayPrice,
-        currency: userCurrency,
-        status: 'pending',
-        type: 'department_access',
-        dept_name: course.department,
-        department: course.department,
-        reference: finalRef,
-        courseId: id,
-        studentName: profile.displayName || 'Scholar',
-        email: user.email || 'no-email',
-        paidAt: new Date().toISOString(),
-        createdAt: new Date().toISOString()
-      });
-
        const idToken = await user.getIdToken();
        // Use backend for verification and email dispatch
        const response = await axios.post('/api/verify-departmental-payment', {
@@ -276,7 +258,6 @@ export default function CourseDetail() {
          department: course.department,
          amount: displayPrice,
          currency: userCurrency,
-         courseId: id,
          userData: {
            uid: user.uid,
            email: user.email || '',
@@ -292,6 +273,49 @@ export default function CourseDetail() {
        });
 
       if (response.data.success) {
+        // Record payment locally
+        await setDoc(doc(db, 'payments', paymentId), {
+          id: paymentId,
+          userId: user.uid,
+          amount: displayPrice,
+          currency: userCurrency,
+          status: 'success',
+          type: 'department_access',
+          dept_name: course.department,
+          department: course.department,
+          reference: reference.reference || reference,
+          courseId: id,
+          studentName: profile.displayName || 'Scholar',
+          email: user.email || 'no-email',
+          paidAt: new Date().toISOString(),
+          createdAt: new Date().toISOString()
+        });
+
+        // Mark user as paid
+        await setDoc(doc(db, 'users', user.uid), {
+          hasPaidCourse: true,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+
+        // Record affiliate commission
+        if (referrerUid) {
+          const commissionId = `comm_${paymentId}`;
+          await setDoc(doc(db, 'affiliates', commissionId), {
+            id: commissionId,
+            referrerUid: referrerUid,
+            referrerName: referrerName,
+            referredUid: user.uid,
+            referredName: profile.displayName || 'Scholar',
+            paymentAmount: displayPrice,
+            paymentCurrency: userCurrency,
+            commissionAmount: finalCommissionValue,
+            commissionCurrency: referrerCurrency,
+            commissionRate: 0.25,
+            status: 'success',
+            createdAt: new Date().toISOString()
+          });
+        }
+
         alert('Institutional Access Granted! Launching study protocol...');
         setHasPaid(true);
         // Auto-launch the course

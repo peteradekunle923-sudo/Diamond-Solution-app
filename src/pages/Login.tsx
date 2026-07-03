@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut, signInWithCustomToken } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut } from 'firebase/auth';
 import { doc, setDoc, getDoc, query, collection, where, getDocs, limit, updateDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -394,20 +394,12 @@ export default function Login() {
     setLoading(true);
     try {
       const credentials = await authenticateBiometrics();
-      if (credentials && credentials.email && credentials.token) {
+      if (credentials && credentials.email && credentials.password) {
         setEmail(credentials.email);
+        setPassword(credentials.password);
         setSessionToken('PENDING_LOGIN'); // Bypass onSnapshot auto-logout
         
-        const response = await axios.post('/api/biometric-login', {
-          email: credentials.email,
-          token: credentials.token
-        });
-
-        if (!response.data.success || !response.data.customToken) {
-          throw new Error("Biometric authentication was rejected by the server.");
-        }
-
-        const res = await signInWithCustomToken(auth, response.data.customToken);
+        const res = await signInWithEmailAndPassword(auth, credentials.email, credentials.password);
         
         // Safety verification: verify that this user is indeed registered on this device
         const userDoc = await getDoc(doc(db, 'users', res.user.uid));
