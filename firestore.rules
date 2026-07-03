@@ -21,10 +21,10 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('status', 'active') == 'suspended';
     }
     
-    // Admin check: Hardcoded SuperAdmin + Admins collection lookup + users role
+    // Admin check: Custom claim + Admins collection lookup + users role
     function isAdmin() { 
       return isSignedIn() && (
-        (request.auth.token.email != null && request.auth.token.email.matches('(?i)^peteradekunle923@gmail\\.com$')) ||
+        request.auth.token.admin == true ||
         exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'student') == 'admin')
@@ -106,7 +106,7 @@ service cloud.firestore {
     // 4. COLLECTION RULES
 
     match /users/{userId} {
-      allow get: if true;
+      allow get: if isSignedIn();
       allow list: if isAdmin() || (isSignedIn() && !isSuspended() && (
         // Allow users to see their referrals
         resource.data.referredByUid == request.auth.uid ||
@@ -140,7 +140,7 @@ service cloud.firestore {
       allow create: if isVerified() && 
                     (!isSuspended() || (incoming().purpose == 'reactivation' && (incoming().amount == 1000 || incoming().amount == 2))) && 
                     isValidPayment(incoming()) && 
-                    (incoming().status == 'pending' || incoming().status == 'success') &&
+                    incoming().status == 'pending' &&
                     (!('courseId' in incoming()) || incoming().courseId == 'all_dept' || exists(/databases/$(database)/documents/courses/$(incoming().courseId)));
       allow update: if isAdmin();
     }

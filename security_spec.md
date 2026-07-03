@@ -118,3 +118,15 @@
 }
 ```
 **Expected**: `PERMISSION_DENIED`
+
+### 13. Direct Success Payment Creation
+**Operation**: `create` on `/payments/dept_pay_{uid}_{department}`
+```json
+{
+  "userId": "MY_UID",
+  "amount": 10000,
+  "status": "success",
+  "department": "Engineering"
+}
+```
+**Expected**: `PERMISSION_DENIED` (Client-initiated payment creation must only have status 'pending')

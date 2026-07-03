@@ -6,35 +6,17 @@
 import { doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db, auth } from './firebase';
 
-// Simple obfuscation helper to avoid storing plain text passwords in localStorage
-const OBFUSCATION_KEY = "diamond-learning-key-928374982";
-
-function obfuscate(text: string): string {
-  let result = "";
-  for (let i = 0; i < text.length; i++) {
-    const charCode = text.charCodeAt(i) ^ OBFUSCATION_KEY.charCodeAt(i % OBFUSCATION_KEY.length);
-    result += String.fromCharCode(charCode);
-  }
-  return btoa(result);
-}
-
-function deobfuscate(text: string): string {
-  try {
-    const raw = atob(text);
-    let result = "";
-    for (let i = 0; i < raw.length; i++) {
-      const charCode = raw.charCodeAt(i) ^ OBFUSCATION_KEY.charCodeAt(i % OBFUSCATION_KEY.length);
-      result += String.fromCharCode(charCode);
-    }
-    return result;
-  } catch (e) {
-    return "";
-  }
+// SHA-256 client-side hashing helper
+async function sha256(message: string): Promise<string> {
+  const msgBuffer = new TextEncoder().encode(message);
+  const hashBuffer = await window.crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 export interface BiometricCredentials {
   email: string;
-  password?: string;
+  token?: string;
   storedAt: string;
 }
 
@@ -79,7 +61,7 @@ function getOrGenerateDeviceBiometricId(): string {
  * Register the user's platform biometrics (Fingerprint)
  * triggers standard navigator.credentials.create
  */
-export async function enrollBiometrics(email: string, password: string): Promise<boolean> {
+export async function enrollBiometrics(email: string, password?: string): Promise<boolean> {
   if (!window.PublicKeyCredential) {
     throw new Error("Biometric authentication is not supported on this browser.");
   }
@@ -151,17 +133,25 @@ export async function enrollBiometrics(email: string, password: string): Promise
     });
 
     if (credential) {
-      // Save device ID to user's Firestore document
+      // Generate a high-entropy cryptographically secure clearance token
+      const rawToken = Array.from(window.crypto.getRandomValues(new Uint8Array(32)))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+
+      const tokenHash = await sha256(rawToken);
+
+      // Save device ID and token hash to user's Firestore document
       const userRef = doc(db, 'users', currentUser.uid);
       await updateDoc(userRef, {
         biometricDeviceId: deviceId,
+        biometricTokenHash: tokenHash,
         biometricEnrolledAt: new Date().toISOString()
       });
 
-      // Obfuscate and store credentials locally
+      // Store raw clearance token locally
       const payload: BiometricCredentials = {
         email,
-        password: obfuscate(password),
+        token: rawToken,
         storedAt: new Date().toISOString()
       };
       localStorage.setItem("diamond_biometric_credentials", JSON.stringify(payload));
@@ -185,7 +175,7 @@ export async function enrollBiometrics(email: string, password: string): Promise
  * Perform verification/unlock using the user's platform biometrics (Fingerprint)
  * triggers standard navigator.credentials.get
  */
-export async function authenticateBiometrics(): Promise<{ email: string; password?: string } | null> {
+export async function authenticateBiometrics(): Promise<{ email: string; token?: string } | null> {
   if (!window.PublicKeyCredential) {
     throw new Error("Biometric authentication is not supported on this browser.");
   }
@@ -212,10 +202,10 @@ export async function authenticateBiometrics(): Promise<{ email: string; passwor
 
     if (assertion) {
       const parsed = JSON.parse(stored) as BiometricCredentials;
-      if (parsed.email && parsed.password) {
+      if (parsed.email && parsed.token) {
         return {
           email: parsed.email,
-          password: deobfuscate(parsed.password)
+          token: parsed.token
         };
       }
     }

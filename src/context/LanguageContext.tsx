@@ -768,7 +768,11 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return translations[language][key];
     }
     if (key.startsWith('dept.')) {
-      return key.substring(5);
+      let clean = key.substring(5);
+      while (clean.startsWith('dept.')) {
+        clean = clean.substring(5);
+      }
+      return clean;
     }
     return key;
   };

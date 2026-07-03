@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import path from "path";
 import axios from "axios";
+import crypto from "crypto";
 import { initializeApp, getApp, getApps, type AppOptions } from "firebase-admin/app";
 import { getFirestore as getFirestoreSDK, FieldValue } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
@@ -148,7 +149,7 @@ async function checkIsAdmin(uid: string) {
   try {
     // Fallback authentication check using Firebase Auth Admin SDK (does not require Firestore permissions)
     const userRecord = await getAuth().getUser(uid);
-    if (userRecord.email === "peteradekunle923@gmail.com" || userRecord.customClaims?.admin === true) {
+    if (userRecord.customClaims?.admin === true) {
       return true;
     }
   } catch (authErr: any) {
@@ -160,7 +161,7 @@ async function checkIsAdmin(uid: string) {
     const userDoc = await db.collection("users").doc(uid).get();
     if (userDoc.exists) {
       const data = userDoc.data();
-      return data?.role === "admin" || data?.email === "peteradekunle923@gmail.com";
+      return data?.role === "admin";
     }
   } catch (error) {
     console.error("[Auth Helper] Failed to check admin role via Firestore:", error);
@@ -631,6 +632,46 @@ async function startServer() {
     });
   });
 
+  // Biometric login endpoint using SHA-256 clearance tokens
+  app.post("/api/biometric-login", async (req, res) => {
+    try {
+      const parsedBody = z.object({
+        email: z.string().email("Invalid email format"),
+        token: z.string().min(1, "Clearance token is required")
+      }).parse(req.body);
+
+      const { email, token } = parsedBody;
+
+      // Compute SHA-256 hash of the received token
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+      const db = await getFirestore();
+      // Look up user by email
+      const usersSnap = await db.collection("users").where("email", "==", email).limit(1).get();
+      if (usersSnap.empty) {
+        return res.status(401).json({ error: "Invalid biometric credentials." });
+      }
+
+      const userDoc = usersSnap.docs[0];
+      const userData = userDoc.data();
+
+      if (!userData.biometricTokenHash || userData.biometricTokenHash !== tokenHash) {
+        return res.status(401).json({ error: "Biometric validation failed." });
+      }
+
+      // Generate a custom Firebase Auth token
+      const customToken = await getAuth().createCustomToken(userDoc.id);
+
+      res.json({ success: true, customToken });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.issues[0].message });
+      }
+      console.error("[Biometric Login] Error:", error.message);
+      res.status(500).json({ error: "Biometric validation failed." });
+    }
+  });
+
   // Payout endpoint
   app.post("/api/payout", verifyFirebaseToken, payoutLimiter, async (req, res) => {
     try {
@@ -709,8 +750,73 @@ async function startServer() {
         return res.status(400).json({ error: "The minimum payout amount for NGN is ₦10,000." });
       }
 
+      let withdrawalId = '';
+      if (reference.startsWith('WD_')) {
+        const temp = reference.substring(3);
+        const lastIndex = temp.lastIndexOf('_');
+        if (lastIndex !== -1) {
+          withdrawalId = temp.substring(0, lastIndex);
+        }
+      }
+
+      if (!withdrawalId) {
+        return res.status(400).json({ error: "Invalid reference format. Could not resolve withdrawal ID." });
+      }
+
+      const withdrawalRef = db.collection("withdrawals").doc(withdrawalId);
+
+      try {
+        await db.runTransaction(async (transaction: any) => {
+          const withdrawalDoc = await transaction.get(withdrawalRef);
+          if (!withdrawalDoc.exists) {
+            throw new Error("Withdrawal request not found.");
+          }
+          const withdrawalData = withdrawalDoc.data();
+          if (withdrawalData.status !== 'pending') {
+            throw new Error("Withdrawal request is no longer pending.");
+          }
+          if (withdrawalData.userId !== targetUserId) {
+            throw new Error("Withdrawal user ID mismatch.");
+          }
+          if (withdrawalData.amount !== amount) {
+            throw new Error("Withdrawal amount mismatch.");
+          }
+
+          // Fetch all approved commissions
+          const affiliatesSnap = await db.collection("affiliates")
+            .where("referrerUid", "==", targetUserId)
+            .get();
+          const totalEarned = affiliatesSnap.docs.reduce((acc: number, doc: any) => acc + (doc.data().commissionAmount || 0), 0);
+
+          // Fetch all non-failed withdrawals except the current one
+          const withdrawalsSnap = await db.collection("withdrawals")
+            .where("userId", "==", targetUserId)
+            .get();
+          
+          const totalWithdrawn = withdrawalsSnap.docs
+            .filter((doc: any) => doc.id !== withdrawalId && doc.data().status !== 'failed')
+            .reduce((acc: number, doc: any) => acc + (doc.data().amount || 0), 0);
+
+          const availableBalance = Math.max(0, totalEarned - totalWithdrawn);
+
+          if (amount > availableBalance) {
+            throw new Error(`Insufficient affiliate balance. Available: ${currency === 'USD' ? '$' : '₦'}${availableBalance.toLocaleString()}, Requested: ${currency === 'USD' ? '$' : '₦'}${amount.toLocaleString()}`);
+          }
+
+          // Mark withdrawal as 'processing' to prevent race conditions
+          transaction.update(withdrawalRef, { status: 'processing', processedAt: new Date().toISOString() });
+        });
+      } catch (txError: any) {
+        return res.status(400).json({ error: txError.message });
+      }
+
       if (bankCode === 'INTL') {
         console.log(`[Payout] INTL payout requested for ${accountName} using ${accountNumber}`);
+        await withdrawalRef.update({
+          status: 'success',
+          processedAt: new Date().toISOString(),
+          isManual: true
+        });
         return res.json({ success: true, message: "International payout logged for manual processing", reference, isManual: true });
       }
 
@@ -723,34 +829,55 @@ async function startServer() {
 
       if (isNoSecretKey) {
         console.warn("[Payout] Payout simulated - no secret key.");
+        await withdrawalRef.update({
+          status: 'success',
+          processedAt: new Date().toISOString(),
+          simulated: true
+        });
         return res.json({ success: true, message: "Payout simulated", reference });
       }
 
-      // 1. Create Transfer Recipient
-      const recipientRes = await axios.post('https://api.paystack.co/transferrecipient', {
-        type: "nuban",
-        name: accountName,
-        account_number: accountNumber,
-        bank_code: bankCode,
-        currency: "NGN"
-      }, {
-        headers: { Authorization: `Bearer ${secretKey}` }
-      });
+      try {
+        // 1. Create Transfer Recipient
+        const recipientRes = await axios.post('https://api.paystack.co/transferrecipient', {
+          type: "nuban",
+          name: accountName,
+          account_number: accountNumber,
+          bank_code: bankCode,
+          currency: "NGN"
+        }, {
+          headers: { Authorization: `Bearer ${secretKey}` }
+        });
 
-      const recipientCode = recipientRes.data.data.recipient_code;
+        const recipientCode = recipientRes.data.data.recipient_code;
 
-      // 2. Initiate Transfer
-      const transferRes = await axios.post('https://api.paystack.co/transfer', {
-        source: "balance",
-        amount: amount * 100, // Convert to kobo
-        recipient: recipientCode,
-        reason: "Affiliate Commission Withdrawal",
-        reference
-      }, {
-        headers: { Authorization: `Bearer ${secretKey}` }
-      });
+        // 2. Initiate Transfer
+        const transferRes = await axios.post('https://api.paystack.co/transfer', {
+          source: "balance",
+          amount: amount * 100, // Convert to kobo
+          recipient: recipientCode,
+          reason: "Affiliate Commission Withdrawal",
+          reference
+        }, {
+          headers: { Authorization: `Bearer ${secretKey}` }
+        });
 
-      res.json(transferRes.data);
+        await withdrawalRef.update({
+          status: 'success',
+          processedAt: new Date().toISOString(),
+          paystackResponse: transferRes.data
+        });
+
+        res.json(transferRes.data);
+      } catch (transferErr: any) {
+        const errorMsg = transferErr.response?.data?.message || transferErr.message;
+        await withdrawalRef.update({
+          status: 'failed',
+          error: errorMsg,
+          processedAt: new Date().toISOString()
+        });
+        throw transferErr;
+      }
     } catch (error: any) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: error.issues[0].message });
@@ -781,10 +908,11 @@ async function startServer() {
         referrerEmail: z.string().email().or(z.literal("")).optional().nullable(),
         referrerName: z.string().optional().nullable(),
         finalCommissionValue: z.number().nonnegative().optional().nullable(),
-        referrerId: z.string().optional().nullable()
+        referrerId: z.string().optional().nullable(),
+        courseId: z.string().optional()
       }).parse(req.body);
 
-      const { reference, userData, department, amount, currency, referrerEmail, referrerName, finalCommissionValue, referrerId } = parsedBody;
+      const { reference, userData, department, amount, currency, referrerEmail, referrerName, finalCommissionValue, referrerId, courseId } = parsedBody;
       const secretKey = process.env.PAYSTACK_SECRET_KEY;
 
       if (userData.uid !== (req as any).uid) {
@@ -827,6 +955,58 @@ async function startServer() {
             return res.status(400).json({ error: paystackErrMsg });
           }
         }
+      }
+
+      // WRITE TO FIRESTORE (Server-side, trusted)
+      const db = await getFirestore();
+      const paymentId = `dept_pay_${userData.uid}_${department}`;
+
+      const paymentData = {
+        id: paymentId,
+        userId: userData.uid,
+        amount: amount,
+        currency: currency,
+        status: 'success',
+        type: 'department_access',
+        dept_name: department,
+        department: department,
+        reference: reference,
+        courseId: courseId || 'all_dept',
+        studentName: userData.displayName || 'Scholar',
+        email: userData.email || 'no-email',
+        paidAt: new Date().toISOString(),
+        createdAt: new Date().toISOString()
+      };
+      await db.collection("payments").doc(paymentId).set(paymentData, { merge: true });
+
+      await db.collection("users").doc(userData.uid).set({
+        hasPaidCourse: true,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      let referrerCurrency = currency;
+      if (referrerId) {
+        const referrerDoc = await db.collection("users").doc(referrerId).get();
+        if (referrerDoc.exists) {
+          referrerCurrency = referrerDoc.data()?.currency || 'NGN';
+        }
+
+        const commissionId = `comm_${paymentId}`;
+        const commissionData = {
+          id: commissionId,
+          referrerUid: referrerId,
+          referrerName: referrerName || 'Affiliate',
+          referredUid: userData.uid,
+          referredName: userData.displayName || 'Scholar',
+          paymentAmount: amount,
+          paymentCurrency: currency,
+          commissionAmount: finalCommissionValue || 0,
+          commissionCurrency: referrerCurrency,
+          commissionRate: 0.25,
+          status: 'success',
+          createdAt: new Date().toISOString()
+        };
+        await db.collection("affiliates").doc(commissionId).set(commissionData, { merge: true });
       }
 
       // 3. Dispatch Emails (Upline & Admin)

@@ -207,6 +207,24 @@ export default function CourseList() {
       if (typeof reference === 'string') finalRef = reference;
       else if (reference && typeof reference === 'object') finalRef = reference.reference || reference.transaction || reference.trans || reference.trxref;
 
+      // Record payment as pending first (client-initiated creates must be pending)
+      await setDoc(doc(db, 'payments', paymentId), {
+        id: paymentId,
+        userId: user.uid,
+        amount: currentPrice,
+        currency: userCurrency,
+        status: 'pending',
+        type: 'department_access',
+        dept_name: selectedDeptWithPrice.name,
+        department: selectedDeptWithPrice.name,
+        reference: finalRef,
+        courseId: 'all_dept',
+        studentName: profile.displayName || 'Scholar',
+        email: user.email || 'no-email',
+        paidAt: new Date().toISOString(),
+        createdAt: new Date().toISOString()
+      });
+
       const { default: axios } = await import('axios');
       const idToken = await user.getIdToken();
       const response = await axios.post('/api/verify-departmental-payment', {
@@ -226,52 +244,7 @@ export default function CourseList() {
       });
 
       if (response.data.success) {
-        // Record payment
-        await setDoc(doc(db, 'payments', paymentId), {
-          id: paymentId,
-          userId: user.uid,
-          amount: currentPrice,
-          currency: userCurrency,
-          status: 'success',
-          type: 'department_access',
-          dept_name: selectedDeptWithPrice.name,
-          department: selectedDeptWithPrice.name,
-          reference: reference.reference || reference,
-          courseId: 'all_dept',
-          studentName: profile.displayName || 'Scholar',
-          email: user.email || 'no-email',
-          paidAt: new Date().toISOString(),
-          createdAt: new Date().toISOString()
-        });
-
-        // Mark user as paid
-        await setDoc(doc(db, 'users', user.uid), {
-          hasPaidCourse: true,
-          updatedAt: new Date().toISOString()
-        }, { merge: true });
-
-        // Record affiliate commission
-        if (referrerUid) {
-          const commissionId = `comm_${paymentId}`;
-          await setDoc(doc(db, 'affiliates', commissionId), {
-            id: commissionId,
-            referrerUid: referrerUid,
-            referrerName: referrerName,
-            referredUid: user.uid,
-            referredName: profile.displayName || 'Scholar',
-            paymentAmount: currentPrice,
-            paymentCurrency: userCurrency,
-            commissionAmount: finalCommissionValue,
-            commissionCurrency: referrerCurrency,
-            commissionRate: 0.25,
-            status: 'success',
-            createdAt: new Date().toISOString()
-          });
-          // Do NOT increment balance on the users collection. The affiliate's balance is purely derived from affiliates table dynamically in AffiliateDashboard.
-        }
-        
         alert('Institutional Access Granted! You can now access your courses.');
-
       } else {
         alert('Payment verification failed.');
       }
@@ -380,7 +353,14 @@ export default function CourseList() {
                   </div>
                   <div className="space-y-1">
                     <h3 className="text-xl font-serif font-black text-text-1 group-hover:text-gold transition-colors">{t(`dept.${f.name}`)}</h3>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {(f.levels || DEPARTMENT_STRUCTURE[f.name]?.levels || ['100L', '200L', '300L', '400L', '500L']).map((lvl: string) => (
+                        <span key={lvl} className="text-[8px] font-mono bg-white/5 border border-white/10 px-1.5 py-0.5 rounded text-text-3">
+                          {lvl === 'Application Questions' ? 'App. Questions' : lvl}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-3 mt-2">
                       <span className="text-[9px] font-black text-text-3 uppercase tracking-widest leading-none">{t('courses.faculty')}</span>
                       {(isAdmin || deptAccess[f.name]) && (
                         <div className="flex items-center gap-1 text-emerald-500 text-[8px] font-black uppercase tracking-widest bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/10">
