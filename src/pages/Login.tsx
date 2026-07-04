@@ -1053,7 +1053,7 @@ export default function Login() {
                       <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-3 group-focus-within:text-gold transition-colors" />
                         <input
-                          type={showPassword ? "text" : "password"}
+                          type="text"
                           placeholder="••••••••"
                           className="w-full pl-11 pr-12 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
                           value={password}
@@ -1082,7 +1082,8 @@ export default function Login() {
                             WebkitBackfaceVisibility: 'hidden',
                             willChange: 'auto',
                             isolation: 'isolate',
-                            backgroundColor: '#162B46'
+                            backgroundColor: '#162B46',
+                            WebkitTextSecurity: showPassword ? 'none' : 'disc'
                           }}
                         />
                         <button
@@ -1415,7 +1416,7 @@ export default function Login() {
                           <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
                             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-3 group-focus-within:text-gold transition-colors" />
                             <input
-                              type={showPassword ? "text" : "password"}
+                              type="text"
                               placeholder="••••••••"
                               className="w-full pl-11 pr-12 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
                               value={password}
@@ -1444,7 +1445,8 @@ export default function Login() {
                                 WebkitBackfaceVisibility: 'hidden',
                                 willChange: 'auto',
                                 isolation: 'isolate',
-                                backgroundColor: '#162B46'
+                                backgroundColor: '#162B46',
+                                WebkitTextSecurity: showPassword ? 'none' : 'disc'
                               }}
                             />
                             <button
@@ -1461,7 +1463,7 @@ export default function Login() {
                           <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
                             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-3 group-focus-within:text-gold transition-colors" />
                             <input
-                              type={showConfirmPassword ? "text" : "password"}
+                              type="text"
                               placeholder="••••••••"
                               className="w-full pl-11 pr-12 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
                               value={confirmPassword}
@@ -1490,7 +1492,8 @@ export default function Login() {
                                 WebkitBackfaceVisibility: 'hidden',
                                 willChange: 'auto',
                                 isolation: 'isolate',
-                                backgroundColor: '#162B46'
+                                backgroundColor: '#162B46',
+                                WebkitTextSecurity: showConfirmPassword ? 'none' : 'disc'
                               }}
                             />
                             <button
