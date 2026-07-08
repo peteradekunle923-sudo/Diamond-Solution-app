@@ -339,6 +339,18 @@ export default function CourseList() {
     if (deptFilter && deptFilter !== 'All') {
       const deptLevels = matchedCustomDept?.levels || DEPARTMENT_STRUCTURE[deptFilter]?.levels || [];
       if (deptLevels.length > 0) {
+        // If current levelFilter is already valid for this department, keep it
+        if (levelFilter && levelFilter !== 'All' && deptLevels.includes(levelFilter)) {
+          return;
+        }
+
+        // If sessionStorage has a valid saved levelFilter, use it
+        const savedLevel = sessionStorage.getItem('courseList_levelFilter');
+        if (savedLevel && savedLevel !== 'All' && deptLevels.includes(savedLevel)) {
+          setLevelFilter(savedLevel);
+          return;
+        }
+
         if (deptLevels.includes('MB 1')) {
           setLevelFilter('MB 1');
         } else if (deptLevels.includes('200L')) {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, query, orderBy, doc, getDoc, getDocs, where, setDoc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, getDoc, getDocs, where, setDoc, updateDoc, deleteDoc, addDoc, increment } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { ChevronLeft, CheckCircle, ArrowRight, ArrowLeft, Trophy, RotateCcw, XCircle, Info, Lock, BookOpen, Sparkles, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -396,6 +396,17 @@ export default function StudyPage() {
     return null;
   }
 
+  const getMatchedOutline = (qNum: number) => {
+    if (!allRanges || allRanges.length === 0) return null;
+    const matched = allRanges.find(r => {
+      if (r.end === null) {
+        return qNum === r.start;
+      }
+      return qNum >= r.start && qNum <= r.end;
+    });
+    return matched ? matched.text : null;
+  };
+
   useEffect(() => {
     if (selectedAnswer !== null && !isSubmitted && !loading && questions[currentIndex]) {
       const qId = questions[currentIndex].id;
@@ -475,6 +486,10 @@ export default function StudyPage() {
   const [sessionStartTime] = useState(Date.now());
   const lastSyncTimeRef = useRef(Date.now());
 
+  const hasDailyPracticeDocRef = useRef(false);
+  const progressTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingProgressRef = useRef<any>(null);
+
   // Timer for study duration
   useEffect(() => {
     if (loading || showResults || questions.length === 0) return;
@@ -485,11 +500,11 @@ export default function StudyPage() {
     const syncInterval = setInterval(async () => {
       const now = Date.now();
       const durationSeconds = Math.floor((now - lastSyncTimeRef.current) / 1000);
-      if (durationSeconds >= 30) { // Sync every 30 seconds
+      if (durationSeconds >= 120) { // Sync every 2 minutes (120 seconds) to heavily conserve write quota
         await updateStudyDuration(durationSeconds);
         lastSyncTimeRef.current = now;
       }
-    }, 15000); // Check more frequently to be highly robust
+    }, 30000); // Check every 30 seconds
 
     return () => {
       clearInterval(syncInterval);
@@ -507,14 +522,20 @@ export default function StudyPage() {
     const practiceRef = doc(db, 'dailyPractice', practiceId);
 
     try {
-      const snap = await getDoc(practiceRef);
-      if (snap.exists()) {
-        const data = snap.data();
+      let exists = hasDailyPracticeDocRef.current;
+      if (!exists) {
+        const snap = await getDoc(practiceRef);
+        exists = snap.exists();
+        if (exists) {
+          hasDailyPracticeDocRef.current = true;
+        }
+      }
+
+      if (exists) {
         await setDoc(practiceRef, {
-          studyDuration: (data.studyDuration || 0) + seconds,
+          studyDuration: increment(seconds),
           updatedAt: new Date().toISOString()
         }, { merge: true });
-        await setDoc(doc(db, 'users', user.uid), { lastStudyDate: new Date().toISOString() }, { merge: true });
       } else {
         await setDoc(practiceRef, {
           userId: user.uid,
@@ -526,6 +547,12 @@ export default function StudyPage() {
           updatedAt: new Date().toISOString(),
           lastNotificationCheck: new Date().toISOString()
         });
+        hasDailyPracticeDocRef.current = true;
+      }
+
+      // Conserve write quota: only update user's lastStudyDate if it is not already today's date
+      const currentLastStudyDate = profile?.lastStudyDate;
+      if (!currentLastStudyDate || currentLastStudyDate.split('T')[0] !== today) {
         await setDoc(doc(db, 'users', user.uid), { lastStudyDate: new Date().toISOString() }, { merge: true });
       }
     } catch (err) {
@@ -540,13 +567,20 @@ export default function StudyPage() {
     const practiceRef = doc(db, 'dailyPractice', practiceId);
 
     try {
-      const snap = await getDoc(practiceRef);
+      let exists = hasDailyPracticeDocRef.current;
+      if (!exists) {
+        const snap = await getDoc(practiceRef);
+        exists = snap.exists();
+        if (exists) {
+          hasDailyPracticeDocRef.current = true;
+        }
+      }
+
       const now = new Date().toISOString();
-      if (snap.exists()) {
-        const data = snap.data();
+      if (exists) {
         await setDoc(practiceRef, {
-          attempted: (data.attempted || 0) + 1,
-          correct: (data.correct || 0) + (isCorrect ? 1 : 0),
+          attempted: increment(1),
+          correct: increment(isCorrect ? 1 : 0),
           updatedAt: now
         }, { merge: true });
       } else {
@@ -559,6 +593,7 @@ export default function StudyPage() {
           updatedAt: now,
           lastNotificationCheck: now
         });
+        hasDailyPracticeDocRef.current = true;
       }
     } catch (err) {
       console.error("Failed to sync daily practice:", err);
@@ -624,7 +659,7 @@ export default function StudyPage() {
     }
   };
 
-  const saveProgress = async (updates: any) => {
+  const saveProgressReal = async (updates: any) => {
     if (!user || !id) return;
     try {
       await setDoc(doc(db, 'studyProgress', `${user.uid}_${id}`), {
@@ -637,6 +672,45 @@ export default function StudyPage() {
       handleFirestoreError(err, OperationType.WRITE, `studyProgress/${user.uid}_${id}`);
     }
   };
+
+  const saveProgress = (updates: any, immediate = false) => {
+    pendingProgressRef.current = {
+      ...pendingProgressRef.current,
+      ...updates
+    };
+
+    if (immediate || updates.completed) {
+      if (progressTimeoutRef.current) {
+        clearTimeout(progressTimeoutRef.current);
+        progressTimeoutRef.current = null;
+      }
+      saveProgressReal(pendingProgressRef.current);
+      pendingProgressRef.current = null;
+    } else {
+      if (progressTimeoutRef.current) {
+        clearTimeout(progressTimeoutRef.current);
+      }
+
+      progressTimeoutRef.current = setTimeout(() => {
+        if (pendingProgressRef.current) {
+          saveProgressReal(pendingProgressRef.current);
+          pendingProgressRef.current = null;
+        }
+      }, 10000); // 10 seconds debounce to save substantial writes
+    }
+  };
+
+  // Flush pending progress on unmount
+  useEffect(() => {
+    return () => {
+      if (progressTimeoutRef.current) {
+        clearTimeout(progressTimeoutRef.current);
+      }
+      if (pendingProgressRef.current) {
+        saveProgressReal(pendingProgressRef.current);
+      }
+    };
+  }, []);
 
   const handleSubmit = () => {
     const currentQ = questions[currentIndex];
@@ -1058,7 +1132,9 @@ export default function StudyPage() {
             <ChevronLeft className="w-5 h-5 relative right-[1px]" />
           </button>
           <div>
-            <h1 className="text-xs sm:text-sm font-serif font-black text-text-1 leading-tight">{course?.title}</h1>
+            <h1 className="text-xs sm:text-sm font-serif font-black text-text-1 leading-tight">
+              {getMatchedOutline(currentIndex + 1) || course?.title || 'Course'}
+            </h1>
             <p className="text-[9px] font-black text-gold uppercase tracking-widest mt-0.5">
               {t('study.questionStatus').replace('{n}', (currentIndex + 1).toString()).replace('{m}', questions.length.toString())}
             </p>

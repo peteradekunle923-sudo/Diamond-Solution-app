@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { collection, query, limit, onSnapshot, orderBy, doc, getDoc, setDoc, addDoc, where, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import Layout from '../components/Layout';
@@ -46,6 +46,9 @@ export default function Dashboard() {
   const [showSocialMedia, setShowSocialMedia] = useState(false);
   const [showGoalPrompt, setShowGoalPrompt] = useState(false);
   const [dynamicSocialLinks, setDynamicSocialLinks] = useState<any[]>([]);
+  
+  const activationAttemptedRef = useRef(false);
+  const goalCheckAttemptedRef = useRef(false);
 
   useEffect(() => {
     if (isViewingOther) return;
@@ -53,6 +56,9 @@ export default function Dashboard() {
 
     // Automated Activation: ensure every user has a referral code and is an affiliate
     if (loggedInUser?.uid && loggedInProfile && (!loggedInProfile.referralCode || loggedInProfile.affiliateStatus !== 'active')) {
+       if (activationAttemptedRef.current) return;
+       activationAttemptedRef.current = true;
+       
        // Silent background activation
        loggedInUser.getIdToken().then((idToken) => {
          axios.post('/api/activate-affiliate', { userId: loggedInUser.uid }, {
@@ -191,12 +197,13 @@ export default function Dashboard() {
       });
 
       // 5. Daily Goal Notification Check (Every 3 hours if < 50 questions)
-      if (todayDoc && !isViewingOther) {
+      if (todayDoc && !isViewingOther && !goalCheckAttemptedRef.current) {
         const attempted = todayDoc.attempted || 0;
         const lastCheck = todayDoc.lastNotificationCheck ? new Date(todayDoc.lastNotificationCheck) : null;
         const hoursSinceLastCheck = lastCheck ? (Date.now() - lastCheck.getTime()) / (1000 * 60 * 60) : 4;
 
         if (hoursSinceLastCheck >= 3 && attempted < 50) {
+          goalCheckAttemptedRef.current = true;
           setShowGoalPrompt(true);
           const practiceRef = doc(db, 'dailyPractice', `${activeUserUid}_${today}`);
           updateDoc(practiceRef, { 

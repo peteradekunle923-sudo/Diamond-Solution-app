@@ -506,7 +506,8 @@ async function startServer() {
         await userRef.set(updateData, { merge: true });
         console.log(`[Affiliate] User ${targetUserId} auto-activated in Firestore. Code: ${referralCode}`);
       } catch (dbErr: any) {
-        console.log(`[Affiliate Activation] Firestore operation bypassed, using memory/client fallback:`, dbErr.message);
+        console.error(`[Affiliate Activation] Firestore operation failed:`, dbErr.message);
+        throw dbErr;
       }
 
       res.json({ success: true, message: "Protocol Activated", referralCode });

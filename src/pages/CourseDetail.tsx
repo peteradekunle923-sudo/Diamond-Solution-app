@@ -77,6 +77,10 @@ export default function CourseDetail() {
         const courseData = d.data();
         setCourse(courseData);
 
+        // Save the level and department of the course to sessionStorage so when navigating back to course list, we are at the right level
+        sessionStorage.setItem('courseList_deptFilter', courseData.department);
+        sessionStorage.setItem('courseList_levelFilter', courseData.level);
+
         // Check if user has paid for this course/department
         let userHasPaidLocal = false;
         if (user) {
