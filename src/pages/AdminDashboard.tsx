@@ -20,12 +20,51 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from '../context/LanguageContext';
 import { DEPARTMENTS, DEPARTMENT_STRUCTURE, DEPARTMENT_PRICES } from '../constants';
 import { useNavigate } from 'react-router-dom';
+import { isBiometricsSupported, authenticateBiometrics } from '../lib/biometrics';
 
 type Tab = 'dashboard' | 'users' | 'affiliates' | 'withdrawals' | 'payments' | 'analytics' | 'departments' | 'questions' | 'notifications' | 'quotes' | 'support' | 'logs' | 'settings';
 
 export default function AdminDashboard() {
   const { t } = useLanguage();
   const navigate = useNavigate();
+
+  // Lock Screen States
+  const [isUnlocked, setIsUnlocked] = useState(() => sessionStorage.getItem('admin_unlocked') === 'true');
+  const [adminPasscode, setAdminPasscode] = useState('');
+  const [hasEnrolledPasscode, setHasEnrolledPasscode] = useState(false);
+  const [biometricsAvailable, setBiometricsAvailable] = useState(false);
+  const [passcodeChecking, setPasscodeChecking] = useState(true);
+
+  useEffect(() => {
+    const fetchAdminPasscode = async () => {
+      try {
+        const u = auth.currentUser;
+        if (u) {
+          const snap = await getDoc(doc(db, 'users', u.uid));
+          if (snap.exists()) {
+            const data = snap.data();
+            if (data.adminPasscode) {
+              setAdminPasscode(data.adminPasscode);
+              setHasEnrolledPasscode(true);
+            } else {
+              setHasEnrolledPasscode(false);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load admin profile:", err);
+      } finally {
+        setPasscodeChecking(false);
+      }
+    };
+
+    fetchAdminPasscode();
+
+    isBiometricsSupported().then(supported => {
+      setBiometricsAvailable(supported);
+    });
+  }, []);
+
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [selectedDeptFilter, setSelectedDeptFilter] = useState<string | null>(null);
@@ -212,6 +251,34 @@ export default function AdminDashboard() {
       setIsVerifying(false);
     }
   };
+
+  if (passcodeChecking) {
+    return (
+      <div className="fixed inset-0 bg-[#07101F] flex flex-col items-center justify-center z-50">
+        <div className="w-16 h-16 bg-[#C9930A] flex items-center justify-center animate-pulse" style={{ clipPath: 'polygon(50% 0%, 100% 35%, 80% 100%, 20% 100%, 0% 35%)' }}></div>
+        <div className="text-center mt-6">
+          <h3 className="text-sm font-serif font-black tracking-widest text-[#EDE8E1] uppercase">DIAMOND SECURITY</h3>
+          <p className="text-[#45647E] text-[10px] font-black uppercase tracking-widest mt-1">Initializing Secure Enclave...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isUnlocked) {
+    return (
+      <AdminLockScreen 
+        hasEnrolledPasscode={hasEnrolledPasscode}
+        adminPasscode={adminPasscode}
+        onUnlock={() => {
+          sessionStorage.setItem('admin_unlocked', 'true');
+          setIsUnlocked(true);
+        }}
+        setAdminPasscode={setAdminPasscode}
+        setHasEnrolledPasscode={setHasEnrolledPasscode}
+        biometricsAvailable={biometricsAvailable}
+      />
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-[#0a0c10] text-[#e8eaf0] font-sans selection:bg-gold/30">
@@ -1494,6 +1561,29 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
   const [selectedLevels, setSelectedLevels] = useState<string[]>([]);
   const [manualLevelInput, setManualLevelInput] = useState('');
 
+  // Levels Management States
+  const [showLevelsModal, setShowLevelsModal] = useState(false);
+  const [selectedDeptForLevels, setSelectedDeptForLevels] = useState<any>(null);
+  const [modalLevels, setModalLevels] = useState<string[]>([]);
+  const [newLevelName, setNewLevelName] = useState('');
+  const [editingLevelIndex, setEditingLevelIndex] = useState<number | null>(null);
+  const [editingLevelValue, setEditingLevelValue] = useState('');
+
+  const getDeptLevels = (deptName: string) => {
+    const matched = customFaculties.find(f => f.name === deptName);
+    return matched?.levels || DEPARTMENT_STRUCTURE[deptName]?.levels || ['200L', '300L', '400L', '500L', '600L', 'Application Questions'];
+  };
+
+  const openManageLevelsModal = (dept: any) => {
+    setSelectedDeptForLevels(dept);
+    const levels = getDeptLevels(dept.name);
+    setModalLevels([...levels]);
+    setNewLevelName('');
+    setEditingLevelIndex(null);
+    setEditingLevelValue('');
+    setShowLevelsModal(true);
+  };
+
   useEffect(() => {
     return onSnapshot(collection(db, 'faculties'), (snap) => {
       setCustomFaculties(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -1503,10 +1593,10 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [otpValue, setOtpValue] = useState('');
   const [otpTargetId, setOtpTargetId] = useState<string | null>(null);
-  const [pendingAction, setPendingAction] = useState<{ type: 'delete' | 'update' | 'payout', data?: any } | null>(null);
+  const [pendingAction, setPendingAction] = useState<{ type: 'delete' | 'update' | 'payout' | 'update_levels', data?: any } | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
 
-  const requestSecurityClearance = async (id: string, action: 'delete' | 'update' | 'payout', data?: any) => {
+  const requestSecurityClearance = async (id: string, action: 'delete' | 'update' | 'payout' | 'update_levels', data?: any) => {
     setOtpTargetId(id);
     setPendingAction({ type: action, data });
     const token = Math.floor(100000 + Math.random() * 900000).toString();
@@ -1577,6 +1667,25 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
               paidAt: new Date().toISOString()
             });
             alert('SECURITY CLEARANCE GRANTED: Commission payout authorized.');
+          } else if (pendingAction.type === 'update_levels') {
+            // Success: Update the levels in Firestore!
+            const { dept, newLevels } = pendingAction.data;
+            if (dept.isStatic) {
+              await setDoc(doc(db, 'faculties', dept.name), {
+                name: dept.name,
+                price: dept.price,
+                priceUSD: dept.priceUSD,
+                levels: newLevels,
+                updatedAt: new Date().toISOString()
+              }, { merge: true });
+            } else {
+              await updateDoc(doc(db, 'faculties', dept.id), {
+                levels: newLevels,
+                updatedAt: new Date().toISOString()
+              });
+            }
+            alert('SECURITY CLEARANCE GRANTED: Department levels successfully updated.');
+            setShowLevelsModal(false);
           }
           
           try {
@@ -1732,7 +1841,7 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
                     </span>
                   </td>
                   <td className="px-6 py-6">
-                    <div className="flex gap-4">
+                    <div className="flex items-center gap-4">
                       <button 
                         onClick={() => {
                           if (onEditArchive) onEditArchive(dept.name);
@@ -1743,9 +1852,17 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
                       </button>
                       <button 
                         onClick={() => requestClearance(dept.id || dept.name, 'update', async () => openEditModal(dept))}
-                        className="text-emerald-500 text-[10px] font-black uppercase tracking-widest hover:underline"
+                        className="text-emerald-500 text-[10px] font-black uppercase tracking-widest hover:underline text-nowrap"
                       >
                         Update Fee
+                      </button>
+                      <button 
+                        onClick={() => openManageLevelsModal(dept)}
+                        className="text-amber-500 hover:text-amber-400 transition-colors p-1.5 rounded hover:bg-amber-500/10 flex items-center gap-1"
+                        title="Manage Levels"
+                      >
+                        <Layers className="w-4 h-4" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Levels</span>
                       </button>
                        <button 
                          onClick={() => requestClearance(dept.id || dept.name, 'delete', async () => {
@@ -1760,10 +1877,10 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
                            }
                            alert('Faculty record successfully erased.');
                          })}
-                         className="text-red-500 hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-red-500/10"
+                         className="text-red-500 hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-red-500/10 flex items-center justify-center"
                          title="Erase Faculty Record"
                        >
-                         <Trash2 className="w-5 h-5 leading-none" />
+                         <Trash2 className="w-4 h-4 leading-none" />
                        </button>
                     </div>
                   </td>
@@ -1931,6 +2048,146 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
                   </button>
                 </div>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence mode="wait">
+        {showLevelsModal && selectedDeptForLevels && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-navy/80 backdrop-blur-md"
+              onClick={() => setShowLevelsModal(false)}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg bg-[#161b2e] border border-gold/20 rounded-3xl p-8 shadow-2xl z-10"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="font-serif font-black text-xl text-text-1 uppercase tracking-tight">
+                  Levels for {selectedDeptForLevels.name}
+                </h3>
+                <button onClick={() => setShowLevelsModal(false)} className="text-gray-500 hover:text-white">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Levels List */}
+              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 no-scrollbar mb-6">
+                {modalLevels.length === 0 ? (
+                  <p className="text-xs text-gray-500 italic py-4 text-center">No levels defined for this department.</p>
+                ) : (
+                  modalLevels.map((lvl, idx) => (
+                    <div key={idx} className="flex items-center justify-between bg-navy/40 border border-white/5 p-3.5 rounded-xl gap-3">
+                      {editingLevelIndex === idx ? (
+                        <div className="flex-1 flex gap-2">
+                          <input
+                            type="text"
+                            value={editingLevelValue}
+                            onChange={(e) => setEditingLevelValue(e.target.value)}
+                            className="flex-1 bg-navy border border-gold/30 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none"
+                          />
+                          <button
+                            onClick={() => {
+                              if (editingLevelValue.trim()) {
+                                const newLvls = [...modalLevels];
+                                newLvls[idx] = editingLevelValue.trim();
+                                setModalLevels(newLvls);
+                                setEditingLevelIndex(null);
+                              }
+                            }}
+                            className="bg-[#3ddba5] text-navy px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setEditingLevelIndex(null)}
+                            className="text-gray-500 hover:text-white px-2 py-1.5 text-xs font-medium"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="font-mono text-xs text-gray-300 font-bold">{lvl}</span>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => {
+                                setEditingLevelIndex(idx);
+                                setEditingLevelValue(lvl);
+                              }}
+                              className="text-blue-400 hover:text-blue-300 transition-colors"
+                              title="Rename Level"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setModalLevels(modalLevels.filter((_, i) => i !== idx));
+                              }}
+                              className="text-red-500 hover:text-red-400 transition-colors"
+                              title="Remove Level"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Add Level form */}
+              <div className="border-t border-white/5 pt-6 mb-6">
+                <label className="text-[10px] font-black text-text-3 uppercase tracking-widest mb-2 block">Add New Level</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newLevelName}
+                    onChange={(e) => setNewLevelName(e.target.value)}
+                    placeholder="e.g., 700L or MB 3"
+                    className="flex-1 bg-navy border border-white/10 rounded-xl p-3 text-xs text-white focus:border-gold outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (newLevelName.trim()) {
+                        if (modalLevels.includes(newLevelName.trim())) {
+                          alert('Level name already exists.');
+                          return;
+                        }
+                        setModalLevels([...modalLevels, newLevelName.trim()]);
+                        setNewLevelName('');
+                      }
+                    }}
+                    className="bg-gold text-navy px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gold-light active:scale-95 transition-all text-nowrap"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+
+              {/* Save levels changes */}
+              <button
+                type="button"
+                onClick={() => {
+                  requestSecurityClearance(
+                    selectedDeptForLevels.id || selectedDeptForLevels.name,
+                    'update_levels',
+                    { dept: selectedDeptForLevels, newLevels: modalLevels }
+                  );
+                }}
+                className="w-full bg-gold text-navy py-4 rounded-xl font-black text-[12px] uppercase tracking-[0.2em] shadow-2xl shadow-gold/20 transition-all hover:bg-gold-light"
+              >
+                Save Levels (Requires OTP)
+              </button>
             </motion.div>
           </div>
         )}
@@ -4124,6 +4381,213 @@ function SettingsManager() {
             </p>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function AdminLockScreen({
+  hasEnrolledPasscode,
+  adminPasscode,
+  onUnlock,
+  setAdminPasscode,
+  setHasEnrolledPasscode,
+  biometricsAvailable
+}: {
+  hasEnrolledPasscode: boolean;
+  adminPasscode: string;
+  onUnlock: () => void;
+  setAdminPasscode: (code: string) => void;
+  setHasEnrolledPasscode: (val: boolean) => void;
+  biometricsAvailable: boolean;
+}) {
+  const [pin, setPin] = useState('');
+  const [setupPin, setSetupPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleUnlockPin = (enteredPin: string) => {
+    if (enteredPin === adminPasscode) {
+      onUnlock();
+    } else {
+      setError('INVALID PASSCODE: Access Denied.');
+      setPin('');
+    }
+  };
+
+  const handleSetupPin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (setupPin.length !== 6 || confirmPin.length !== 6) {
+      setError('PIN must be exactly 6 digits.');
+      return;
+    }
+    if (setupPin !== confirmPin) {
+      setError('PINs do not match.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const u = auth.currentUser;
+      if (u) {
+        await updateDoc(doc(db, 'users', u.uid), {
+          adminPasscode: setupPin
+        });
+        setAdminPasscode(setupPin);
+        setHasEnrolledPasscode(true);
+        onUnlock();
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Failed to establish passcode in Firestore.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFingerprint = async () => {
+    setError('');
+    try {
+      const result = await authenticateBiometrics();
+      if (result) {
+        onUnlock();
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Biometric authentication failed.');
+    }
+  };
+
+  const handleNumClick = (num: string) => {
+    setError('');
+    if (pin.length < 6) {
+      const newPin = pin + num;
+      setPin(newPin);
+      if (newPin.length === 6) {
+        setTimeout(() => handleUnlockPin(newPin), 200);
+      }
+    }
+  };
+
+  const handleBackspace = () => {
+    setPin(pin.slice(0, -1));
+  };
+
+  return (
+    <div className="fixed inset-0 bg-[#07101F] flex items-center justify-center z-50 p-4 font-sans text-white">
+      <div className="w-full max-w-sm bg-[#111420] border border-gold/10 rounded-3xl p-8 shadow-2xl relative">
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-14 h-14 bg-gold flex items-center justify-center mb-4" style={{ clipPath: 'polygon(50% 0%, 100% 35%, 80% 100%, 20% 100%, 0% 35%)' }}>
+            <Shield className="w-6 h-6 text-navy" />
+          </div>
+          <h2 className="text-xl font-serif font-black tracking-wider uppercase text-white">ADMIN SECURITY</h2>
+          <p className="text-[10px] font-black text-gold uppercase tracking-widest mt-1">
+            {hasEnrolledPasscode ? 'Access Restricted' : 'Secure Configuration Required'}
+          </p>
+        </div>
+
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs py-3 px-4 rounded-xl text-center mb-6 font-mono">
+            {error}
+          </div>
+        )}
+
+        {hasEnrolledPasscode ? (
+          <div className="space-y-8">
+            {/* PIN Dots */}
+            <div className="flex justify-center gap-4">
+              {[0, 1, 2, 3, 4, 5].map((idx) => (
+                <div
+                  key={idx}
+                  className={cn(
+                    "w-3.5 h-3.5 rounded-full border border-gold/30 transition-all duration-150",
+                    pin.length > idx ? "bg-gold scale-110 shadow-[0_0_10px_rgba(201,147,10,0.5)]" : "bg-transparent"
+                  )}
+                />
+              ))}
+            </div>
+
+            {/* Numeric Keypad */}
+            <div className="grid grid-cols-3 gap-3 max-w-[280px] mx-auto">
+              {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  onClick={() => handleNumClick(num)}
+                  className="aspect-square rounded-2xl bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 flex items-center justify-center font-serif text-xl font-bold hover:border-gold/30 transition-all active:scale-95"
+                >
+                  {num}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={handleBackspace}
+                className="aspect-square rounded-2xl bg-transparent hover:bg-white/[0.02] flex items-center justify-center text-xs font-black uppercase tracking-widest text-text-3 transition-all"
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                onClick={() => handleNumClick('0')}
+                className="aspect-square rounded-2xl bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 flex items-center justify-center font-serif text-xl font-bold hover:border-gold/30 transition-all active:scale-95"
+              >
+                0
+              </button>
+              {biometricsAvailable ? (
+                <button
+                  type="button"
+                  onClick={handleFingerprint}
+                  className="aspect-square rounded-2xl bg-gold/10 hover:bg-gold/20 border border-gold/20 flex items-center justify-center text-gold transition-all active:scale-95"
+                  title="Unlock with Fingerprint"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 009 11a13.917 13.917 0 00-2.338-7.657m0 0a14.942 14.942 0 001.076-2.203M12 11c0-2.61-1.114-4.96-2.905-6.607m0 0A13.924 13.924 0 0012 1.1c2.479 0 4.757.647 6.728 1.785M12 11c0 1.258-.208 2.468-.592 3.6m3.497 4.36A14.85 14.85 0 0112 22.197M12 11c0-1.258.208-2.468.592-3.6m0 0a14.85 14.85 0 013.497-4.36M12 11h.01M16 11a4 4 0 00-8 0" />
+                  </svg>
+                </button>
+              ) : (
+                <div className="aspect-square" />
+              )}
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSetupPin} className="space-y-4">
+            <p className="text-xs text-gray-400 text-center mb-4 leading-relaxed">
+              Create a secure 6-digit passcode to protect your admin workspace. You will use this passcode or your fingerprint to unlock the admin panel in the future.
+            </p>
+            <div>
+              <label className="text-[9px] font-black text-text-3 uppercase tracking-widest block mb-2">New 6-Digit Passcode</label>
+              <input
+                required
+                type="password"
+                maxLength={6}
+                pattern="\d{6}"
+                value={setupPin}
+                onChange={e => setSetupPin(e.target.value.replace(/\D/g, ''))}
+                placeholder="• • • • • •"
+                className="w-full bg-[#1e2540] border border-[#2d365e] rounded-xl px-4 py-3 text-center font-mono font-black text-xl tracking-[0.5em] text-white focus:outline-none focus:border-gold transition-all"
+              />
+            </div>
+            <div>
+              <label className="text-[9px] font-black text-text-3 uppercase tracking-widest block mb-2">Confirm Passcode</label>
+              <input
+                required
+                type="password"
+                maxLength={6}
+                pattern="\d{6}"
+                value={confirmPin}
+                onChange={e => setConfirmPin(e.target.value.replace(/\D/g, ''))}
+                placeholder="• • • • • •"
+                className="w-full bg-[#1e2540] border border-[#2d365e] rounded-xl px-4 py-3 text-center font-mono font-black text-xl tracking-[0.5em] text-white focus:outline-none focus:border-gold transition-all"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-gold text-navy py-3.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all hover:bg-gold-light active:scale-95 disabled:opacity-30 mt-2"
+            >
+              {loading ? 'Establishing Enclave...' : 'Initialize Enclave'}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );
