@@ -29,7 +29,7 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
 
   // Lock Screen States
-  const [isUnlocked, setIsUnlocked] = useState(() => sessionStorage.getItem('admin_unlocked') === 'true');
+  const [isUnlocked, setIsUnlocked] = useState(false);
   const [adminPasscode, setAdminPasscode] = useState('');
   const [hasEnrolledPasscode, setHasEnrolledPasscode] = useState(false);
   const [biometricsAvailable, setBiometricsAvailable] = useState(false);
@@ -270,7 +270,6 @@ export default function AdminDashboard() {
         hasEnrolledPasscode={hasEnrolledPasscode}
         adminPasscode={adminPasscode}
         onUnlock={() => {
-          sessionStorage.setItem('admin_unlocked', 'true');
           setIsUnlocked(true);
         }}
         setAdminPasscode={setAdminPasscode}
