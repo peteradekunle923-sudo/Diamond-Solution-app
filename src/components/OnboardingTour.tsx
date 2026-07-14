@@ -188,7 +188,7 @@ export default function OnboardingTour() {
                 onClick={handleFinish}
                 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] hover:text-white transition-colors"
               >
-                Skip Induction
+                skip introduction
               </button>
             </div>
           </div>
