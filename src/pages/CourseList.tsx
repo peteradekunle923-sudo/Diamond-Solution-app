@@ -384,10 +384,10 @@ export default function CourseList() {
               <button
                 key={f.name}
                 onClick={() => setDeptFilter(f.name)}
-                className="card-luxury p-8 text-left group hover:border-gold/30 transition-all flex items-center justify-between bg-navy-mid/40 shadow-2xl"
+                className="card-luxury p-8 text-left group hover:border-blue-300 transition-all flex items-center justify-between bg-white border border-[#D8E3FF] shadow-xs"
               >
                 <div className="flex items-center gap-6">
-                  <div className="w-16 h-16 bg-gold/10 rounded-2xl flex items-center justify-center text-gold border border-gold/20 shadow-lg group-hover:scale-110 transition-all">
+                  <div className="w-16 h-16 bg-[#EEF3FF] rounded-2xl flex items-center justify-center text-gold border border-[#D8E3FF] shadow-xs group-hover:scale-110 transition-all">
                     <Layers className="w-8 h-8" />
                   </div>
                   <div className="space-y-1">
@@ -395,7 +395,7 @@ export default function CourseList() {
                     <div className="flex items-center gap-3">
                       <span className="text-[9px] font-black text-text-3 uppercase tracking-widest leading-none">{t('courses.faculty')}</span>
                       {(isAdmin || deptAccess[f.name]) && (
-                        <div className="flex items-center gap-1 text-emerald-500 text-[8px] font-black uppercase tracking-widest bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/10">
+                        <div className="flex items-center gap-1 text-emerald-600 text-[8px] font-black uppercase tracking-widest bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
                           <CheckCircle className="w-3 h-3" />
                           {t('courses.authorized')}
                         </div>
@@ -403,7 +403,7 @@ export default function CourseList() {
                     </div>
                   </div>
                 </div>
-                <div className="w-12 h-12 bg-navy-high rounded-xl flex items-center justify-center border border-gold/10 group-hover:border-gold/30 transition-all">
+                <div className="w-12 h-12 bg-[#EEF3FF] rounded-2xl flex items-center justify-center border border-[#D8E3FF] group-hover:border-blue-300 transition-all">
                   <ChevronRight className="w-6 h-6 text-text-3 group-hover:text-gold translate-x-px" />
                 </div>
               </button>
@@ -455,10 +455,10 @@ export default function CourseList() {
             <motion.div 
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="card-luxury p-12 bg-navy-mid border-gold/30 text-center space-y-8 relative overflow-hidden transform-gpu isolate"
+              className="card-luxury p-12 bg-white border border-[#D8E3FF] text-center space-y-8 relative overflow-hidden transform-gpu isolate shadow-md rounded-3xl"
             >
-              <div className="absolute top-0 right-0 w-64 h-64 opacity-20 -mr-24 -mt-24 pointer-events-none" style={{ background: 'radial-gradient(circle, var(--color-gold) 0%, transparent 70%)' }} />
-              <div className="w-24 h-24 bg-gold/10 rounded-[2.5rem] flex items-center justify-center text-gold mx-auto border border-gold/20 shadow-[0_0_60px_rgba(201,147,10,0.1)]">
+              <div className="absolute top-0 right-0 w-64 h-64 opacity-10 -mr-24 -mt-24 pointer-events-none" style={{ background: 'radial-gradient(circle, var(--color-gold) 0%, transparent 70%)' }} />
+              <div className="w-24 h-24 bg-[#EEF3FF] rounded-[2.5rem] flex items-center justify-center text-gold mx-auto border border-[#D8E3FF] shadow-xs">
                 <Lock className="w-10 h-10" />
               </div>
               <div className="space-y-4">
@@ -468,9 +468,9 @@ export default function CourseList() {
                 </p>
               </div>
               
-              <div className="grid grid-cols-3 gap-4 max-w-sm mx-auto py-4 border-y border-gold/10">
+              <div className="grid grid-cols-3 gap-4 max-w-sm mx-auto py-4 border-y border-[#D8E3FF]">
                 <div className="text-center">
-                  <span className="block text-emerald-500 font-serif font-black text-lg">Full</span>
+                  <span className="block text-emerald-600 font-serif font-black text-lg">Full</span>
                   <span className="text-[7px] font-black text-text-3 uppercase tracking-widest">{t('courses.levels')}</span>
                 </div>
                 <div className="text-center">
@@ -486,16 +486,16 @@ export default function CourseList() {
               <button 
                 onClick={() => handleDeptPayment(deptFilter)}
                 disabled={paying}
-                className="w-full h-20 bg-gold rounded-[2rem] text-navy font-black text-xs uppercase tracking-[0.4em] shadow-2xl shadow-gold/30 hover:bg-gold-light active:scale-95 transition-all flex items-center justify-center gap-4 group mt-4"
+                className="w-full h-16 bg-[#2563EB] rounded-3xl text-white font-black text-xs uppercase tracking-[0.3em] shadow-lg shadow-blue-500/25 hover:bg-blue-600 active:scale-95 transition-all flex items-center justify-center gap-4 group mt-4 cursor-pointer"
               >
                 {paying ? t('general.loading') : (
                   <>
-                    <Zap className="w-5 h-5 opacity-50 group-hover:rotate-12 transition-transform" />
+                    <Zap className="w-5 h-5 opacity-75 group-hover:rotate-12 transition-transform" />
                     <span>{t('courses.payAccess').replace('{price}', `${activePrice.curr}${activePrice.val.toLocaleString()}`)}</span>
                   </>
                 )}
               </button>
-              <p className="text-[8px] font-black text-text-3 uppercase tracking-[0.3em] opacity-40">{t('courses.oneTime')}</p>
+              <p className="text-[8px] font-black text-text-3 uppercase tracking-[0.3em] opacity-60">{t('courses.oneTime')}</p>
             </motion.div>
           ) : (
             <>
@@ -504,7 +504,7 @@ export default function CourseList() {
                 <input
                   type="text"
                   placeholder={t('courses.searchPlaceholder')}
-                  className="w-full pl-12 pr-4 py-5 bg-navy-mid border border-gold/10 rounded-2xl outline-none text-sm font-medium shadow-2xl"
+                  className="w-full pl-12 pr-4 py-4 bg-white border border-[#D8E3FF] rounded-2xl outline-none text-sm font-medium shadow-xs text-text-1 placeholder:text-text-3"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
@@ -516,10 +516,10 @@ export default function CourseList() {
                   <button
                     key={lvl}
                     onClick={() => setLevelFilter(lvl)}
-                    className={`px-6 py-3 rounded-xl font-bold text-[9px] uppercase tracking-[0.2em] transition-all border whitespace-nowrap ${
+                    className={`px-5 py-2.5 rounded-full font-bold text-[9px] uppercase tracking-[0.2em] transition-all border whitespace-nowrap cursor-pointer ${
                       levelFilter === lvl 
-                        ? 'bg-gold text-navy border-gold shadow-lg shadow-gold/20' 
-                        : 'bg-navy-high text-text-3 border-gold/10 hover:border-gold/30'
+                        ? 'bg-[#2563EB] text-white border-[#2563EB] shadow-md shadow-blue-500/20' 
+                        : 'bg-white text-text-2 border-[#D8E3FF] hover:border-blue-300'
                     }`}
                   >
                     {lvl}
@@ -530,7 +530,7 @@ export default function CourseList() {
               <div className="grid gap-5">
                 {loading ? (
                   <div className="flex flex-col items-center justify-center py-24 space-y-6">
-                     <div className="w-10 h-10 border-[3px] border-gold/10 border-t-gold rounded-full animate-spin"></div>
+                     <div className="w-10 h-10 border-[3px] border-blue-200 border-t-[#2563EB] rounded-full animate-spin"></div>
                      <p className="text-[10px] font-black text-text-3 uppercase tracking-[0.3em]">{t('general.loading')}</p>
                   </div>
                 ) : filteredCourses.length > 0 ? (
@@ -538,7 +538,7 @@ export default function CourseList() {
                     <CourseListItem key={course.id} course={course} />
                   ))
                 ) : (
-                  <div className="text-center py-24 card-luxury border-dashed border-gold/15">
+                  <div className="text-center py-24 card-luxury border-dashed border-[#D8E3FF] bg-white">
                     <p className="text-xs font-black text-text-3 uppercase tracking-widest italic">{t('courses.noRecords')}</p>
                   </div>
                 )}
@@ -556,35 +556,34 @@ function CourseListItem({ course }: { course: any, key?: any }) {
   return (
     <Link 
       to={`/courses/${course.id}`} 
-      className="card-luxury group relative overflow-hidden transform-gpu isolate flex flex-col justify-between p-6 min-h-[140px] hover:border-gold/30 transition-all shadow-xl shadow-black/10 bg-gradient-to-br from-navy-mid/60 to-navy-high/80"
+      className="card-luxury group relative overflow-hidden transform-gpu isolate flex flex-col justify-between p-6 min-h-[140px] hover:border-blue-300 transition-all shadow-xs bg-white border border-[#D8E3FF] rounded-3xl"
     >
-      {/* Background with thumbnail acting as a soft, elegant backdrop layer */}
+      {/* Background thumbnail */}
       {course.thumbnail ? (
         <div className="absolute inset-0 z-0 opacity-10 group-hover:opacity-20 transition-opacity duration-700 pointer-events-none">
           <img src={course.thumbnail} alt="" className="w-full h-full object-cover grayscale" />
         </div>
       ) : (
-        <div className="absolute top-0 right-0 w-48 h-48 opacity-20 -mr-16 -mt-16 pointer-events-none" style={{ background: 'radial-gradient(circle, var(--color-gold) 0%, transparent 70%)' }} />
+        <div className="absolute top-0 right-0 w-48 h-48 opacity-10 -mr-16 -mt-16 pointer-events-none" style={{ background: 'radial-gradient(circle, var(--color-gold) 0%, transparent 70%)' }} />
       )}
       
-      {/* Single, unified background content area with course title styled on the visual tile */}
       <div className="relative z-10 flex flex-col justify-between h-full space-y-4">
         <div className="flex items-center justify-between">
-          <span className="text-[8px] font-black uppercase tracking-[0.2em] text-text-3 bg-navy-high px-3 py-1 rounded border border-gold/10">
+          <span className="text-[8px] font-black uppercase tracking-[0.2em] text-gold bg-[#EEF3FF] px-3 py-1 rounded-full border border-[#D8E3FF]">
             {course.level}
           </span>
-          <div className="w-8 h-8 rounded-lg bg-navy-high/50 border border-gold/10 flex items-center justify-center text-gold/40 group-hover:text-gold transition-colors">
+          <div className="w-8 h-8 rounded-xl bg-[#EEF3FF] border border-[#D8E3FF] flex items-center justify-center text-gold group-hover:bg-[#2563EB] group-hover:text-white transition-colors">
             <BookOpen className="w-4 h-4" />
           </div>
         </div>
 
         <div>
-          <h4 className="font-serif font-black text-text-1 text-[11px] sm:text-[12px] leading-tight group-hover:text-gold-light transition-colors">
+          <h4 className="font-serif font-black text-text-1 text-[12px] sm:text-[13px] leading-tight group-hover:text-gold transition-colors">
             {course.title}
           </h4>
         </div>
 
-        <div className="flex items-center justify-between text-[9px] font-black text-gold uppercase tracking-[0.2em] pt-3 border-t border-gold/5 mt-auto">
+        <div className="flex items-center justify-between text-[9px] font-black text-gold uppercase tracking-[0.2em] pt-3 border-t border-[#D8E3FF] mt-auto">
           <span>{t('general.view')}</span>
           <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
         </div>

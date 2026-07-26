@@ -163,48 +163,48 @@ export default function AccountSettings() {
 
   return (
     <Layout>
-      <div className="px-6 py-12 max-w-xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="px-6 py-12 max-w-xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
         <header className="flex items-center gap-6">
           <button 
             onClick={() => navigate('/profile')}
-            className="w-12 h-12 bg-navy-mid border border-gold/10 rounded-xl flex items-center justify-center text-gold hover:border-gold/30 transition-all"
+            className="w-12 h-12 bg-white border border-[#D8E3FF] rounded-2xl flex items-center justify-center text-[#2563EB] hover:bg-[#EEF3FF] transition-all shadow-sm"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h2 className="text-3xl font-serif font-black text-text-1 tracking-tight">{t('profile.account')}</h2>
-            <p className="text-[10px] font-black text-text-3 uppercase tracking-[0.4em] mt-1">Security Configuration</p>
+            <h2 className="text-3xl font-serif font-black text-slate-900 tracking-tight">{t('profile.account')}</h2>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mt-1">Security Configuration</p>
           </div>
         </header>
 
-        <section className="card-luxury p-8 bg-navy-mid/40">
+        <section className="bg-white border border-[#D8E3FF] rounded-3xl p-8 shadow-sm">
            <header className="flex items-center gap-4 mb-8">
-             <div className="w-10 h-10 bg-gold/10 rounded-xl flex items-center justify-center text-gold border border-gold/20">
+             <div className="w-10 h-10 bg-[#EEF3FF] rounded-xl flex items-center justify-center text-[#2563EB] border border-[#D8E3FF]">
                <User className="w-5 h-5" />
              </div>
              <div>
-               <h3 className="text-lg font-serif font-black text-white uppercase">User Identity</h3>
-               <p className="text-[10px] text-text-3 font-medium uppercase tracking-widest">Update Your Academic Username</p>
+               <h3 className="text-lg font-serif font-black text-slate-900 uppercase">User Identity</h3>
+               <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest">Update Your Academic Username</p>
              </div>
            </header>
 
            <form onSubmit={saveUsername} className="space-y-6">
              <div className="space-y-1.5">
-               <label className="text-[9px] font-black text-text-3 uppercase tracking-widest ml-1">Username</label>
+               <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Username</label>
                <input 
                  required
                  type="text"
                  placeholder="jacksparrow"
                  value={newUsername}
                  onChange={(e) => setNewUsername(e.target.value.toLowerCase().replace(/\s/g, ''))}
-                 className="w-full bg-navy-high border border-gold/20 rounded-xl px-5 py-3.5 text-xs text-white focus:border-gold outline-none transition-all lowercase"
+                 className="w-full bg-[#EEF3FF]/50 border border-[#D8E3FF] rounded-2xl px-5 py-3.5 text-xs text-slate-900 focus:border-[#2563EB] outline-none transition-all lowercase"
                />
              </div>
 
              <button 
                type="submit"
                disabled={usernameLoading}
-               className="w-full h-14 bg-white/5 border border-white/10 text-gold rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gold hover:text-navy hover:border-gold transition-all flex items-center justify-center gap-3 active:scale-95"
+               className="w-full h-14 bg-[#2563EB] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#1d4ed8] transition-all flex items-center justify-center gap-3 active:scale-95 shadow-md shadow-[#2563EB]/20"
              >
                {usernameLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
                  <>
@@ -216,20 +216,20 @@ export default function AccountSettings() {
            </form>
         </section>
 
-        <section className="card-luxury p-8 bg-navy-mid/40">
+        <section className="bg-white border border-[#D8E3FF] rounded-3xl p-8 shadow-sm">
            <header className="flex items-center gap-4 mb-8">
-             <div className="w-10 h-10 bg-gold/10 rounded-xl flex items-center justify-center text-gold border border-gold/20">
+             <div className="w-10 h-10 bg-[#EEF3FF] rounded-xl flex items-center justify-center text-[#2563EB] border border-[#D8E3FF]">
                <Landmark className="w-5 h-5" />
              </div>
              <div>
-               <h3 className="text-lg font-serif font-black text-white uppercase">{t('affiliate.payout_creds')}</h3>
-               <p className="text-[10px] text-text-3 font-medium uppercase tracking-widest">{t('affiliate.sync_creds_desc')}</p>
+               <h3 className="text-lg font-serif font-black text-slate-900 uppercase">{t('affiliate.payout_creds')}</h3>
+               <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest">{t('affiliate.sync_creds_desc')}</p>
              </div>
            </header>
 
            <form onSubmit={saveBankDetails} className="grid grid-cols-1 md:grid-cols-2 gap-6">
              <div className="space-y-1.5">
-               <label className="text-[9px] font-black text-text-3 uppercase tracking-widest ml-1">{t('affiliate.financial_institution')}</label>
+               <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('affiliate.financial_institution')}</label>
                <select 
                  required
                  value={bankDetails.bankCode}
@@ -237,7 +237,7 @@ export default function AccountSettings() {
                    const selectedBank = e.target.options[e.target.selectedIndex].text;
                    setBankDetails({...bankDetails, bankCode: e.target.value, bankName: selectedBank});
                  }}
-                 className="w-full bg-navy-high border border-gold/20 rounded-xl px-5 py-3.5 text-xs text-white focus:border-gold outline-none transition-all"
+                 className="w-full bg-[#EEF3FF]/50 border border-[#D8E3FF] rounded-2xl px-5 py-3.5 text-xs text-slate-900 focus:border-[#2563EB] outline-none transition-all"
                >
                  <option value="">{t('affiliate.select_hub')}</option>
                  <option value="044">Access Bank</option>
@@ -255,7 +255,7 @@ export default function AccountSettings() {
              </div>
 
              <div className="space-y-1.5">
-               <label className="text-[9px] font-black text-text-3 uppercase tracking-widest ml-1">{t('affiliate.acc_no')}</label>
+               <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('affiliate.acc_no')}</label>
                <input 
                  required
                  type="text"
@@ -263,26 +263,26 @@ export default function AccountSettings() {
                  placeholder="0000000000"
                  value={bankDetails.accountNumber}
                  onChange={(e) => setBankDetails({...bankDetails, accountNumber: e.target.value})}
-                 className="w-full bg-navy-high border border-gold/20 rounded-xl px-5 py-3.5 text-xs text-white focus:border-gold outline-none transition-all font-mono tracking-widest placeholder:opacity-20"
+                 className="w-full bg-[#EEF3FF]/50 border border-[#D8E3FF] rounded-2xl px-5 py-3.5 text-xs text-slate-900 focus:border-[#2563EB] outline-none transition-all font-mono tracking-widest placeholder:opacity-40"
                />
              </div>
 
              <div className="space-y-1.5 md:col-span-2">
-               <label className="text-[9px] font-black text-text-3 uppercase tracking-widest ml-1">{t('affiliate.beneficiary')}</label>
+               <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('affiliate.beneficiary')}</label>
                <input 
                  required
                  type="text"
                  placeholder="JOHN DOE"
                  value={bankDetails.accountName}
                  onChange={(e) => setBankDetails({...bankDetails, accountName: e.target.value.toUpperCase()})}
-                 className="w-full bg-navy-high border border-gold/20 rounded-xl px-5 py-3.5 text-xs text-white focus:border-gold outline-none transition-all uppercase font-bold placeholder:opacity-20"
+                 className="w-full bg-[#EEF3FF]/50 border border-[#D8E3FF] rounded-2xl px-5 py-3.5 text-xs text-slate-900 focus:border-[#2563EB] outline-none transition-all uppercase font-bold placeholder:opacity-40"
                />
              </div>
 
              <button 
                type="submit"
                disabled={bankLoading}
-               className="md:col-span-2 w-full h-14 bg-white/5 border border-white/10 text-gold rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gold hover:text-navy hover:border-gold transition-all flex items-center justify-center gap-3 active:scale-95"
+               className="md:col-span-2 w-full h-14 bg-[#2563EB] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#1d4ed8] transition-all flex items-center justify-center gap-3 active:scale-95 shadow-md shadow-[#2563EB]/20"
              >
                {bankLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
                  <>
@@ -294,14 +294,14 @@ export default function AccountSettings() {
            </form>
         </section>
 
-        <section className="card-luxury p-8 bg-navy-mid/40">
+        <section className="bg-white border border-[#D8E3FF] rounded-3xl p-8 shadow-sm">
            <header className="flex items-center gap-4 mb-8">
-             <div className="w-10 h-10 bg-gold/10 rounded-xl flex items-center justify-center text-gold border border-gold/20">
+             <div className="w-10 h-10 bg-[#EEF3FF] rounded-xl flex items-center justify-center text-[#2563EB] border border-[#D8E3FF]">
                <Key className="w-5 h-5" />
              </div>
              <div>
-               <h3 className="text-lg font-serif font-black text-white uppercase">Security Override</h3>
-               <p className="text-[10px] text-text-3 font-medium uppercase tracking-widest">Master Key Configuration</p>
+               <h3 className="text-lg font-serif font-black text-slate-900 uppercase">Security Override</h3>
+               <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest">Master Key Configuration</p>
              </div>
            </header>
            
@@ -317,45 +317,45 @@ export default function AccountSettings() {
               >
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1">{t('profile.current_password')}</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('profile.current_password')}</label>
                     <div className="relative">
-                      <Key className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gold/50" />
+                      <Key className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#2563EB]" />
                       <input 
                         type="password"
                         required
                         value={passwords.current}
                         onChange={e => setPasswords({...passwords, current: e.target.value})}
-                        className="w-full bg-navy-high border border-gold/10 rounded-xl py-4 pl-12 pr-4 text-text-1 focus:border-gold/50 outline-none transition-all font-mono"
+                        className="w-full bg-[#EEF3FF]/50 border border-[#D8E3FF] rounded-2xl py-4 pl-12 pr-4 text-slate-900 focus:border-[#2563EB] outline-none transition-all font-mono"
                         placeholder="••••••••"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1">{t('profile.new_password')}</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('profile.new_password')}</label>
                     <div className="relative">
-                      <Key className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gold/50" />
+                      <Key className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#2563EB]" />
                       <input 
                         type="password"
                         required
                         value={passwords.new}
                         onChange={e => setPasswords({...passwords, new: e.target.value})}
-                        className="w-full bg-navy-high border border-gold/10 rounded-xl py-4 pl-12 pr-4 text-text-1 focus:border-gold/50 outline-none transition-all font-mono"
+                        className="w-full bg-[#EEF3FF]/50 border border-[#D8E3FF] rounded-2xl py-4 pl-12 pr-4 text-slate-900 focus:border-[#2563EB] outline-none transition-all font-mono"
                         placeholder="••••••••"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1">{t('profile.confirm_password')}</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('profile.confirm_password')}</label>
                     <div className="relative">
-                      <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gold/50" />
+                      <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#2563EB]" />
                       <input 
                         type="password"
                         required
                         value={passwords.confirm}
                         onChange={e => setPasswords({...passwords, confirm: e.target.value})}
-                        className="w-full bg-navy-high border border-gold/10 rounded-xl py-4 pl-12 pr-4 text-text-1 focus:border-gold/50 outline-none transition-all font-mono"
+                        className="w-full bg-[#EEF3FF]/50 border border-[#D8E3FF] rounded-2xl py-4 pl-12 pr-4 text-slate-900 focus:border-[#2563EB] outline-none transition-all font-mono"
                         placeholder="••••••••"
                       />
                     </div>
@@ -363,7 +363,7 @@ export default function AccountSettings() {
                 </div>
 
                 {error && (
-                  <p className="text-red-500 text-[10px] font-black uppercase tracking-widest text-center bg-red-500/10 py-3 rounded-lg border border-red-500/20">
+                  <p className="text-red-500 text-[10px] font-black uppercase tracking-widest text-center bg-red-50 py-3 rounded-xl border border-red-200">
                     {error}
                   </p>
                 )}
@@ -371,7 +371,7 @@ export default function AccountSettings() {
                 <button 
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-gold text-navy py-5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] shadow-2xl shadow-gold/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+                  className="w-full bg-[#2563EB] text-white py-5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] shadow-lg shadow-[#2563EB]/20 hover:bg-[#1d4ed8] active:scale-[0.98] transition-all flex items-center justify-center gap-3"
                 >
                   {loading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
@@ -393,14 +393,14 @@ export default function AccountSettings() {
                 className="space-y-8"
               >
                 <div className="text-center space-y-4">
-                  <div className="w-20 h-20 bg-gold/10 rounded-full flex items-center justify-center mx-auto text-gold">
+                  <div className="w-20 h-20 bg-[#EEF3FF] rounded-full flex items-center justify-center mx-auto text-[#2563EB]">
                     <Mail className="w-10 h-10" />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-xl font-serif font-black text-text-1 uppercase">Security Token Required</h3>
-                    <p className="text-[10px] text-text-3 font-medium uppercase tracking-widest">
+                    <h3 className="text-xl font-serif font-black text-slate-900 uppercase">Security Token Required</h3>
+                    <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest">
                       Enter the 6-digit verification code dispatched to <br/>
-                      <span className="text-gold font-black">{user?.email}</span>
+                      <span className="text-[#2563EB] font-black">{user?.email}</span>
                     </p>
                   </div>
                 </div>
@@ -412,7 +412,7 @@ export default function AccountSettings() {
                     maxLength={6}
                     value={otp}
                     onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
-                    className="w-full bg-navy-high border border-gold/20 rounded-2xl py-6 text-center text-4xl font-serif font-black tracking-[0.5em] text-gold focus:border-gold outline-none transition-all"
+                    className="w-full bg-[#EEF3FF] border border-[#D8E3FF] rounded-2xl py-6 text-center text-4xl font-serif font-black tracking-[0.5em] text-[#2563EB] focus:border-[#2563EB] outline-none transition-all"
                     placeholder="000000"
                   />
                   
@@ -426,7 +426,7 @@ export default function AccountSettings() {
                     <button 
                       type="button"
                       onClick={() => setStep('form')}
-                      className="text-[10px] font-black text-text-3 uppercase tracking-widest hover:text-gold transition-colors"
+                      className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-[#2563EB] transition-colors"
                     >
                       Wait, go back
                     </button>
@@ -436,7 +436,7 @@ export default function AccountSettings() {
                 <button 
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-gold text-navy py-5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] shadow-2xl shadow-gold/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+                  className="w-full bg-[#2563EB] text-white py-5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] shadow-lg shadow-[#2563EB]/20 hover:bg-[#1d4ed8] active:scale-[0.98] transition-all flex items-center justify-center gap-3"
                 >
                   {loading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
@@ -452,12 +452,12 @@ export default function AccountSettings() {
           </AnimatePresence>
         </section>
 
-        <div className="bg-navy-mid/60 border border-gold/10 rounded-2xl p-8 space-y-4">
-           <div className="flex items-center gap-4 text-gold">
+        <div className="bg-white border border-[#D8E3FF] rounded-2xl p-8 space-y-4 shadow-sm">
+           <div className="flex items-center gap-4 text-[#2563EB]">
               <ShieldCheck className="w-6 h-6" />
               <h4 className="text-[10px] font-black uppercase tracking-[0.3em]">Institutional Protocol</h4>
            </div>
-           <p className="text-xs text-text-3 leading-relaxed">
+           <p className="text-xs text-slate-500 leading-relaxed">
              Password revisions require multi-layer authentication. Your institutional email serves as the primary verification vector. Ensure you maintain access to your email account at all times.
            </p>
         </div>

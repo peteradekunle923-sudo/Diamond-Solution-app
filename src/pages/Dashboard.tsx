@@ -321,16 +321,16 @@ export default function Dashboard() {
           animate={{ opacity: 1, y: 0 }}
           className="relative group cursor-pointer"
         >
-          <div className="absolute inset-0 bg-gold/5 blur-3xl rounded-full -z-10 opacity-50 group-hover:opacity-100 transition-opacity" />
-          <div className="card-luxury p-8 relative overflow-hidden bg-gradient-to-br from-navy-card to-navy-mid">
-            <QuoteIcon className="absolute -top-4 -right-4 w-32 h-32 text-gold/5 -rotate-12" />
+          <div className="absolute inset-0 bg-blue-500/10 blur-3xl rounded-full -z-10 opacity-50 group-hover:opacity-100 transition-opacity" />
+          <div className="card-luxury p-8 relative overflow-hidden bg-white border border-[#D8E3FF] shadow-sm">
+            <QuoteIcon className="absolute -top-4 -right-4 w-32 h-32 text-blue-500/10 -rotate-12" />
             <div className="space-y-4">
               <span className="text-[10px] font-black text-gold uppercase tracking-[0.4em]">{t('dashboard.wisdom')}</span>
               <p className="text-xl font-serif font-black text-text-1 italic leading-relaxed">
                 "{quote?.text || "The secret of getting ahead is getting started. Study hard today for a brighter tomorrow."}"
               </p>
               <div className="flex items-center gap-2">
-                <div className="w-6 h-[1px] bg-gold/30" />
+                <div className="w-6 h-[1px] bg-blue-500/30" />
                 <p className="text-xs font-bold text-text-3 uppercase tracking-widest">
                   — {quote?.author || "HQ"}
                 </p>
@@ -341,9 +341,9 @@ export default function Dashboard() {
 
         {/* Inactivity Protocol Counters */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-          <div className="card-luxury p-6 bg-red-500/5 border-red-500/10 flex items-center justify-between group">
+          <div className="card-luxury p-6 bg-red-50/50 border border-red-100 flex items-center justify-between group shadow-xs">
              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-navy-high border border-red-500/20 flex items-center justify-center text-red-500">
+                <div className="w-12 h-12 rounded-2xl bg-red-100/60 border border-red-200/60 flex items-center justify-center text-red-500">
                    <Clock className="w-6 h-6" />
                 </div>
                 <div>
@@ -351,7 +351,7 @@ export default function Dashboard() {
                    <p className="text-[10px] font-black text-text-3 uppercase tracking-widest mt-1">{t('dashboard.study_limit')}</p>
                 </div>
              </div>
-             <div className="w-1.5 h-12 bg-red-500/20 rounded-full overflow-hidden">
+             <div className="w-1.5 h-12 bg-red-200/60 rounded-full overflow-hidden">
                 <div 
                   className="w-full bg-red-500 transition-all duration-1000" 
                   style={{ height: `${Math.min((inactivityStats.daysSinceStudy / 14) * 100, 100)}%` }} 
@@ -359,9 +359,9 @@ export default function Dashboard() {
              </div>
           </div>
 
-          <div className="card-luxury p-6 bg-gold/5 border-gold/10 flex items-center justify-between group">
+          <div className="card-luxury p-6 bg-[#EEF3FF] border border-[#D8E3FF] flex items-center justify-between group shadow-xs">
              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-navy-high border border-gold/20 flex items-center justify-center text-gold">
+                <div className="w-12 h-12 rounded-2xl bg-white border border-[#D8E3FF] flex items-center justify-center text-gold">
                    <Target className="w-6 h-6" />
                 </div>
                 <div>
@@ -369,7 +369,7 @@ export default function Dashboard() {
                    <p className="text-[10px] font-black text-text-3 uppercase tracking-widest mt-1">{t('dashboard.question_goal')}</p>
                 </div>
              </div>
-             <div className="w-1.5 h-12 bg-gold/20 rounded-full overflow-hidden">
+             <div className="w-1.5 h-12 bg-blue-200 rounded-full overflow-hidden">
                 <div 
                   className="w-full bg-gold transition-all duration-1000" 
                   style={{ height: `${Math.min((inactivityStats.monthlyGoalDays / 14) * 100, 100)}%` }} 
@@ -387,13 +387,13 @@ export default function Dashboard() {
         </div>
 
         {/* Weekly Analytics Chart */}
-        <div className="card-luxury p-8 space-y-8 bg-navy-mid/30">
+        <div className="card-luxury p-8 space-y-8 bg-white border border-[#D8E3FF] shadow-xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="space-y-1">
               <h3 className="text-xl font-serif font-black text-text-1">{t('dashboard.progress')}</h3>
               <p className="text-[10px] font-black text-gold uppercase tracking-[0.4em]">{t('dashboard.stats')}</p>
             </div>
-            <div className="px-4 py-2 bg-gold/10 border border-gold/20 rounded-xl">
+            <div className="px-4 py-2 bg-[#EEF3FF] border border-[#D8E3FF] rounded-2xl">
               <span className="text-[10px] font-black text-gold uppercase tracking-widest block mb-1">Weekly</span>
               <span className="text-xl font-serif font-black text-text-1">{weeklyTotalStr}</span>
             </div>
@@ -406,25 +406,26 @@ export default function Dashboard() {
                   dataKey="label" 
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{ fill: '#94a2b8', fontSize: 10, fontWeight: 900 }}
+                  tick={{ fill: '#64748B', fontSize: 10, fontWeight: 900 }}
                   dy={10}
                 />
                 <Tooltip 
-                  cursor={{ fill: 'rgba(201, 147, 10, 0.05)' }}
+                  cursor={{ fill: 'rgba(37, 99, 235, 0.05)' }}
                   contentStyle={{ 
-                    backgroundColor: '#0a0a1a', 
-                    border: '1px solid rgba(201, 147, 10, 0.2)',
-                    borderRadius: '12px',
-                    fontSize: '10px'
+                    backgroundColor: '#FFFFFF', 
+                    border: '1px solid #D8E3FF',
+                    borderRadius: '16px',
+                    fontSize: '10px',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)'
                   }}
-                  itemStyle={{ color: '#C9930A', fontWeight: 900, textTransform: 'uppercase' }}
-                  labelStyle={{ color: '#94a2b8', marginBottom: '4px' }}
+                  itemStyle={{ color: '#2563EB', fontWeight: 900, textTransform: 'uppercase' }}
+                  labelStyle={{ color: '#64748B', marginBottom: '4px' }}
                 />
-                <Bar dataKey="minutes" radius={[6, 6, 0, 0]}>
+                <Bar dataKey="minutes" radius={[8, 8, 0, 0]}>
                   {weeklyData.map((entry, index) => (
                     <Cell 
                       key={`cell-${index}`} 
-                      fill={index === weeklyData.length - 1 ? '#C9930A' : 'rgba(201, 147, 10, 0.3)'} 
+                      fill={index === weeklyData.length - 1 ? '#2563EB' : 'rgba(37, 99, 235, 0.25)'} 
                     />
                   ))}
                 </Bar>
@@ -436,7 +437,7 @@ export default function Dashboard() {
         {/* Quick Actions */}
         <div className="space-y-6">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-[1px] bg-gold/30" />
+            <div className="w-10 h-[1px] bg-blue-500/30" />
             <h3 className="text-xs font-black text-text-3 uppercase tracking-[0.4em]">{t('dashboard.stats')}</h3>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
@@ -476,13 +477,13 @@ export default function Dashboard() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={() => setShowSocialMedia(false)}
-                className="absolute inset-0 bg-navy/80 backdrop-blur-md"
+                className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
               />
               <motion.div 
                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                className="card-luxury w-full max-w-sm p-8 space-y-8 relative z-10 bg-navy-mid"
+                className="card-luxury w-full max-w-sm p-8 space-y-8 relative z-10 bg-white border border-[#D8E3FF] shadow-2xl rounded-3xl"
               >
                 <div className="text-center space-y-2">
                   <h3 className="text-2xl font-serif font-black text-text-1">Institutional Handles</h3>
@@ -496,9 +497,9 @@ export default function Dashboard() {
                       href={link.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="card-luxury p-4 flex flex-col items-center gap-3 hover:bg-gold/5 transition-all text-center group"
+                      className="card-luxury p-4 flex flex-col items-center gap-3 hover:bg-[#EEF3FF] transition-all text-center group bg-white border border-[#D8E3FF]"
                     >
-                      <div className={cn("w-12 h-12 rounded-2xl bg-navy-high border border-gold/10 flex items-center justify-center group-hover:scale-110 transition-all", link.color)}>
+                      <div className={cn("w-12 h-12 rounded-2xl bg-[#EEF3FF] border border-[#D8E3FF] flex items-center justify-center group-hover:scale-110 transition-all", link.color)}>
                         <link.icon className="w-6 h-6" />
                        </div>
                       <span className="text-[9px] font-black text-text-3 group-hover:text-gold uppercase tracking-widest">{link.name}</span>
@@ -508,7 +509,7 @@ export default function Dashboard() {
 
                 <button 
                   onClick={() => setShowSocialMedia(false)}
-                  className="w-full bg-navy-high border border-gold/10 text-text-3 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest hover:text-gold transition-all"
+                  className="w-full bg-[#EEF3FF] border border-[#D8E3FF] text-text-2 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:text-gold transition-all"
                 >
                   {t('general.cancel')}
                 </button>
@@ -520,18 +521,18 @@ export default function Dashboard() {
         {/* Referral Card - Visible for everyone */}
         <div 
           onClick={() => navigate('/affiliate')}
-          className="card-luxury p-8 bg-gradient-to-r from-gold via-gold-light to-gold-pale cursor-pointer group hover:scale-[1.01] transition-all duration-500 shadow-2xl shadow-gold/20"
+          className="card-luxury p-8 bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 text-white rounded-3xl cursor-pointer group hover:scale-[1.01] transition-all duration-500 shadow-xl shadow-blue-500/25 border-none"
         >
           <div className="flex items-center justify-between gap-8">
             <div className="space-y-2">
-              <h4 className="text-2xl font-serif font-black text-navy tracking-tight">{t('dashboard.refer_earn')}</h4>
-              <p className="text-navy/70 text-sm font-medium">{t('dashboard.refer_sub')}</p>
-              <div className="inline-block mt-4 px-6 py-2 bg-navy rounded-xl font-black text-gold tracking-[0.4em] text-lg font-mono">
+              <h4 className="text-2xl font-serif font-black text-white tracking-tight">{t('dashboard.refer_earn')}</h4>
+              <p className="text-white/80 text-sm font-medium">{t('dashboard.refer_sub')}</p>
+              <div className="inline-block mt-4 px-6 py-2 bg-white/20 backdrop-blur-md rounded-2xl font-black text-white tracking-[0.3em] text-lg font-mono border border-white/30 shadow-inner">
                 {activeProfile?.referralCode || `DS${activeUserUid?.substring(0, 6).toUpperCase() || 'REF'}`}
               </div>
             </div>
-            <div className="hidden sm:flex w-24 h-24 bg-navy/10 rounded-full items-center justify-center group-hover:rotate-12 transition-transform">
-              <Users className="w-12 h-12 text-navy" />
+            <div className="hidden sm:flex w-24 h-24 bg-white/10 rounded-full items-center justify-center group-hover:rotate-12 transition-transform">
+              <Users className="w-12 h-12 text-white" />
             </div>
           </div>
         </div>
@@ -542,9 +543,9 @@ export default function Dashboard() {
 
 function StatCard({ icon: Icon, value, label, color }: any) {
   return (
-    <div className="card-luxury p-6 group hover:border-gold/30 transition-all bg-navy-mid/40">
+    <div className="card-luxury p-6 group hover:border-blue-300 transition-all bg-white border border-[#D8E3FF] shadow-xs">
       <div className="space-y-4">
-        <div className={cn("w-10 h-10 rounded-xl bg-navy-high flex items-center justify-center border border-gold/10", color)}>
+        <div className={cn("w-10 h-10 rounded-2xl bg-[#EEF3FF] flex items-center justify-center border border-[#D8E3FF]", color)}>
           <Icon className="w-5 h-5" />
         </div>
         <div>
@@ -560,9 +561,9 @@ function ActionButton({ icon: Icon, label, sub, onClick }: any) {
   return (
     <button 
       onClick={onClick}
-      className="card-luxury p-6 flex flex-col items-start gap-4 text-left group hover:bg-gold/5 transition-all w-full"
+      className="card-luxury p-6 flex flex-col items-start gap-4 text-left group hover:bg-[#EEF3FF] transition-all w-full bg-white border border-[#D8E3FF] shadow-xs"
     >
-      <div className="w-12 h-12 rounded-2xl bg-navy-high border border-gold/10 flex items-center justify-center text-gold group-hover:scale-110 group-hover:bg-gold group-hover:text-navy transition-all duration-500">
+      <div className="w-12 h-12 rounded-2xl bg-[#EEF3FF] border border-[#D8E3FF] flex items-center justify-center text-gold group-hover:scale-110 group-hover:bg-[#2563EB] group-hover:text-white transition-all duration-500">
         <Icon className="w-6 h-6" />
       </div>
       <div>

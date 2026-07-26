@@ -5,33 +5,33 @@
   --font-serif: "Playfair Display", serif;
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   
-  --color-navy: #07101F;
-  --color-navy-mid: #0C1929;
-  --color-navy-card: #0F2036;
-  --color-navy-high: #162B46;
-  --color-navy-border: #1E3A5A;
+  --color-navy: #F4F7FE;
+  --color-navy-mid: #FFFFFF;
+  --color-navy-card: #FFFFFF;
+  --color-navy-high: #EEF3FF;
+  --color-navy-border: #D8E3FF;
 
-  --color-gold: #C9930A;
-  --color-gold-light: #E5AC1F;
-  --color-gold-pale: #F0C84A;
+  --color-gold: #2563EB;
+  --color-gold-light: #3B82F6;
+  --color-gold-pale: #60A5FA;
   
-  --color-text-1: #EDE8E1;
-  --color-text-2: #8DA8C2;
-  --color-text-3: #45647E;
+  --color-text-1: #0F172A;
+  --color-text-2: #475569;
+  --color-text-3: #64748B;
 }
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 @layer base {
   html, body {
     @apply font-sans bg-navy text-text-1 antialiased min-h-screen;
     background-color: var(--color-navy);
-    color-scheme: dark;
+    color-scheme: light;
   }
   
-  /* Prevent browser autocomplete/autofill from rendering white background or dark text on dark theme inputs */
+  /* Prevent browser autocomplete/autofill from rendering dark background or unreadable text on inputs */
   input:-webkit-autofill,
   input:-webkit-autofill:hover, 
   input:-webkit-autofill:focus, 
@@ -40,26 +40,26 @@
   input:autofill:hover,
   input:autofill:focus,
   input:autofill:active {
-    -webkit-box-shadow: 0 0 0 1000px #162B46 inset !important; /* matches --color-navy-high */
-    box-shadow: 0 0 0 1000px #162B46 inset !important;
-    -webkit-text-fill-color: #EDE8E1 !important; /* matches --color-text-1 */
-    caret-color: #C9930A !important; /* matches --color-gold */
+    -webkit-box-shadow: 0 0 0 1000px #EEF3FF inset !important; /* matches --color-navy-high */
+    box-shadow: 0 0 0 1000px #EEF3FF inset !important;
+    -webkit-text-fill-color: #0F172A !important; /* matches --color-text-1 */
+    caret-color: #2563EB !important; /* matches --color-gold */
     transition: background-color 5000s ease-in-out 0s;
   }
 }
 
 @layer components {
   .diamond-gradient {
-    background: linear-gradient(135deg, #C9930A 0%, #E5AC1F 100%);
+    background: linear-gradient(135deg, #2563EB 0%, #3B82F6 100%);
   }
   .diamond-mark {
     clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
   }
   .card-luxury {
-    @apply bg-navy-card border border-gold/15 rounded-2xl overflow-hidden shadow-2xl;
+    @apply bg-white border border-[#D8E3FF] rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all;
   }
   .glass-panel {
-    @apply bg-navy-mid/60 backdrop-blur-xl border border-gold/10;
+    @apply bg-white/90 backdrop-blur-xl border border-[#D8E3FF];
   }
 }
 
@@ -76,7 +76,7 @@
 @media (max-width: 430px) {
   input, textarea, select {
     -webkit-appearance: none;
-    border-radius: 8px;
+    border-radius: 12px;
   }
 }
 

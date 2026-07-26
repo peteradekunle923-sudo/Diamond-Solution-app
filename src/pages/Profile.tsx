@@ -30,42 +30,40 @@ export default function Profile() {
 
   return (
     <Layout>
-      <div className="px-6 py-12 space-y-12">
-        <header className="flex flex-col items-center space-y-6">
+      <div className="px-6 py-8 space-y-8 max-w-2xl mx-auto">
+        <header className="flex flex-col items-center space-y-4 bg-white p-8 rounded-3xl border border-[#D8E3FF] shadow-xs">
            <div className="relative">
-             <div className="w-28 h-28 diamond-gradient diamond-mark flex items-center justify-center p-1 shadow-2xl shadow-gold/30">
-               <div className="w-full h-full bg-navy/20 diamond-mark flex items-center justify-center backdrop-blur-md">
-                  <User className="w-12 h-12 text-navy" />
-               </div>
+             <div className="w-24 h-24 bg-[#2563EB] rounded-full flex items-center justify-center shadow-lg shadow-blue-500/20">
+               <User className="w-12 h-12 text-white" />
              </div>
-             <div className="absolute -bottom-1 -right-1 w-10 h-10 bg-navy-mid rounded-xl border border-gold/30 flex items-center justify-center shadow-2xl">
-                <Shield className="w-5 h-5 text-gold" />
+             <div className="absolute -bottom-1 -right-1 w-9 h-9 bg-white rounded-xl border border-[#D8E3FF] flex items-center justify-center shadow-xs">
+                <Shield className="w-5 h-5 text-[#2563EB]" />
              </div>
            </div>
-           <div className="text-center space-y-2">
-              <h2 className="text-3xl font-serif font-black text-text-1 tracking-tight">{profile?.displayName || t('profile.defaultName')}</h2>
+           <div className="text-center space-y-1">
+              <h2 className="text-2xl font-serif font-black text-text-1 tracking-tight">{profile?.displayName || t('profile.defaultName')}</h2>
               {profile?.username && (
-                <p className="text-sm font-bold text-gold font-mono tracking-wide">@{profile.username}</p>
+                <p className="text-sm font-bold text-[#2563EB] font-mono tracking-wide">@{profile.username}</p>
               )}
-              <p className="text-[10px] font-black text-text-3 uppercase tracking-[0.4em]">{user?.email}</p>
+              <p className="text-[10px] font-black text-text-3 uppercase tracking-[0.3em]">{user?.email}</p>
            </div>
-           <div className="bg-gold text-navy px-5 py-1.5 rounded-lg flex items-center space-x-2 shadow-lg shadow-gold/20">
+           <div className="bg-[#EEF3FF] text-[#2563EB] border border-[#D8E3FF] px-4 py-1.5 rounded-xl flex items-center space-x-2">
               <span className="text-[10px] font-black uppercase tracking-[0.2em]">{profile?.role || t('profile.defaultRole')}</span>
            </div>
         </header>
 
         <section className="space-y-4">
-           <div className="card-luxury p-8 space-y-6 bg-navy-mid/60 border-gold/10">
+           <div className="card-luxury p-6 sm:p-8 space-y-6 bg-white border border-[#D8E3FF] rounded-3xl shadow-xs">
               <div className="flex items-center gap-4">
-                 <div className="w-1 h-8 bg-gold rounded-full" />
+                 <div className="w-1 h-6 bg-[#2563EB] rounded-full" />
                  <h3 className="text-[10px] font-black text-text-3 uppercase tracking-[0.3em]">{t('profile.verification')}</h3>
               </div>
-              <div className="grid gap-6">
-                 <div className="space-y-1">
+              <div className="grid gap-4">
+                 <div className="space-y-1 bg-[#EEF3FF] p-4 rounded-2xl border border-[#D8E3FF]">
                     <p className="text-[8px] font-black text-text-3 uppercase tracking-widest">{t('profile.institution')}</p>
                     <p className="text-sm font-bold text-text-1 tracking-tight">{profile?.institutionalName || t('profile.awaiting')}</p>
                  </div>
-                 <div className="space-y-1">
+                 <div className="space-y-1 bg-[#EEF3FF] p-4 rounded-2xl border border-[#D8E3FF]">
                     <p className="text-[8px] font-black text-text-3 uppercase tracking-widest">{t('profile.contact')}</p>
                     <p className="text-sm font-bold text-text-1 tracking-tight font-mono">{profile?.phone || t('profile.notConfigured')}</p>
                  </div>
@@ -73,18 +71,18 @@ export default function Profile() {
            </div>
         </section>
 
-        <section className="space-y-5">
+        <section className="space-y-3">
            <h3 className="text-[10px] font-black text-text-3 uppercase tracking-[0.3em] px-2">{t('profile.settings')}</h3>
-           <div className="card-luxury divide-y divide-gold/10 shadow-2xl shadow-black/20">
+           <div className="bg-white rounded-3xl border border-[#D8E3FF] divide-y divide-[#D8E3FF] shadow-xs overflow-hidden">
                <NavItem icon={Bell} label={t('profile.notifications')} to="/notifications" />
                <NavItem icon={History} label={t('profile.activityLog')} to="/activity-log" />
                <NavItem icon={Shield} label={t('profile.account')} to="/account" border={false} />
            </div>
         </section>
 
-        <section className="space-y-5">
+        <section className="space-y-3">
            <h3 className="text-[10px] font-black text-text-3 uppercase tracking-[0.3em] px-2">{t('profile.partnerProgram')}</h3>
-           <div className="card-luxury divide-y divide-gold/10 border-gold/20 shadow-2xl shadow-black/20">
+           <div className="bg-white rounded-3xl border border-[#D8E3FF] divide-y divide-[#D8E3FF] shadow-xs overflow-hidden">
                <NavItem icon={Gift} label={t('profile.affiliateRepo')} to="/affiliate" />
                <NavItem icon={HelpCircle} label={t('profile.support')} to="/chat" border={false} />
            </div>
@@ -93,28 +91,26 @@ export default function Profile() {
         {isAdmin && (
           <button 
             onClick={() => navigate('/admin')}
-            className="w-full bg-gold p-6 rounded-2xl text-navy font-black text-xs uppercase tracking-[0.3em] flex items-center justify-between shadow-2xl shadow-gold/20 active:scale-[0.98] transition-all group"
+            className="w-full bg-[#2563EB] p-5 sm:p-6 rounded-2xl text-white font-black text-xs uppercase tracking-[0.2em] flex items-center justify-between shadow-lg shadow-blue-500/20 active:scale-[0.98] transition-all group cursor-pointer"
           >
-            <div className="flex items-center space-x-5">
-              <Shield className="w-6 h-6 text-navy" />
+            <div className="flex items-center space-x-4">
+              <Shield className="w-5 h-5 text-white" />
               <span>{t('profile.admin')}</span>
             </div>
             <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </button>
         )}
 
-
-
         <button 
            onClick={handleLogout}
-           className="w-full bg-red-500/10 p-6 rounded-2xl text-red-500 font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center space-x-4 border border-red-500/20 hover:bg-red-500/20 transition-all active:scale-[0.98]"
+           className="w-full bg-red-50 p-5 sm:p-6 rounded-2xl text-red-600 font-black text-xs uppercase tracking-[0.2em] flex items-center justify-center space-x-3 border border-red-200 hover:bg-red-100 transition-all active:scale-[0.98] cursor-pointer"
         >
           <LogOut className="w-5 h-5" />
           <span>{t('nav.logout')}</span>
         </button>
 
-        <div className="text-center pt-8">
-           <p className="text-[9px] text-text-3 font-black uppercase tracking-[0.5em] opacity-50">Diamond Solution Academic v2.0</p>
+        <div className="text-center pt-4">
+           <p className="text-[9px] text-text-3 font-black uppercase tracking-[0.4em] opacity-50">Diamond Solution Academic v2.0</p>
         </div>
       </div>
     </Layout>
@@ -125,15 +121,15 @@ function NavItem({ icon: Icon, label, to, border = true }: { icon: any, label: s
   return (
     <Link 
       to={to} 
-      className={`flex items-center justify-between p-6 hover:bg-gold/5 transition-all group ${border ? 'border-b border-gold/10' : ''}`}
+      className={`flex items-center justify-between p-5 hover:bg-[#EEF3FF] transition-all group ${border ? 'border-b border-[#D8E3FF]' : ''}`}
     >
-      <div className="flex items-center space-x-5">
-        <div className="w-12 h-12 bg-navy-mid flex items-center justify-center rounded-xl border border-gold/10 group-hover:border-gold/30 transition-all">
-           <Icon className="w-6 h-6 text-text-3 group-hover:text-gold transition-colors" />
+      <div className="flex items-center space-x-4">
+        <div className="w-10 h-10 bg-[#EEF3FF] flex items-center justify-center rounded-xl border border-[#D8E3FF] group-hover:border-blue-300 transition-all">
+           <Icon className="w-5 h-5 text-text-2 group-hover:text-[#2563EB] transition-colors" />
         </div>
-        <span className="text-sm font-bold text-text-2 group-hover:text-text-1 tracking-tight transition-colors">{label}</span>
+        <span className="text-sm font-bold text-text-1 group-hover:text-[#2563EB] tracking-tight transition-colors">{label}</span>
       </div>
-      <ChevronRight className="w-5 h-5 text-gold/20 group-hover:text-gold transition-all" />
+      <ChevronRight className="w-5 h-5 text-text-3 group-hover:text-[#2563EB] group-hover:translate-x-0.5 transition-all" />
     </Link>
   );
 }

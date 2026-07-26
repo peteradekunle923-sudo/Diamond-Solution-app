@@ -693,18 +693,18 @@ export default function Login() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#07101F' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
       {securityModal.isOpen && (
-        <div className="fixed inset-0 bg-[#07101F]/85 backdrop-blur-md flex items-center justify-center z-[9999] p-4">
-          <div className="bg-[#0D1B2E] border-2 border-[#C9930A]/40 rounded-2xl max-w-md w-full p-6 space-y-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-3 text-[#C9930A]">
-              <Diamond className="w-6 h-6 animate-pulse text-[#C9930A]" />
-              <h3 className="text-base font-serif font-black uppercase tracking-wider text-[#EDE8E1]">{securityModal.title}</h3>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white border-2 border-[#2563EB]/40 rounded-2xl max-w-md w-full p-6 space-y-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 text-[#2563EB]">
+              <Diamond className="w-6 h-6 animate-pulse text-[#2563EB]" />
+              <h3 className="text-base font-serif font-black uppercase tracking-wider text-slate-900">{securityModal.title}</h3>
             </div>
-            <p className="text-[#A4B8C9] text-xs font-medium leading-relaxed">{securityModal.message}</p>
+            <p className="text-slate-600 text-xs font-medium leading-relaxed">{securityModal.message}</p>
             <button
               onClick={() => setSecurityModal(prev => ({ ...prev, isOpen: false }))}
-              className="w-full bg-[#C9930A] hover:bg-[#C9930A]/90 text-[#07101F] font-black text-[10px] uppercase tracking-[0.3em] py-4 rounded-xl shadow-lg transition-all transform active:scale-[0.98] cursor-pointer"
+              className="w-full bg-[#2563EB] hover:bg-[#1d4ed8] text-white font-black text-[10px] uppercase tracking-[0.3em] py-4 rounded-xl shadow-lg transition-all transform active:scale-[0.98] cursor-pointer"
             >
               Dismiss
             </button>
@@ -714,13 +714,13 @@ export default function Login() {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      > {/* Fix: Problem 4 Top-level KeyboardAvoidingView wrapper */}
+      >
         <ScrollView
           contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 48 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-        > {/* Fix: Problem 4 Top-level ScrollView wrapper */}
-          <div className="flex-1 w-full min-h-screen bg-navy flex flex-col items-center justify-center relative transition-all duration-200" style={{ paddingLeft: 20, paddingRight: 20, display: 'flex', flexDirection: 'column', flex: 1, backgroundColor: '#07101F' }}>
+        >
+          <div className="flex-1 w-full min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center relative transition-all duration-200" style={{ paddingLeft: 20, paddingRight: 20, display: 'flex', flexDirection: 'column', flex: 1, backgroundColor: '#F8FAFC' }}>
             {loading && (
               <div style={{
                 position: 'absolute',
@@ -728,37 +728,37 @@ export default function Login() {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                backgroundColor: 'rgba(7, 16, 31, 0.8)', // Fix: Problem 3 Backdrop matching background color
+                backgroundColor: 'rgba(248, 250, 252, 0.8)',
                 justifyContent: 'center',
                 alignItems: 'center',
                 zIndex: 999,
                 display: 'flex'
               }}>
-                <ActivityIndicator size="large" color="#C9930A" />
+                <ActivityIndicator size="large" color="#2563EB" />
               </div>
             )}
-            <div className="min-h-[100dvh] w-full bg-navy text-text-1 relative flex flex-col items-center px-3 sm:px-4 py-6 sm:py-8 md:py-12 overflow-x-hidden overflow-y-auto transition-all duration-200" style={{ display: 'flex', flexDirection: 'column', flex: 1, backgroundColor: '#07101F' }}>
-            {/* Fixed Background Ornaments to avoid resizing glitches on mobile keyboard appearance */}
+            <div className="min-h-[100dvh] w-full bg-[#F8FAFC] text-slate-900 relative flex flex-col items-center px-3 sm:px-4 py-6 sm:py-8 md:py-12 overflow-x-hidden overflow-y-auto transition-all duration-200" style={{ display: 'flex', flexDirection: 'column', flex: 1, backgroundColor: '#F8FAFC' }}>
+            {/* Fixed Background Ornaments */}
             <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-              <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] opacity-10" style={{ background: 'radial-gradient(circle, #C9930A 0%, rgba(201,147,10,0) 60%)' }} />
-              <div className="absolute bottom-[-10%] left-[-10%] w-[300px] h-[300px] opacity-5" style={{ background: 'radial-gradient(circle, #C9930A 0%, rgba(201,147,10,0) 60%)' }} />
+              <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] opacity-15" style={{ background: 'radial-gradient(circle, #2563EB 0%, rgba(37,99,235,0) 60%)' }} />
+              <div className="absolute bottom-[-10%] left-[-10%] w-[300px] h-[300px] opacity-10" style={{ background: 'radial-gradient(circle, #2563EB 0%, rgba(37,99,235,0) 60%)' }} />
             </div>
 
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="relative z-10 w-full max-w-[calc(100vw-24px)] xs:max-w-md p-5 xs:p-6 sm:p-8 md:p-10 border border-gold/15 rounded-3xl shadow-2xl shadow-black mt-auto mb-auto bg-navy-card overflow-visible transition-all duration-200"
-            > {/* Fix: Problem 1 Removed overflow-hidden and set overflow-visible to prevent text cut off */}
+              className="relative z-10 w-full max-w-[calc(100vw-24px)] xs:max-w-md p-5 xs:p-6 sm:p-8 md:p-10 border border-[#D8E3FF] rounded-3xl shadow-xl mt-auto mb-auto bg-white overflow-visible transition-all duration-200"
+            >
             <div className="flex flex-col items-center space-y-6 sm:space-y-8 md:space-y-10">
           <div className="flex flex-col items-center space-y-3 sm:space-y-4">
-            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gold diamond-mark drop-shadow-[0_0_20px_rgba(201,147,10,0.5)] flex items-center justify-center">
-              <Diamond className="w-7 h-7 sm:w-8 sm:h-8 text-navy" />
+            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-[#2563EB] diamond-mark shadow-lg shadow-[#2563EB]/30 flex items-center justify-center">
+              <Diamond className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
             </div>
             <div className="text-center space-y-1">
-              <h2 className="text-2xl sm:text-3xl font-serif font-black tracking-tight text-text-1">
+              <h2 className="text-2xl sm:text-3xl font-serif font-black tracking-tight text-slate-900">
                 {showOtpStep ? t('auth.verifyEmail') : isLogin ? t('auth.signin') : t('auth.noAccount').split('?')[1]?.trim() || t('auth.login')}
               </h2>
-              <p className="text-text-3 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.4em] leading-relaxed">
+              <p className="text-slate-400 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.4em] leading-relaxed">
                 {showOtpStep ? t('auth.otpSent') : t('splash.professional')}
               </p>
             </div>
@@ -775,35 +775,34 @@ export default function Login() {
                  position: 'relative'
                }}
              >
-               {/* Fix: Problem 4 Removed duplicate inner wrappers */}
-               <div className="space-y-4 text-center" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrap input groups with margin */}
-                 <p className="text-[10px] font-black text-text-3 uppercase tracking-widest leading-relaxed" style={{ marginBottom: 6, includeFontPadding: false }}> {/* Fix: Problem 2 Label margin */}
-                   {t('auth.otpSent')} <span className="text-gold">{email}</span>
+               <div className="space-y-4 text-center" style={{ marginBottom: 16 }}>
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed" style={{ marginBottom: 6, includeFontPadding: false }}>
+                   {t('auth.otpSent')} <span className="text-[#2563EB]">{email}</span>
                  </p>
-                 <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Input wrapper styling */}
+                 <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}>
                    <input
                      type="text"
                      maxLength={6}
                      placeholder="XXXXXX"
-                     className="w-full text-center h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-2xl font-black tracking-[0.5em] text-gold"
+                     className="w-full text-center h-[52px] bg-[#EEF3FF] border border-[#D8E3FF] rounded-2xl focus:ring-2 focus:ring-[#2563EB]/50 focus:border-[#2563EB] outline-none transition-all duration-200 text-2xl font-black tracking-[0.5em] text-[#2563EB]"
                      value={otpInput}
                      onChange={(e) => setOtpInput(e.target.value.replace(/[^0-9]/g, ''))}
                      required
                      style={{
-                       height: 52, // Fix: Problem 2 Height
-                       width: '100%', // Fix: Problem 2 Width
-                       maxWidth: '100%', // Fix: Problem 5 maxWidth
-                       paddingLeft: 14, // Fix: Problem 2 paddingHorizontal
-                       paddingRight: 14, // Fix: Problem 2 paddingHorizontal
-                       paddingHorizontal: 14, // Fix: Problem 2 paddingHorizontal
+                       height: 52,
+                       width: '100%',
+                       maxWidth: '100%',
+                       paddingLeft: 14,
+                       paddingRight: 14,
+                       paddingHorizontal: 14,
                        overflow: 'hidden',
-                       zIndex: 1, // Fix: Problem 1 zIndex
-                       elevation: 1, // Fix: Problem 1 elevation
-                       includeFontPadding: false, // Fix: Problem 8 includeFontPadding
-                       textAlignVertical: 'center', // Fix: Problem 8 textAlignVertical
-                       colorScheme: 'dark',
-                       color: '#C9930A', // Fix: Problem 8 Explicit color
-                       fontSize: 16, // Fix: Problem 8 font size
+                       zIndex: 1,
+                       elevation: 1,
+                       includeFontPadding: false,
+                       textAlignVertical: 'center',
+                       colorScheme: 'light',
+                       color: '#2563EB',
+                       fontSize: 16,
                        WebkitAppearance: 'none',
                        appearance: 'none',
                        WebkitTransform: 'translateZ(0)',
@@ -812,7 +811,7 @@ export default function Login() {
                        WebkitBackfaceVisibility: 'hidden',
                        willChange: 'auto',
                        isolation: 'isolate',
-                       backgroundColor: '#162B46'
+                       backgroundColor: '#EEF3FF'
                      }}
                    />
                  </div>
@@ -821,10 +820,10 @@ export default function Login() {
                <button
                  type="submit"
                  disabled={loading}
-                 className="w-full bg-gold text-navy font-black text-[10px] uppercase tracking-[0.3em] h-[52px] rounded-2xl shadow-2xl shadow-gold/20 transition-all transform active:scale-[0.98] flex items-center justify-center disabled:opacity-50 mt-4"
+                 className="w-full bg-[#2563EB] hover:bg-[#1d4ed8] text-white font-black text-[10px] uppercase tracking-[0.3em] h-[52px] rounded-2xl shadow-lg shadow-[#2563EB]/20 transition-all transform active:scale-[0.98] flex items-center justify-center disabled:opacity-50 mt-4"
                  style={{
-                   height: 52, // Fix: Problem 6 Fixed height
-                   width: '100%', // Fix: Problem 6 Fixed width
+                   height: 52,
+                   width: '100%',
                    maxWidth: '100%',
                    justifyContent: 'center',
                    alignItems: 'center',
@@ -832,7 +831,7 @@ export default function Login() {
                  }}
                >
                  {loading ? (
-                   <ActivityIndicator size="small" color="#07101F" /> /* Fix: Problem 6 ActivityIndicator inside button during loading */
+                   <ActivityIndicator size="small" color="#FFFFFF" />
                  ) : (
                    t('general.submit')
                  )}
@@ -842,7 +841,7 @@ export default function Login() {
                   <button 
                    type="button"
                    onClick={() => setShowOtpStep(false)}
-                   className="text-[9px] font-black text-text-3 uppercase tracking-widest hover:text-gold"
+                   className="text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-[#2563EB]"
                   >
                     {t('general.cancel')}
                   </button>
@@ -859,38 +858,37 @@ export default function Login() {
               position: 'relative'
             }}
           >
-            {/* Fix: Problem 4 Removed duplicate inner wrappers */}
             {showForgotPassword ? (
               <div className="space-y-5">
-                <p className="text-[10px] font-black text-text-3 uppercase tracking-widest leading-relaxed mb-2 opacity-70" style={{ includeFontPadding: false }}>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed mb-2 opacity-70" style={{ includeFontPadding: false }}>
                    {t('auth.forgotPassword')}
                 </p>
-                <div className="space-y-1.5" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrapper margin */}
-                  <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>{t('auth.email')}</label> {/* Fix: Problem 2 Label margin */}
-                  <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-3 group-focus-within:text-gold transition-colors" />
+                <div className="space-y-1.5" style={{ marginBottom: 16 }}>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>{t('auth.email')}</label>
+                  <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}>
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-[#2563EB] transition-colors" />
                     <input
                       type="email"
                       placeholder="name@university.edu"
-                      className="w-full pl-11 pr-4 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
+                      className="w-full pl-11 pr-4 h-[52px] bg-[#EEF3FF] border border-[#D8E3FF] rounded-2xl focus:ring-2 focus:ring-[#2563EB]/50 focus:border-[#2563EB] outline-none transition-all duration-200 text-sm font-medium"
                       value={resetEmail}
                       onChange={(e) => setResetEmail(e.target.value)}
                       required
                       style={{
-                        height: 52, // Fix: Problem 2 Height
-                        width: '100%', // Fix: Problem 2 Width
-                        maxWidth: '100%', // Fix: Problem 5 maxWidth
-                        paddingLeft: 14, // Fix: Problem 2 paddingHorizontal
-                        paddingRight: 14, // Fix: Problem 2 paddingHorizontal
-                        paddingHorizontal: 14, // Fix: Problem 2 paddingHorizontal
+                        height: 52,
+                        width: '100%',
+                        maxWidth: '100%',
+                        paddingLeft: 14,
+                        paddingRight: 14,
+                        paddingHorizontal: 14,
                         overflow: 'hidden',
-                        zIndex: 1, // Fix: Problem 1 zIndex
-                        elevation: 1, // Fix: Problem 1 elevation
-                        includeFontPadding: false, // Fix: Problem 8 includeFontPadding
-                        textAlignVertical: 'center', // Fix: Problem 8 textAlignVertical
-                        colorScheme: 'dark',
-                        color: '#EDE8E1', // Fix: Problem 8 Explicit color
-                        fontSize: 16, // Fix: Problem 8 Font size
+                        zIndex: 1,
+                        elevation: 1,
+                        includeFontPadding: false,
+                        textAlignVertical: 'center',
+                        colorScheme: 'light',
+                        color: '#0F172A',
+                        fontSize: 16,
                         WebkitAppearance: 'none',
                         appearance: 'none',
                         WebkitTransform: 'translateZ(0)',
@@ -899,7 +897,7 @@ export default function Login() {
                         WebkitBackfaceVisibility: 'hidden',
                         willChange: 'auto',
                         isolation: 'isolate',
-                        backgroundColor: '#162B46'
+                        backgroundColor: '#EEF3FF'
                       }}
                     />
                   </div>
@@ -915,10 +913,10 @@ export default function Login() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-gold text-navy font-black text-[10px] uppercase tracking-[0.3em] h-[52px] rounded-2xl shadow-2xl shadow-gold/20 transition-all transform active:scale-[0.98] flex items-center justify-center group disabled:opacity-50"
+                    className="w-full bg-[#2563EB] hover:bg-[#1d4ed8] text-white font-black text-[10px] uppercase tracking-[0.3em] h-[52px] rounded-2xl shadow-lg shadow-[#2563EB]/20 transition-all transform active:scale-[0.98] flex items-center justify-center group disabled:opacity-50"
                     style={{
-                      height: 52, // Fix: Problem 6 Fixed height
-                      width: '100%', // Fix: Problem 6 Fixed width
+                      height: 52,
+                      width: '100%',
                       maxWidth: '100%',
                       justifyContent: 'center',
                       alignItems: 'center',
@@ -927,7 +925,7 @@ export default function Login() {
                     }}
                   >
                     {loading ? (
-                      <ActivityIndicator size="small" color="#07101F" /> /* Fix: Problem 6 ActivityIndicator inside button */
+                      <ActivityIndicator size="small" color="#FFFFFF" />
                     ) : (
                       <>
                         {t('general.submit')}
@@ -939,7 +937,7 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => setShowForgotPassword(false)}
-                  className="w-full text-text-3 font-black text-[10px] uppercase tracking-widest hover:text-gold transition-colors"
+                  className="w-full text-slate-500 font-black text-[10px] uppercase tracking-widest hover:text-[#2563EB] transition-colors"
                   style={{ height: 52, width: '100%', maxWidth: '100%', justifyContent: 'center', alignItems: 'center', display: 'flex' }}
                 >
                   {t('general.back')}
@@ -948,14 +946,14 @@ export default function Login() {
             ) : (isLogin && useFingerprintToUnlock) ? (
               <div className="space-y-6 text-center py-4">
                 <div className="flex flex-col items-center justify-center gap-3">
-                  <div className="w-16 h-16 rounded-full bg-gold/10 border border-gold/30 flex items-center justify-center">
-                    <Fingerprint className="w-8 h-8 text-gold animate-bounce" />
+                  <div className="w-16 h-16 rounded-full bg-[#EEF3FF] border border-[#D8E3FF] flex items-center justify-center">
+                    <Fingerprint className="w-8 h-8 text-[#2563EB] animate-bounce" />
                   </div>
-                  <h3 className="text-sm font-black text-[#EDE8E1] uppercase tracking-[0.2em]" style={{ includeFontPadding: false }}>
+                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-[0.2em]" style={{ includeFontPadding: false }}>
                     Quick Fingerprint Unlock
                   </h3>
-                  <p className="text-[10px] font-bold text-text-3 uppercase tracking-widest leading-relaxed">
-                    Account: <span className="text-gold font-black">{enrolledEmail}</span>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed">
+                    Account: <span className="text-[#2563EB] font-black">{enrolledEmail}</span>
                   </p>
                 </div>
 
@@ -963,7 +961,7 @@ export default function Login() {
                   type="button"
                   onClick={handleBiometricUnlock}
                   disabled={loading || biometricUnlocking}
-                  className="w-full h-16 border border-gold/30 rounded-2xl bg-gold/10 hover:bg-gold/20 transition-all flex items-center justify-center gap-4 text-gold group relative overflow-hidden active:scale-[0.98] transform"
+                  className="w-full h-16 border border-[#D8E3FF] rounded-2xl bg-[#EEF3FF] hover:bg-[#E0E9FF] transition-all flex items-center justify-center gap-4 text-[#2563EB] group relative overflow-hidden active:scale-[0.98] transform"
                 >
                   {biometricUnlocking ? (
                     <span className="text-[10px] font-black uppercase tracking-[0.2em] animate-pulse" style={{ includeFontPadding: false }}>
@@ -971,26 +969,26 @@ export default function Login() {
                     </span>
                   ) : (
                     <>
-                      <Fingerprint className="w-6 h-6 text-gold animate-bounce" />
+                      <Fingerprint className="w-6 h-6 text-[#2563EB] animate-bounce" />
                       <span className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ includeFontPadding: false }}>
                         Unlock with Fingerprint
                       </span>
                     </>
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                 </button>
 
                 {isInIframe && (
-                  <p className="text-[8px] text-gold/80 leading-relaxed tracking-normal font-sans" style={{ includeFontPadding: false }}>
+                  <p className="text-[8px] text-[#2563EB]/80 leading-relaxed tracking-normal font-sans" style={{ includeFontPadding: false }}>
                     ⚠️ Fingerprint unlock is restricted inside this preview screen. Click <strong>"Open App in a New Tab"</strong> at the top right to use it securely.
                   </p>
                 )}
 
-                <div className="flex flex-col gap-2 pt-2 border-t border-gold/10">
+                <div className="flex flex-col gap-2 pt-2 border-t border-[#D8E3FF]">
                   <button
                     type="button"
                     onClick={() => setUseFingerprintToUnlock(false)}
-                    className="text-[9px] font-black text-gold uppercase tracking-[0.2em] hover:underline"
+                    className="text-[9px] font-black text-[#2563EB] uppercase tracking-[0.2em] hover:underline"
                     style={{ includeFontPadding: false }}
                   >
                     Sign in with password
@@ -999,32 +997,32 @@ export default function Login() {
               </div>
             ) : isLogin ? (
                   <>
-                    <div className="space-y-1.5" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrapper margin */}
-                      <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>{t('auth.email')}</label> {/* Fix: Problem 2 Label margin */}
-                      <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-3 group-focus-within:text-gold transition-colors" />
+                    <div className="space-y-1.5" style={{ marginBottom: 16 }}>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>{t('auth.email')}</label>
+                      <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}>
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-[#2563EB] transition-colors" />
                         <input
                           type="email"
                           placeholder="name@university.edu"
-                          className="w-full pl-11 pr-4 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
+                          className="w-full pl-11 pr-4 h-[52px] bg-[#EEF3FF] border border-[#D8E3FF] rounded-2xl focus:ring-2 focus:ring-[#2563EB]/50 focus:border-[#2563EB] outline-none transition-all duration-200 text-sm font-medium"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           required
                           style={{
-                            height: 52, // Fix: Problem 2 Height
-                            width: '100%', // Fix: Problem 2 Width
-                            maxWidth: '100%', // Fix: Problem 5 maxWidth
-                            paddingLeft: 14, // Fix: Problem 2 paddingHorizontal
-                            paddingRight: 14, // Fix: Problem 2 paddingHorizontal
-                            paddingHorizontal: 14, // Fix: Problem 2 paddingHorizontal
+                            height: 52,
+                            width: '100%',
+                            maxWidth: '100%',
+                            paddingLeft: 14,
+                            paddingRight: 14,
+                            paddingHorizontal: 14,
                             overflow: 'hidden',
-                            zIndex: 1, // Fix: Problem 1 zIndex
-                            elevation: 1, // Fix: Problem 1 elevation
-                            includeFontPadding: false, // Fix: Problem 8 includeFontPadding
-                            textAlignVertical: 'center', // Fix: Problem 8 textAlignVertical
-                            colorScheme: 'dark',
-                            color: '#EDE8E1', // Fix: Problem 8 Explicit color
-                            fontSize: 16, // Fix: Problem 8 Font size
+                            zIndex: 1,
+                            elevation: 1,
+                            includeFontPadding: false,
+                            textAlignVertical: 'center',
+                            colorScheme: 'light',
+                            color: '#0F172A',
+                            fontSize: 16,
                             WebkitAppearance: 'none',
                             appearance: 'none',
                             WebkitTransform: 'translateZ(0)',
@@ -1033,47 +1031,47 @@ export default function Login() {
                             WebkitBackfaceVisibility: 'hidden',
                             willChange: 'auto',
                             isolation: 'isolate',
-                            backgroundColor: '#162B46'
+                            backgroundColor: '#EEF3FF'
                           }}
                         />
                       </div>
                     </div>
 
-                    <div className="space-y-1.5" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrapper margin */}
-                      <div className="flex justify-between items-center px-1" style={{ marginBottom: 6 }}> {/* Fix: Problem 2 Label margin */}
-                        <label className="text-[10px] font-black text-text-3 uppercase tracking-widest" style={{ includeFontPadding: false }}>{t('auth.password')}</label>
+                    <div className="space-y-1.5" style={{ marginBottom: 16 }}>
+                      <div className="flex justify-between items-center px-1" style={{ marginBottom: 6 }}>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest" style={{ includeFontPadding: false }}>{t('auth.password')}</label>
                         <button 
                           type="button"
                           onClick={() => setShowForgotPassword(true)}
-                          className="text-[9px] font-black text-gold/60 uppercase tracking-widest hover:text-gold transition-colors"
+                          className="text-[9px] font-black text-[#2563EB]/70 uppercase tracking-widest hover:text-[#2563EB] transition-colors"
                         >
                           {t('auth.forgotPassword')}
                         </button>
                       </div>
-                      <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-3 group-focus-within:text-gold transition-colors" />
+                      <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}>
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-[#2563EB] transition-colors" />
                         <input
                           type="text"
                           placeholder="••••••••"
-                          className="w-full pl-11 pr-12 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
+                          className="w-full pl-11 pr-12 h-[52px] bg-[#EEF3FF] border border-[#D8E3FF] rounded-2xl focus:ring-2 focus:ring-[#2563EB]/50 focus:border-[#2563EB] outline-none transition-all duration-200 text-sm font-medium"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           required
                           style={{
-                            height: 52, // Fix: Problem 2 Height
-                            width: '100%', // Fix: Problem 2 Width
-                            maxWidth: '100%', // Fix: Problem 5 maxWidth
-                            paddingLeft: 14, // Fix: Problem 2 paddingHorizontal
-                            paddingRight: 14, // Fix: Problem 2 paddingHorizontal
-                            paddingHorizontal: 14, // Fix: Problem 2 paddingHorizontal
+                            height: 52,
+                            width: '100%',
+                            maxWidth: '100%',
+                            paddingLeft: 14,
+                            paddingRight: 14,
+                            paddingHorizontal: 14,
                             overflow: 'hidden',
-                            zIndex: 1, // Fix: Problem 1 zIndex
-                            elevation: 1, // Fix: Problem 1 elevation
-                            includeFontPadding: false, // Fix: Problem 8 includeFontPadding
-                            textAlignVertical: 'center', // Fix: Problem 8 textAlignVertical
-                            colorScheme: 'dark',
-                            color: '#EDE8E1', // Fix: Problem 8 Explicit color
-                            fontSize: 16, // Fix: Problem 8 Font size
+                            zIndex: 1,
+                            elevation: 1,
+                            includeFontPadding: false,
+                            textAlignVertical: 'center',
+                            colorScheme: 'light',
+                            color: '#0F172A',
+                            fontSize: 16,
                             WebkitAppearance: 'none',
                             appearance: 'none',
                             WebkitTransform: 'translateZ(0)',
@@ -1082,14 +1080,14 @@ export default function Login() {
                             WebkitBackfaceVisibility: 'hidden',
                             willChange: 'auto',
                             isolation: 'isolate',
-                            backgroundColor: '#162B46',
+                            backgroundColor: '#EEF3FF',
                             WebkitTextSecurity: showPassword ? 'none' : 'disc'
                           }}
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-text-3 hover:text-gold transition-colors"
+                          className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-slate-400 hover:text-[#2563EB] transition-colors"
                         >
                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
@@ -1102,16 +1100,16 @@ export default function Login() {
                           <input
                             type="checkbox"
                             id="enable-biometrics"
-                            className="w-4 h-4 rounded border-gold/20 text-gold focus:ring-gold bg-navy-high cursor-pointer"
+                            className="w-4 h-4 rounded border-[#D8E3FF] text-[#2563EB] focus:ring-[#2563EB] bg-[#EEF3FF] cursor-pointer"
                             checked={enableBiometricsOnLogin}
                             onChange={(e) => setEnableBiometricsOnLogin(e.target.checked)}
                           />
-                          <label htmlFor="enable-biometrics" className="text-[9px] font-black text-text-3 uppercase tracking-widest cursor-pointer select-none" style={{ includeFontPadding: false }}>
+                          <label htmlFor="enable-biometrics" className="text-[9px] font-black text-slate-500 uppercase tracking-widest cursor-pointer select-none" style={{ includeFontPadding: false }}>
                             Enable Fingerprint Quick Unlock
                           </label>
                         </div>
                         {isInIframe && (
-                          <p className="text-[8px] text-gold/70 mt-0.5 leading-relaxed tracking-normal pl-7" style={{ includeFontPadding: false }}>
+                          <p className="text-[8px] text-[#2563EB]/70 mt-0.5 leading-relaxed tracking-normal pl-7" style={{ includeFontPadding: false }}>
                             ⚠️ Requires opening in a new tab due to frame security.
                           </p>
                         )}
@@ -1123,7 +1121,7 @@ export default function Login() {
                         <button
                           type="button"
                           onClick={() => setUseFingerprintToUnlock(true)}
-                          className="text-[10px] font-black text-gold uppercase tracking-[0.2em] hover:underline"
+                          className="text-[10px] font-black text-[#2563EB] uppercase tracking-[0.2em] hover:underline"
                           style={{ includeFontPadding: false }}
                         >
                           ← Switch to Fingerprint Quick Unlock
@@ -1135,31 +1133,31 @@ export default function Login() {
                   <>
                     {step === 1 ? (
                       <div className="space-y-4">
-                        <div className="space-y-1.5" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrapper margin */}
-                          <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>{t('dashboard.profile')}</label> {/* Fix: Problem 2 Label margin */}
-                          <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
+                        <div className="space-y-1.5" style={{ marginBottom: 16 }}>
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>{t('dashboard.profile')}</label>
+                          <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}>
                             <input
                               type="text"
                               placeholder="Jack Sparrow"
-                              className="w-full px-4 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
+                              className="w-full px-4 h-[52px] bg-[#EEF3FF] border border-[#D8E3FF] rounded-2xl focus:ring-2 focus:ring-[#2563EB]/50 focus:border-[#2563EB] outline-none transition-all duration-200 text-sm font-medium"
                               value={name}
                               onChange={(e) => setName(e.target.value)}
                               required
                               style={{
-                                height: 52, // Fix: Problem 2 Height
-                                width: '100%', // Fix: Problem 2 Width
-                                maxWidth: '100%', // Fix: Problem 5 maxWidth
-                                paddingLeft: 14, // Fix: Problem 2 paddingHorizontal
-                                paddingRight: 14, // Fix: Problem 2 paddingHorizontal
-                                paddingHorizontal: 14, // Fix: Problem 2 paddingHorizontal
+                                height: 52,
+                                width: '100%',
+                                maxWidth: '100%',
+                                paddingLeft: 14,
+                                paddingRight: 14,
+                                paddingHorizontal: 14,
                                 overflow: 'hidden',
-                                zIndex: 1, // Fix: Problem 1 zIndex
-                                elevation: 1, // Fix: Problem 1 elevation
-                                includeFontPadding: false, // Fix: Problem 8 includeFontPadding
-                                textAlignVertical: 'center', // Fix: Problem 8 textAlignVertical
-                                colorScheme: 'dark',
-                                color: '#EDE8E1', // Fix: Problem 8 Explicit color
-                                fontSize: 16, // Fix: Problem 8 Font size
+                                zIndex: 1,
+                                elevation: 1,
+                                includeFontPadding: false,
+                                textAlignVertical: 'center',
+                                colorScheme: 'light',
+                                color: '#0F172A',
+                                fontSize: 16,
                                 WebkitAppearance: 'none',
                                 appearance: 'none',
                                 WebkitTransform: 'translateZ(0)',
@@ -1168,36 +1166,36 @@ export default function Login() {
                                 WebkitBackfaceVisibility: 'hidden',
                                 willChange: 'auto',
                                 isolation: 'isolate',
-                                backgroundColor: '#162B46'
+                                backgroundColor: '#EEF3FF'
                               }}
                             />
                           </div>
                         </div>
-                        <div className="space-y-1.5" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrapper margin */}
-                          <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>USERNAME</label> {/* Fix: Problem 2 Label margin */}
-                          <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
+                        <div className="space-y-1.5" style={{ marginBottom: 16 }}>
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>USERNAME</label>
+                          <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}>
                             <input
                               type="text"
                               placeholder="jacksparrow"
-                              className="w-full px-4 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
+                              className="w-full px-4 h-[52px] bg-[#EEF3FF] border border-[#D8E3FF] rounded-2xl focus:ring-2 focus:ring-[#2563EB]/50 focus:border-[#2563EB] outline-none transition-all duration-200 text-sm font-medium"
                               value={username}
                               onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s/g, ''))}
                               required
                               style={{
-                                height: 52, // Fix: Problem 2 Height
-                                width: '100%', // Fix: Problem 2 Width
-                                maxWidth: '100%', // Fix: Problem 5 maxWidth
-                                paddingLeft: 14, // Fix: Problem 2 paddingHorizontal
-                                paddingRight: 14, // Fix: Problem 2 paddingHorizontal
-                                paddingHorizontal: 14, // Fix: Problem 2 paddingHorizontal
+                                height: 52,
+                                width: '100%',
+                                maxWidth: '100%',
+                                paddingLeft: 14,
+                                paddingRight: 14,
+                                paddingHorizontal: 14,
                                 overflow: 'hidden',
-                                zIndex: 1, // Fix: Problem 1 zIndex
-                                elevation: 1, // Fix: Problem 1 elevation
-                                includeFontPadding: false, // Fix: Problem 8 includeFontPadding
-                                textAlignVertical: 'center', // Fix: Problem 8 textAlignVertical
-                                colorScheme: 'dark',
-                                color: '#EDE8E1', // Fix: Problem 8 Explicit color
-                                fontSize: 16, // Fix: Problem 8 Font size
+                                zIndex: 1,
+                                elevation: 1,
+                                includeFontPadding: false,
+                                textAlignVertical: 'center',
+                                colorScheme: 'light',
+                                color: '#0F172A',
+                                fontSize: 16,
                                 WebkitAppearance: 'none',
                                 appearance: 'none',
                                 WebkitTransform: 'translateZ(0)',
@@ -1206,36 +1204,36 @@ export default function Login() {
                                 WebkitBackfaceVisibility: 'hidden',
                                 willChange: 'auto',
                                 isolation: 'isolate',
-                                backgroundColor: '#162B46'
+                                backgroundColor: '#EEF3FF'
                               }}
                             />
                           </div>
                         </div>
-                        <div className="space-y-1.5" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrapper margin */}
-                          <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>INSTITUTION</label> {/* Fix: Problem 2 Label margin */}
-                          <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
+                        <div className="space-y-1.5" style={{ marginBottom: 16 }}>
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>INSTITUTION</label>
+                          <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}>
                             <input
                               type="text"
                               placeholder="University"
-                              className="w-full px-4 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
+                              className="w-full px-4 h-[52px] bg-[#EEF3FF] border border-[#D8E3FF] rounded-2xl focus:ring-2 focus:ring-[#2563EB]/50 focus:border-[#2563EB] outline-none transition-all duration-200 text-sm font-medium"
                               value={institutionalName}
                               onChange={(e) => setInstitutionalName(e.target.value)}
                               required
                               style={{
-                                height: 52, // Fix: Problem 2 Height
-                                width: '100%', // Fix: Problem 2 Width
-                                maxWidth: '100%', // Fix: Problem 5 maxWidth
-                                paddingLeft: 14, // Fix: Problem 2 paddingHorizontal
-                                paddingRight: 14, // Fix: Problem 2 paddingHorizontal
-                                paddingHorizontal: 14, // Fix: Problem 2 paddingHorizontal
+                                height: 52,
+                                width: '100%',
+                                maxWidth: '100%',
+                                paddingLeft: 14,
+                                paddingRight: 14,
+                                paddingHorizontal: 14,
                                 overflow: 'hidden',
-                                zIndex: 1, // Fix: Problem 1 zIndex
-                                elevation: 1, // Fix: Problem 1 elevation
-                                includeFontPadding: false, // Fix: Problem 8 includeFontPadding
-                                textAlignVertical: 'center', // Fix: Problem 8 textAlignVertical
-                                colorScheme: 'dark',
-                                color: '#EDE8E1', // Fix: Problem 8 Explicit color
-                                fontSize: 16, // Fix: Problem 8 Font size
+                                zIndex: 1,
+                                elevation: 1,
+                                includeFontPadding: false,
+                                textAlignVertical: 'center',
+                                colorScheme: 'light',
+                                color: '#0F172A',
+                                fontSize: 16,
                                 WebkitAppearance: 'none',
                                 appearance: 'none',
                                 WebkitTransform: 'translateZ(0)',
@@ -1244,33 +1242,33 @@ export default function Login() {
                                 WebkitBackfaceVisibility: 'hidden',
                                 willChange: 'auto',
                                 isolation: 'isolate',
-                                backgroundColor: '#162B46'
+                                backgroundColor: '#EEF3FF'
                               }}
                             />
                           </div>
                         </div>
-                        <div className="space-y-1.5" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrapper margin */}
-                          <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>{t('splash.departments')}</label> {/* Fix: Problem 2 Label margin */}
-                          <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
+                        <div className="space-y-1.5" style={{ marginBottom: 16 }}>
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>{t('splash.departments')}</label>
+                          <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}>
                             <select 
                               value={department}
                               onChange={(e) => setDepartment(e.target.value)}
-                              className="w-full px-4 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium appearance-none"
+                              className="w-full px-4 h-[52px] bg-[#EEF3FF] border border-[#D8E3FF] rounded-2xl focus:ring-2 focus:ring-[#2563EB]/50 focus:border-[#2563EB] outline-none transition-all duration-200 text-sm font-medium appearance-none"
                               style={{
-                                height: 52, // Fix: Problem 2 Height
-                                width: '100%', // Fix: Problem 2 Width
-                                maxWidth: '100%', // Fix: Problem 5 maxWidth
-                                paddingLeft: 14, // Fix: Problem 2 paddingHorizontal
-                                paddingRight: 14, // Fix: Problem 2 paddingHorizontal
-                                paddingHorizontal: 14, // Fix: Problem 2 paddingHorizontal
+                                height: 52,
+                                width: '100%',
+                                maxWidth: '100%',
+                                paddingLeft: 14,
+                                paddingRight: 14,
+                                paddingHorizontal: 14,
                                 overflow: 'hidden',
-                                zIndex: 1, // Fix: Problem 1 zIndex
-                                elevation: 1, // Fix: Problem 1 elevation
-                                includeFontPadding: false, // Fix: Problem 8 includeFontPadding
-                                textAlignVertical: 'center', // Fix: Problem 8 textAlignVertical
-                                colorScheme: 'dark',
-                                color: '#EDE8E1', // Fix: Problem 8 Explicit color
-                                fontSize: 16, // Fix: Problem 8 Font size
+                                zIndex: 1,
+                                elevation: 1,
+                                includeFontPadding: false,
+                                textAlignVertical: 'center',
+                                colorScheme: 'light',
+                                color: '#0F172A',
+                                fontSize: 16,
                                 WebkitAppearance: 'none',
                                 appearance: 'none',
                                 WebkitTransform: 'translateZ(0)',
@@ -1279,7 +1277,7 @@ export default function Login() {
                                 WebkitBackfaceVisibility: 'hidden',
                                 willChange: 'auto',
                                 isolation: 'isolate',
-                                backgroundColor: '#162B46'
+                                backgroundColor: '#EEF3FF'
                               }}
                             >
                               {allFacultiesList.map(dept => (
@@ -1288,13 +1286,13 @@ export default function Login() {
                             </select>
                           </div>
                         </div>
-                        <div className="space-y-1.5" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrapper margin */}
-                          <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>PHONE</label> {/* Fix: Problem 2 Label margin */}
-                          <div className="flex gap-2" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
+                        <div className="space-y-1.5" style={{ marginBottom: 16 }}>
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>PHONE</label>
+                          <div className="flex gap-2" style={{ position: 'relative', zIndex: 1, elevation: 1 }}>
                             <select 
                               value={countryCode}
                               onChange={(e) => setCountryCode(e.target.value)}
-                              className="w-24 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-[10px] font-black text-gold px-2"
+                              className="w-24 h-[52px] bg-[#EEF3FF] border border-[#D8E3FF] rounded-2xl focus:ring-2 focus:ring-[#2563EB]/50 focus:border-[#2563EB] outline-none transition-all duration-200 text-[10px] font-black text-[#2563EB] px-2"
                               style={{
                                 height: 52,
                                 overflow: 'hidden',
@@ -1302,8 +1300,8 @@ export default function Login() {
                                 elevation: 1,
                                 includeFontPadding: false,
                                 textAlignVertical: 'center',
-                                colorScheme: 'dark',
-                                color: '#C9930A',
+                                colorScheme: 'light',
+                                color: '#2563EB',
                                 fontSize: 14,
                                 WebkitAppearance: 'none',
                                 appearance: 'none',
@@ -1313,7 +1311,7 @@ export default function Login() {
                                 WebkitBackfaceVisibility: 'hidden',
                                 willChange: 'auto',
                                 isolation: 'isolate',
-                                backgroundColor: '#162B46'
+                                backgroundColor: '#EEF3FF'
                               }}
                             >
                               {africanCountries.map(c => (
@@ -1323,25 +1321,25 @@ export default function Login() {
                             <input
                               type="tel"
                               placeholder="811223344"
-                              className="flex-1 px-4 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
+                              className="flex-1 px-4 h-[52px] bg-[#EEF3FF] border border-[#D8E3FF] rounded-2xl focus:ring-2 focus:ring-[#2563EB]/50 focus:border-[#2563EB] outline-none transition-all duration-200 text-sm font-medium"
                               value={phone}
                               onChange={(e) => setPhone(e.target.value)}
                               required
                               style={{
-                                height: 52, // Fix: Problem 2 Height
-                                width: '100%', // Fix: Problem 2 Width
-                                maxWidth: '100%', // Fix: Problem 5 maxWidth
-                                paddingLeft: 14, // Fix: Problem 2 paddingHorizontal
-                                paddingRight: 14, // Fix: Problem 2 paddingHorizontal
-                                paddingHorizontal: 14, // Fix: Problem 2 paddingHorizontal
+                                height: 52,
+                                width: '100%',
+                                maxWidth: '100%',
+                                paddingLeft: 14,
+                                paddingRight: 14,
+                                paddingHorizontal: 14,
                                 overflow: 'hidden',
-                                zIndex: 1, // Fix: Problem 1 zIndex
-                                elevation: 1, // Fix: Problem 1 elevation
-                                includeFontPadding: false, // Fix: Problem 8 includeFontPadding
-                                textAlignVertical: 'center', // Fix: Problem 8 textAlignVertical
-                                colorScheme: 'dark',
-                                color: '#EDE8E1', // Fix: Problem 8 Explicit color
-                                fontSize: 16, // Fix: Problem 8 Font size
+                                zIndex: 1,
+                                elevation: 1,
+                                includeFontPadding: false,
+                                textAlignVertical: 'center',
+                                colorScheme: 'light',
+                                color: '#0F172A',
+                                fontSize: 16,
                                 WebkitAppearance: 'none',
                                 appearance: 'none',
                                 WebkitTransform: 'translateZ(0)',
@@ -1350,7 +1348,7 @@ export default function Login() {
                                 WebkitBackfaceVisibility: 'hidden',
                                 willChange: 'auto',
                                 isolation: 'isolate',
-                                backgroundColor: '#162B46'
+                                backgroundColor: '#EEF3FF'
                               }}
                             />
                           </div>
@@ -1358,10 +1356,10 @@ export default function Login() {
                         <button 
                           type="button" 
                           onClick={() => setStep(2)}
-                          className="w-full bg-gold/10 text-gold h-[52px] rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2"
+                          className="w-full bg-[#EEF3FF] text-[#2563EB] h-[52px] rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 border border-[#D8E3FF] hover:bg-[#E0E9FF]"
                           style={{
-                            height: 52, // Fix: Problem 6 Fixed height
-                            width: '100%', // Fix: Problem 6 Fixed width
+                            height: 52,
+                            width: '100%',
                             maxWidth: '100%',
                             justifyContent: 'center',
                             alignItems: 'center',
@@ -1373,31 +1371,31 @@ export default function Login() {
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        <div className="space-y-1.5" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrapper margin */}
-                          <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>{t('auth.email')}</label> {/* Fix: Problem 2 Label margin */}
-                          <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
+                        <div className="space-y-1.5" style={{ marginBottom: 16 }}>
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>{t('auth.email')}</label>
+                          <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}>
                             <input
                               type="email"
                               placeholder="scholar@university.edu"
-                              className="w-full px-4 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
+                              className="w-full px-4 h-[52px] bg-[#EEF3FF] border border-[#D8E3FF] rounded-2xl focus:ring-2 focus:ring-[#2563EB]/50 focus:border-[#2563EB] outline-none transition-all duration-200 text-sm font-medium"
                               value={email}
                               onChange={(e) => setEmail(e.target.value)}
                               required
                               style={{
-                                height: 52, // Fix: Problem 2 Height
-                                width: '100%', // Fix: Problem 2 Width
-                                maxWidth: '100%', // Fix: Problem 5 maxWidth
-                                paddingLeft: 14, // Fix: Problem 2 paddingHorizontal
-                                paddingRight: 14, // Fix: Problem 2 paddingHorizontal
-                                paddingHorizontal: 14, // Fix: Problem 2 paddingHorizontal
+                                height: 52,
+                                width: '100%',
+                                maxWidth: '100%',
+                                paddingLeft: 14,
+                                paddingRight: 14,
+                                paddingHorizontal: 14,
                                 overflow: 'hidden',
-                                zIndex: 1, // Fix: Problem 1 zIndex
-                                elevation: 1, // Fix: Problem 1 elevation
-                                includeFontPadding: false, // Fix: Problem 8 includeFontPadding
-                                textAlignVertical: 'center', // Fix: Problem 8 textAlignVertical
-                                colorScheme: 'dark',
-                                color: '#EDE8E1', // Fix: Problem 8 Explicit color
-                                fontSize: 16, // Fix: Problem 8 Font size
+                                zIndex: 1,
+                                elevation: 1,
+                                includeFontPadding: false,
+                                textAlignVertical: 'center',
+                                colorScheme: 'light',
+                                color: '#0F172A',
+                                fontSize: 16,
                                 WebkitAppearance: 'none',
                                 appearance: 'none',
                                 WebkitTransform: 'translateZ(0)',
@@ -1406,37 +1404,37 @@ export default function Login() {
                                 WebkitBackfaceVisibility: 'hidden',
                                 willChange: 'auto',
                                 isolation: 'isolate',
-                                backgroundColor: '#162B46'
+                                backgroundColor: '#EEF3FF'
                               }}
                             />
                           </div>
                         </div>
-                        <div className="space-y-1.5" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrapper margin */}
-                          <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>{t('auth.password')}</label> {/* Fix: Problem 2 Label margin */}
-                          <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
-                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-3 group-focus-within:text-gold transition-colors" />
+                        <div className="space-y-1.5" style={{ marginBottom: 16 }}>
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>{t('auth.password')}</label>
+                          <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}>
+                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-[#2563EB] transition-colors" />
                             <input
                               type="text"
                               placeholder="••••••••"
-                              className="w-full pl-11 pr-12 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
+                              className="w-full pl-11 pr-12 h-[52px] bg-[#EEF3FF] border border-[#D8E3FF] rounded-2xl focus:ring-2 focus:ring-[#2563EB]/50 focus:border-[#2563EB] outline-none transition-all duration-200 text-sm font-medium"
                               value={password}
                               onChange={(e) => setPassword(e.target.value)}
                               required
                               style={{
-                                height: 52, // Fix: Problem 2 Height
-                                width: '100%', // Fix: Problem 2 Width
-                                maxWidth: '100%', // Fix: Problem 5 maxWidth
-                                paddingLeft: 14, // Fix: Problem 2 paddingHorizontal
-                                paddingRight: 14, // Fix: Problem 2 paddingHorizontal
-                                paddingHorizontal: 14, // Fix: Problem 2 paddingHorizontal
+                                height: 52,
+                                width: '100%',
+                                maxWidth: '100%',
+                                paddingLeft: 14,
+                                paddingRight: 14,
+                                paddingHorizontal: 14,
                                 overflow: 'hidden',
-                                zIndex: 1, // Fix: Problem 1 zIndex
-                                elevation: 1, // Fix: Problem 1 elevation
-                                includeFontPadding: false, // Fix: Problem 8 includeFontPadding
-                                textAlignVertical: 'center', // Fix: Problem 8 textAlignVertical
-                                colorScheme: 'dark',
-                                color: '#EDE8E1', // Fix: Problem 8 Explicit color
-                                fontSize: 16, // Fix: Problem 8 Font size
+                                zIndex: 1,
+                                elevation: 1,
+                                includeFontPadding: false,
+                                textAlignVertical: 'center',
+                                colorScheme: 'light',
+                                color: '#0F172A',
+                                fontSize: 16,
                                 WebkitAppearance: 'none',
                                 appearance: 'none',
                                 WebkitTransform: 'translateZ(0)',
@@ -1445,45 +1443,45 @@ export default function Login() {
                                 WebkitBackfaceVisibility: 'hidden',
                                 willChange: 'auto',
                                 isolation: 'isolate',
-                                backgroundColor: '#162B46',
+                                backgroundColor: '#EEF3FF',
                                 WebkitTextSecurity: showPassword ? 'none' : 'disc'
                               }}
                             />
                             <button
                               type="button"
                               onClick={() => setShowPassword(!showPassword)}
-                              className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-text-3 hover:text-gold transition-colors"
+                              className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-slate-400 hover:text-[#2563EB] transition-colors"
                             >
                               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                             </button>
                           </div>
                         </div>
-                        <div className="space-y-1.5" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrapper margin */}
-                          <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>{t('auth.confirmPassword')}</label> {/* Fix: Problem 2 Label margin */}
-                          <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
-                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-3 group-focus-within:text-gold transition-colors" />
+                        <div className="space-y-1.5" style={{ marginBottom: 16 }}>
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>{t('auth.confirmPassword')}</label>
+                          <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}>
+                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-[#2563EB] transition-colors" />
                             <input
                               type="text"
                               placeholder="••••••••"
-                              className="w-full pl-11 pr-12 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
+                              className="w-full pl-11 pr-12 h-[52px] bg-[#EEF3FF] border border-[#D8E3FF] rounded-2xl focus:ring-2 focus:ring-[#2563EB]/50 focus:border-[#2563EB] outline-none transition-all duration-200 text-sm font-medium"
                               value={confirmPassword}
                               onChange={(e) => setConfirmPassword(e.target.value)}
                               required
                               style={{
-                                height: 52, // Fix: Problem 2 Height
-                                width: '100%', // Fix: Problem 2 Width
-                                maxWidth: '100%', // Fix: Problem 5 maxWidth
-                                paddingLeft: 14, // Fix: Problem 2 paddingHorizontal
-                                paddingRight: 14, // Fix: Problem 2 paddingHorizontal
-                                paddingHorizontal: 14, // Fix: Problem 2 paddingHorizontal
+                                height: 52,
+                                width: '100%',
+                                maxWidth: '100%',
+                                paddingLeft: 14,
+                                paddingRight: 14,
+                                paddingHorizontal: 14,
                                 overflow: 'hidden',
-                                zIndex: 1, // Fix: Problem 1 zIndex
-                                elevation: 1, // Fix: Problem 1 elevation
-                                includeFontPadding: false, // Fix: Problem 8 includeFontPadding
-                                textAlignVertical: 'center', // Fix: Problem 8 textAlignVertical
-                                colorScheme: 'dark',
-                                color: '#EDE8E1', // Fix: Problem 8 Explicit color
-                                fontSize: 16, // Fix: Problem 8 Font size
+                                zIndex: 1,
+                                elevation: 1,
+                                includeFontPadding: false,
+                                textAlignVertical: 'center',
+                                colorScheme: 'light',
+                                color: '#0F172A',
+                                fontSize: 16,
                                 WebkitAppearance: 'none',
                                 appearance: 'none',
                                 WebkitTransform: 'translateZ(0)',
@@ -1492,43 +1490,43 @@ export default function Login() {
                                 WebkitBackfaceVisibility: 'hidden',
                                 willChange: 'auto',
                                 isolation: 'isolate',
-                                backgroundColor: '#162B46',
+                                backgroundColor: '#EEF3FF',
                                 WebkitTextSecurity: showConfirmPassword ? 'none' : 'disc'
                               }}
                             />
                             <button
                               type="button"
                               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                              className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-text-3 hover:text-gold transition-colors"
+                              className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-slate-400 hover:text-[#2563EB] transition-colors"
                             >
                               {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                             </button>
                           </div>
                         </div>
-                        <div className="space-y-1.5" style={{ marginBottom: 16 }}> {/* Fix: Problem 2 Wrapper margin */}
-                          <label className="text-[10px] font-black text-text-3 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>REFERRAL</label> {/* Fix: Problem 2 Label margin */}
-                          <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}> {/* Fix: Problem 1 Wrapper styling */}
+                        <div className="space-y-1.5" style={{ marginBottom: 16 }}>
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1" style={{ marginBottom: 6, includeFontPadding: false }}>REFERRAL</label>
+                          <div className="relative group" style={{ position: 'relative', zIndex: 1, elevation: 1 }}>
                             <input
                               type="text"
                               placeholder="DSXXXXXX"
-                              className="w-full px-4 h-[52px] bg-navy-high border border-gold/10 rounded-2xl focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-all duration-200 text-sm font-medium"
+                              className="w-full px-4 h-[52px] bg-[#EEF3FF] border border-[#D8E3FF] rounded-2xl focus:ring-2 focus:ring-[#2563EB]/50 focus:border-[#2563EB] outline-none transition-all duration-200 text-sm font-medium"
                               value={manualReferralCode}
                               onChange={(e) => setManualReferralCode(e.target.value.toUpperCase())}
                               style={{
-                                height: 52, // Fix: Problem 2 Height
-                                width: '100%', // Fix: Problem 2 Width
-                                maxWidth: '100%', // Fix: Problem 5 maxWidth
-                                paddingLeft: 14, // Fix: Problem 2 paddingHorizontal
-                                paddingRight: 14, // Fix: Problem 2 paddingHorizontal
-                                paddingHorizontal: 14, // Fix: Problem 2 paddingHorizontal
+                                height: 52,
+                                width: '100%',
+                                maxWidth: '100%',
+                                paddingLeft: 14,
+                                paddingRight: 14,
+                                paddingHorizontal: 14,
                                 overflow: 'hidden',
-                                zIndex: 1, // Fix: Problem 1 zIndex
-                                elevation: 1, // Fix: Problem 1 elevation
-                                includeFontPadding: false, // Fix: Problem 8 includeFontPadding
-                                textAlignVertical: 'center', // Fix: Problem 8 textAlignVertical
-                                colorScheme: 'dark',
-                                color: '#EDE8E1', // Fix: Problem 8 Explicit color
-                                fontSize: 16, // Fix: Problem 8 Font size
+                                zIndex: 1,
+                                elevation: 1,
+                                includeFontPadding: false,
+                                textAlignVertical: 'center',
+                                colorScheme: 'light',
+                                color: '#0F172A',
+                                fontSize: 16,
                                 WebkitAppearance: 'none',
                                 appearance: 'none',
                                 WebkitTransform: 'translateZ(0)',
@@ -1537,7 +1535,7 @@ export default function Login() {
                                 WebkitBackfaceVisibility: 'hidden',
                                 willChange: 'auto',
                                 isolation: 'isolate',
-                                backgroundColor: '#162B46'
+                                backgroundColor: '#EEF3FF'
                               }}
                             />
                           </div>
@@ -1546,10 +1544,10 @@ export default function Login() {
                            <button 
                             type="button" 
                             onClick={() => setStep(1)}
-                            className="bg-navy-high border border-gold/10 text-text-3 h-[52px] rounded-2xl font-black text-[10px] uppercase tracking-widest"
+                            className="bg-[#EEF3FF] border border-[#D8E3FF] text-slate-600 h-[52px] rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#E0E9FF]"
                             style={{
-                              height: 52, // Fix: Problem 6 Fixed height
-                              width: '100%', // Fix: Problem 6 Fixed width
+                              height: 52,
+                              width: '100%',
                               maxWidth: '100%',
                               justifyContent: 'center',
                               alignItems: 'center',
@@ -1561,10 +1559,10 @@ export default function Login() {
                           <button 
                             type="submit"
                             disabled={loading}
-                            className="bg-gold text-navy h-[52px] rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-gold/20"
+                            className="bg-[#2563EB] hover:bg-[#1d4ed8] text-white h-[52px] rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-[#2563EB]/20"
                             style={{
-                              height: 52, // Fix: Problem 6 Fixed height
-                              width: '100%', // Fix: Problem 6 Fixed width
+                              height: 52,
+                              width: '100%',
                               maxWidth: '100%',
                               justifyContent: 'center',
                               alignItems: 'center',
@@ -1572,7 +1570,7 @@ export default function Login() {
                             }}
                           >
                             {loading ? (
-                              <ActivityIndicator size="small" color="#07101F" /> /* Fix: Problem 6 ActivityIndicator inside button during loading */
+                              <ActivityIndicator size="small" color="#FFFFFF" />
                             ) : (
                               t('general.submit')
                             )}
@@ -1610,10 +1608,10 @@ export default function Login() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full max-w-full h-[52px] bg-gold hover:bg-gold-light text-navy font-black text-[10px] uppercase tracking-[0.3em] rounded-2xl shadow-2xl shadow-gold/20 transition-all transform active:scale-[0.98] flex items-center justify-center disabled:opacity-50"
+                      className="w-full max-w-full h-[52px] bg-[#2563EB] hover:bg-[#1d4ed8] text-white font-black text-[10px] uppercase tracking-[0.3em] rounded-2xl shadow-lg shadow-[#2563EB]/20 transition-all transform active:scale-[0.98] flex items-center justify-center disabled:opacity-50"
                       style={{
-                        height: 52, // Fix: Problem 6 Fixed height
-                        width: '100%', // Fix: Problem 6 Fixed width
+                        height: 52,
+                        width: '100%',
                         maxWidth: '100%',
                         justifyContent: 'center',
                         alignItems: 'center',
@@ -1622,7 +1620,7 @@ export default function Login() {
                       }}
                     >
                       {loading ? (
-                        <ActivityIndicator size="small" color="#07101F" /> /* Fix: Problem 6 ActivityIndicator inside button during loading */
+                        <ActivityIndicator size="small" color="#FFFFFF" />
                       ) : (
                         <>
                           {t('auth.signin')}
@@ -1631,35 +1629,34 @@ export default function Login() {
                       )}
                     </button>
                   )}
-              {/* Fix: Problem 4 Removed duplicate inner wrappers */}
           </form>
           )}
 
-          <div className="w-full h-[1px] bg-gold/10" />
+          <div className="w-full h-[1px] bg-[#D8E3FF]" />
 
           <div className="w-full text-center space-y-6">
             <button
               onClick={() => setIsLogin(!isLogin)}
-              className="text-text-3 font-black text-[10px] uppercase tracking-[0.2em] hover:text-gold transition-all"
+              className="text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] hover:text-[#2563EB] transition-all"
             >
               {isLogin ? (
                 <>
                   {t('auth.noAccount').split('?')[0]}?{' '}
-                  <span className="text-gold ml-2 underline underline-offset-8 decoration-gold/30">
+                  <span className="text-[#2563EB] ml-2 underline underline-offset-8 decoration-[#2563EB]/30">
                     {t('auth.noAccount').split('?')[1]?.trim() || 'Register Now'}
                   </span>
                 </>
               ) : (
                 <>
                   {t('auth.login').split('?')[0]}?{' '}
-                  <span className="text-gold ml-2 underline underline-offset-8 decoration-gold/30">
+                  <span className="text-[#2563EB] ml-2 underline underline-offset-8 decoration-[#2563EB]/30">
                     {t('auth.signin')}
                   </span>
                 </>
               )}
             </button>
-            <div className="bg-gold/5 border border-gold/10 rounded-2xl p-4 space-y-3">
-              <p className="text-[9px] font-black text-text-3 uppercase tracking-widest leading-relaxed">
+            <div className="bg-[#EEF3FF] border border-[#D8E3FF] rounded-2xl p-4 space-y-3">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">
                 {language === 'fr' ? 'Archives de Support Institutionnel' : 'Institutional Support Archives'}
               </p>
               <div className="flex justify-center gap-4">

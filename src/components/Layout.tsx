@@ -67,7 +67,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <div className="flex flex-col min-h-screen bg-navy pb-24">
       {/* Top Bar */}
       <header className={cn(
-        "sticky h-16 bg-navy-mid border-b border-gold/10 px-6 flex items-center justify-between z-30 shadow-lg",
+        "sticky h-16 bg-white/90 backdrop-blur-md border-b border-[#D8E3FF] px-6 flex items-center justify-between z-30 shadow-xs",
         "top-0"
       )}>
         <div className="flex flex-col">
@@ -76,26 +76,26 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </h1>
         </div>
         <div className="flex items-center gap-4">
-          <NavLink to="/chat" className="w-10 h-10 rounded-xl bg-navy-high border border-gold/10 flex items-center justify-center text-gold-light hover:bg-gold/10 transition-all relative">
+          <NavLink to="/chat" className="w-10 h-10 rounded-2xl bg-[#EEF3FF] border border-[#D8E3FF] flex items-center justify-center text-gold hover:bg-[#D8E3FF] transition-all relative shadow-xs">
             <MessageCircle className="w-5 h-5" />
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-bounce shadow-lg shadow-red-500/50">
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-bounce shadow-md">
                 {unreadCount}
               </span>
             )}
           </NavLink>
-          <NavLink to="/profile" className="w-10 h-10 rounded-full diamond-gradient flex items-center justify-center font-black text-navy text-xs shadow-lg shadow-gold/20">
+          <NavLink to="/profile" className="w-10 h-10 rounded-full diamond-gradient flex items-center justify-center font-black text-white text-xs shadow-md shadow-blue-500/20">
             <User className="w-5 h-5" />
           </NavLink>
         </div>
       </header>
 
-      <main className="flex-1 px-4 py-8 max-w-7xl mx-auto w-full">
+      <main className="flex-1 px-4 py-6 max-w-7xl mx-auto w-full">
         {children}
       </main>
 
-      {/* Mobile Bottom Tab Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 h-20 bg-navy-mid border-t border-gold/10 flex items-center justify-around px-2 z-50 shadow-[0_-10px_30px_rgba(0,0,0,0.4)]">
+      {/* Floating Pill Mobile Bottom Tab Bar */}
+      <nav className="fixed bottom-4 left-4 right-4 max-w-md mx-auto h-16 bg-[#2563EB] rounded-full border border-blue-400/30 flex items-center justify-around px-3 z-50 shadow-xl shadow-blue-600/30">
         <Tab icon={Home} label={t('nav.home')} to="/dashboard" />
         <Tab icon={Layers} label={t('nav.study')} to="/courses" />
         <Tab icon={MessageCircle} label={t('nav.chat')} to="/chat" badge={unreadCount} />
@@ -112,26 +112,21 @@ function Tab({ icon: Icon, label, to, badge }: { icon: any, label: string, to: s
     <NavLink 
       to={to} 
       className={({ isActive }) => cn(
-        "flex flex-col items-center justify-center relative flex-1 h-full transition-all group",
-        isActive ? "text-gold" : "text-text-3 hover:text-text-2"
+        "flex flex-col items-center justify-center relative flex-1 h-full transition-all group py-1",
+        isActive ? "text-white" : "text-white/65 hover:text-white"
       )}
     >
       {({ isActive }: { isActive: boolean }) => (
         <>
-          {isActive && (
-            <div 
-              className="absolute top-2.5 w-1 h-1 rounded-full bg-gold shadow-[0_0_8px_rgba(201,147,10,0.8)]"
-            />
-          )}
-          <div className="relative mt-2">
-            <Icon className={cn("w-5 h-5 transition-transform duration-300", isActive ? "scale-105" : "group-hover:scale-102")} />
+          <div className={cn("relative p-2 rounded-full transition-all duration-300", isActive ? "bg-white/20 scale-105" : "group-hover:scale-105")}>
+            <Icon className="w-5 h-5" />
             {badge !== undefined && badge > 0 && (
-              <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-red-500 text-white text-[7px] font-bold rounded-full flex items-center justify-center animate-bounce shadow-lg shadow-red-500/50">
+              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center animate-bounce shadow-md">
                 {badge}
               </span>
             )}
           </div>
-          <span className="text-[8px] font-black uppercase tracking-[0.18em] mt-1">{label}</span>
+          <span className="text-[9px] font-bold tracking-tight mt-0.5">{label}</span>
         </>
       )}
     </NavLink>

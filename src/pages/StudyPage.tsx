@@ -852,14 +852,14 @@ export default function StudyPage() {
   };
 
   if (loading) return (
-    <div className="h-screen bg-navy flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-gold/20 border-t-gold rounded-full animate-spin" />
+    <div className="h-screen bg-[#F8FAFC] flex items-center justify-center">
+      <div className="w-10 h-10 border-4 border-blue-200 border-t-[#2563EB] rounded-full animate-spin" />
     </div>
   );
 
   if (!paymentVerified && !loading) return (
-    <div className="h-screen bg-navy flex flex-col items-center justify-center space-y-6 text-center px-6">
-      <div className="w-20 h-20 bg-gold/10 rounded-full flex items-center justify-center text-gold mb-4 border border-gold/20 shadow-[0_0_50px_rgba(201,147,10,0.1)]">
+    <div className="h-screen bg-[#F8FAFC] flex flex-col items-center justify-center space-y-6 text-center px-6">
+      <div className="w-20 h-20 bg-[#EEF3FF] rounded-full flex items-center justify-center text-gold mb-4 border border-[#D8E3FF] shadow-xs">
         <Lock className="w-10 h-10" />
       </div>
       <div className="space-y-2">
@@ -870,7 +870,7 @@ export default function StudyPage() {
       </div>
       <button 
         onClick={() => navigate(`/courses/${id}`)}
-        className="btn btn-gold px-12 py-4 shadow-2xl shadow-gold/20 font-black text-[10px] uppercase tracking-widest"
+        className="px-12 py-4 bg-[#2563EB] text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-lg shadow-blue-500/20 cursor-pointer"
       >
         {t('access.provision')}
       </button>
@@ -878,41 +878,41 @@ export default function StudyPage() {
   );
 
   if (questions.length === 0) return (
-    <div className="h-screen bg-navy flex flex-col items-center justify-center p-6 text-center space-y-4">
-      <Info className="w-16 h-16 text-gold/20" />
+    <div className="h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-6 text-center space-y-4">
+      <Info className="w-16 h-16 text-blue-300" />
       <div className="space-y-1">
         <h2 className="text-xl font-serif font-black text-text-1">{t('study.noContent')}</h2>
         <p className="text-text-3 text-xs font-black uppercase tracking-widest leading-loose">{t('study.noContentDesc')}</p>
       </div>
-      <button onClick={() => navigate(-1)} className="btn btn-gold px-8 py-3 mt-4">{t('general.back')}</button>
+      <button onClick={() => navigate(-1)} className="px-8 py-3 bg-[#2563EB] text-white font-bold rounded-2xl mt-4 cursor-pointer">{t('general.back')}</button>
     </div>
   );
 
   if (showResults) {
     const pct = Math.round((score.correct / score.total) * 100);
     return (
-      <div className="min-h-screen bg-navy flex flex-col items-center justify-center p-6 text-center">
+      <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-6 text-center">
          <motion.div 
            initial={{ scale: 0.9, opacity: 0 }}
            animate={{ scale: 1, opacity: 1 }}
-           className="card-luxury max-w-md w-full p-12 space-y-10"
+           className="card-luxury max-w-md w-full p-10 space-y-8 bg-white border border-[#D8E3FF] shadow-lg rounded-3xl"
          >
            <div className="space-y-4">
-             <Trophy className="w-20 h-20 text-gold mx-auto drop-shadow-[0_0_20px_rgba(201,147,10,0.4)]" />
+             <Trophy className="w-20 h-20 text-gold mx-auto drop-shadow-md" />
              <h2 className="text-3xl font-serif font-black text-text-1">{t('study.concluded')}</h2>
              <p className="text-text-3 text-[10px] font-black uppercase tracking-[0.4em]">{t('study.resultCard')}</p>
            </div>
 
            <div className="space-y-2">
-             <p className="text-6xl font-serif font-black text-gold-light">{score.correct} / {score.total}</p>
+             <p className="text-6xl font-serif font-black text-gold">{score.correct} / {score.total}</p>
              <p className="text-xl font-bold text-text-1">{pct}% {t('study.compliance')}</p>
            </div>
 
-           <div className="w-full h-2 bg-navy-high rounded-full overflow-hidden">
+           <div className="w-full h-2.5 bg-[#EEF3FF] rounded-full overflow-hidden border border-[#D8E3FF]">
              <motion.div 
                initial={{ width: 0 }}
                animate={{ width: `${pct}%` }}
-               className="h-full bg-gold"
+               className="h-full bg-[#2563EB]"
              />
            </div>
 
@@ -926,11 +926,11 @@ export default function StudyPage() {
                   console.error("Error clearing progress:", err);
                 }
                window.location.reload();
-             }} className="btn btn-gold py-4">
+             }} className="py-4 bg-[#2563EB] text-white font-bold rounded-2xl flex items-center justify-center cursor-pointer">
                <RotateCcw className="w-4 h-4 mr-2" />
                {t('study.resync')}
              </button>
-             <button onClick={() => navigate('/courses')} className="btn btn-ghost py-4 border-gold/20">
+             <button onClick={() => navigate('/courses')} className="py-4 bg-[#EEF3FF] border border-[#D8E3FF] text-text-2 font-bold rounded-2xl cursor-pointer">
                {t('study.exit')}
              </button>
            </div>
@@ -949,7 +949,7 @@ export default function StudyPage() {
   const progress = ((currentIndex + 1) / questions.length) * 100;
 
   return (
-    <div className="flex flex-col min-h-screen bg-navy text-text-1">
+    <div className="flex flex-col min-h-screen bg-[#F8FAFC] text-text-1">
       {/* Outline Section Completion Modal */}
       <AnimatePresence>
         {showCompletionModal && activeRange && (
@@ -957,17 +957,16 @@ export default function StudyPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[110] bg-navy/95 backdrop-blur-md overflow-y-auto flex justify-center items-start p-4 sm:p-6 md:p-10"
+            className="fixed inset-0 z-[110] bg-slate-900/40 backdrop-blur-md overflow-y-auto flex justify-center items-start p-4 sm:p-6 md:p-10"
           >
             {showBalloons && <BalloonContainer />}
             <motion.div 
               initial={{ scale: 0.95, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 20 }}
-              className="card-luxury max-w-xl w-full p-6 sm:p-10 space-y-6 sm:space-y-8 bg-gradient-to-b from-navy-mid to-navy shadow-[0_50px_100px_rgba(0,0,0,0.8)] border-gold/20 my-auto"
+              className="card-luxury max-w-xl w-full p-6 sm:p-10 space-y-6 sm:space-y-8 bg-white border border-[#D8E3FF] shadow-2xl my-auto rounded-3xl"
             >
               {(() => {
-                // Calculate score only for this specific active range
                 const rangeStartIdx = activeRange.start - 1;
                 const rangeQuestions = questions.slice(
                   Math.max(0, rangeStartIdx), 
@@ -990,11 +989,9 @@ export default function StudyPage() {
                 const rangeTotal = rangeQuestions.length;
                 const rangePercent = rangeTotal > 0 ? Math.round((rangeCorrect / rangeTotal) * 100) : 0;
                 
-                // Get next range if it exists
                 const currentRangeIndex = allRanges.findIndex(r => r.start === activeRange.start && r.end === activeRange.end);
                 const nextRange = currentRangeIndex !== -1 && currentRangeIndex < allRanges.length - 1 ? allRanges[currentRangeIndex + 1] : null;
 
-                // Select a beautiful motivational heading and subtitle based on performance
                 let heading = "Excellent Progress, Scholar!";
                 let congratsMsg = "You have successfully conquered this section of the course outline.";
                 if (rangePercent >= 90) {
@@ -1008,49 +1005,48 @@ export default function StudyPage() {
                 return (
                   <div className="space-y-8">
                     <div className="text-center space-y-4">
-                      <div className="w-16 h-16 rounded-2xl bg-gold/10 border border-gold/20 flex items-center justify-center text-gold mx-auto shadow-lg shadow-gold/5">
+                      <div className="w-16 h-16 rounded-2xl bg-[#EEF3FF] border border-[#D8E3FF] flex items-center justify-center text-gold mx-auto shadow-xs">
                         <Sparkles className="w-8 h-8 animate-pulse text-gold" />
                       </div>
                       <div className="space-y-1">
                         <span className="text-[10px] font-black text-gold uppercase tracking-[0.4em]">Section Mastered</span>
-                        <h3 className="text-3xl font-serif font-black text-white leading-tight">{heading}</h3>
+                        <h3 className="text-3xl font-serif font-black text-text-1 leading-tight">{heading}</h3>
                         <p className="text-text-3 text-xs max-w-sm mx-auto leading-relaxed mt-2">{congratsMsg}</p>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-navy bg-opacity-40 p-5 rounded-2xl border border-gold/10 flex flex-col justify-center items-center text-center space-y-1">
+                      <div className="bg-[#EEF3FF] p-5 rounded-2xl border border-[#D8E3FF] flex flex-col justify-center items-center text-center space-y-1">
                         <span className="text-[9px] font-black text-text-3 uppercase tracking-wider">Outline Score</span>
                         <p className="text-3xl font-serif font-black text-gold">
                           {rangeCorrect} <span className="text-sm font-sans font-medium text-text-3">/ {rangeTotal}</span>
                         </p>
-                        <span className="text-[9px] font-black text-gold-light tracking-wide bg-gold/10 px-2 py-0.5 rounded-full mt-1">
+                        <span className="text-[9px] font-black text-gold tracking-wide bg-white px-2 py-0.5 rounded-full mt-1 border border-[#D8E3FF]">
                           Correct Answers
                         </span>
                       </div>
 
-                      <div className="bg-navy bg-opacity-40 p-5 rounded-2xl border border-gold/10 flex flex-col justify-center items-center text-center space-y-1">
+                      <div className="bg-[#EEF3FF] p-5 rounded-2xl border border-[#D8E3FF] flex flex-col justify-center items-center text-center space-y-1">
                         <span className="text-[9px] font-black text-text-3 uppercase tracking-wider">Mastery Rate</span>
-                        <p className="text-3xl font-serif font-black text-emerald-400">
+                        <p className="text-3xl font-serif font-black text-emerald-600">
                           {rangePercent}%
                         </p>
-                        <span className="text-[9px] font-black text-emerald-400/80 tracking-wide bg-emerald-500/10 px-2 py-0.5 rounded-full mt-1">
+                        <span className="text-[9px] font-black text-emerald-600 tracking-wide bg-emerald-50 px-2 py-0.5 rounded-full mt-1 border border-emerald-200">
                           Objective Sync
                         </span>
                       </div>
                     </div>
 
-                    <div className="bg-navy bg-opacity-30 p-6 rounded-2xl border border-white/5 space-y-2.5">
+                    <div className="bg-[#EEF3FF] p-6 rounded-2xl border border-[#D8E3FF] space-y-2.5">
                       <span className="text-[9px] font-black text-text-3 uppercase tracking-widest block">Completed Outline Section:</span>
-                      <p className="text-xs font-bold text-gold-light leading-relaxed italic">
+                      <p className="text-xs font-bold text-text-1 leading-relaxed italic">
                         "{activeRange.text}"
                       </p>
                     </div>
 
-                    {/* Scholastic Motivation Card */}
-                    <div className="p-6 bg-gold/[0.02] border border-gold/10 rounded-2xl relative overflow-hidden text-center space-y-2">
-                      <div className="absolute top-0 left-0 w-1 h-full bg-gold" />
-                      <span className="text-[8px] font-black text-gold uppercase tracking-[0.3em] block">Scholar Motivation</span>
+                    <div className="p-6 bg-blue-50/50 border border-blue-100 rounded-2xl relative overflow-hidden text-center space-y-2">
+                      <div className="absolute top-0 left-0 w-1 h-full bg-[#2563EB]" />
+                      <span className="text-[8px] font-black text-[#2563EB] uppercase tracking-[0.3em] block">Scholar Motivation</span>
                       <p className="text-xs text-text-2 leading-relaxed italic">
                         "Remember, scholar, consistency is the foundation of true academic excellence. Every outline mastered is another stone laid in the castle of your intellectual future. Keep pushing for greatness!"
                       </p>
@@ -1058,9 +1054,9 @@ export default function StudyPage() {
 
                     {nextRange ? (
                       <div className="space-y-6">
-                        <div className="p-5 bg-navy-mid/60 border border-white/5 rounded-2xl space-y-2">
+                        <div className="p-5 bg-[#EEF3FF] border border-[#D8E3FF] rounded-2xl space-y-2">
                           <span className="text-[9px] font-black text-text-3 uppercase tracking-widest block">Next Outline in Sequence:</span>
-                          <p className="text-xs font-bold text-text-2 leading-relaxed">
+                          <p className="text-xs font-bold text-text-1 leading-relaxed">
                             "{nextRange.text}"
                           </p>
                         </div>
@@ -1068,14 +1064,14 @@ export default function StudyPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                           <button 
                             onClick={() => handleProceedToNextSection(nextRange)}
-                            className="h-14 bg-gold hover:bg-gold-light rounded-xl text-navy font-black text-[10px] uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-2"
+                            className="h-14 bg-[#2563EB] hover:bg-blue-600 rounded-2xl text-white font-black text-[10px] uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
                           >
                             <BookOpen className="w-3.5 h-3.5" />
                             <span>Proceed to Next Section</span>
                           </button>
                           <button 
                             onClick={() => navigate(`/courses/${id}`)}
-                            className="h-14 bg-navy-high hover:bg-navy-high/80 border border-gold/10 hover:border-gold/30 rounded-xl text-gold font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center"
+                            className="h-14 bg-[#EEF3FF] hover:bg-blue-100 border border-[#D8E3FF] rounded-2xl text-text-2 font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center cursor-pointer"
                           >
                             Return to Outlines List
                           </button>
@@ -1083,8 +1079,8 @@ export default function StudyPage() {
                       </div>
                     ) : (
                       <div className="space-y-6">
-                        <div className="p-5 bg-navy-mid/60 border border-white/5 rounded-2xl text-center">
-                          <p className="text-xs font-bold text-emerald-400">
+                        <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-2xl text-center">
+                          <p className="text-xs font-bold text-emerald-700">
                             Excellent job, Scholar! You have successfully completed all designated course outline sections!
                           </p>
                         </div>
@@ -1096,14 +1092,14 @@ export default function StudyPage() {
                               setShowResults(true);
                               saveProgress({ completed: true });
                             }}
-                            className="h-14 bg-gold hover:bg-gold-light rounded-xl text-navy font-black text-[10px] uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-2"
+                            className="h-14 bg-[#2563EB] hover:bg-blue-600 rounded-2xl text-white font-black text-[10px] uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
                           >
                             <Trophy className="w-3.5 h-3.5" />
                             <span>View Final Results</span>
                           </button>
                           <button 
                             onClick={() => navigate(`/courses/${id}`)}
-                            className="h-14 bg-navy-high hover:bg-navy-high/80 border border-gold/10 hover:border-gold/30 rounded-xl text-gold font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center"
+                            className="h-14 bg-[#EEF3FF] hover:bg-blue-100 border border-[#D8E3FF] rounded-2xl text-text-2 font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center cursor-pointer"
                           >
                             Return to Outlines List
                           </button>
@@ -1119,16 +1115,16 @@ export default function StudyPage() {
       </AnimatePresence>
 
       {translationLoading && (
-        <div className="fixed inset-0 z-[100] bg-navy/80 backdrop-blur-sm flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-8 h-8 border-2 border-gold/20 border-t-gold rounded-full animate-spin" />
-            <span className="text-[10px] font-black text-gold uppercase tracking-widest">{t('study.linguisticSync')}</span>
+        <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4 bg-white p-6 rounded-2xl border border-[#D8E3FF] shadow-lg">
+            <div className="w-8 h-8 border-2 border-blue-200 border-t-[#2563EB] rounded-full animate-spin" />
+            <span className="text-[10px] font-black text-[#2563EB] uppercase tracking-widest">{t('study.linguisticSync')}</span>
           </div>
         </div>
       )}
-      <header className="sticky top-0 bg-navy-mid border-b border-gold/10 px-6 py-4 flex items-center justify-between z-30 shadow-2xl">
+      <header className="sticky top-0 bg-white/90 backdrop-blur-md border-b border-[#D8E3FF] px-6 py-4 flex items-center justify-between z-30 shadow-xs">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate(`/courses/${id}`)} className="w-10 h-10 rounded-xl bg-navy-high border border-gold/10 flex items-center justify-center text-text-3 hover:text-gold transition-all">
+          <button onClick={() => navigate(`/courses/${id}`)} className="w-10 h-10 rounded-2xl bg-[#EEF3FF] border border-[#D8E3FF] flex items-center justify-center text-text-2 hover:text-[#2563EB] transition-all cursor-pointer">
             <ChevronLeft className="w-5 h-5 relative right-[1px]" />
           </button>
           <div>
@@ -1144,21 +1140,21 @@ export default function StudyPage() {
           {!isSubmitted && !showResults && (
             <div className={cn(
               "px-4 py-2 rounded-xl border font-mono text-[10px] font-black tracking-widest transition-all",
-              timeLeft <= 10 ? "bg-red-500/10 border-red-500 text-red-500 animate-pulse" : "bg-white/5 border-white/10 text-text-1"
+              timeLeft <= 10 ? "bg-red-50 border-red-200 text-red-500 animate-pulse" : "bg-[#EEF3FF] border-[#D8E3FF] text-text-1"
             )}>
               {timeLeft}s
             </div>
           )}
-          <div className="px-4 py-2 bg-gold/10 rounded-xl border border-gold/20 font-black text-[10px] text-gold uppercase tracking-widest">
+          <div className="px-4 py-2 bg-[#EEF3FF] rounded-xl border border-[#D8E3FF] font-black text-[10px] text-gold uppercase tracking-widest">
             Score: {score.correct}
           </div>
         </div>
       </header>
 
-      <div className="h-1 bg-navy-mid w-full overflow-hidden">
+      <div className="h-1.5 bg-[#EEF3FF] w-full overflow-hidden">
         <motion.div 
           animate={{ width: `${progress}%` }}
-          className="h-full bg-gold shadow-[0_0_10px_rgba(201,147,10,0.5)]"
+          className="h-full bg-[#2563EB]"
         />
       </div>
 
@@ -1171,7 +1167,7 @@ export default function StudyPage() {
             exit={{ opacity: 0, x: -20 }}
             className="space-y-10"
           >
-            <div className="card-luxury p-10 bg-navy-mid/50 border-gold/20 shadow-2xl">
+            <div className="card-luxury p-8 sm:p-10 bg-white border border-[#D8E3FF] shadow-xs rounded-3xl">
               <span className="text-[9px] font-black text-text-3 uppercase tracking-[0.4em] mb-4 block">{t('study.archiveQuery')} • {current.category || 'MCQ'}</span>
               <p className="text-xl md:text-2xl font-serif font-black text-text-1 leading-relaxed">
                 {currentQuestionText}
@@ -1182,19 +1178,19 @@ export default function StudyPage() {
               {current.type === 'application' ? (
                 <div className="w-full">
                   {!isSubmitted ? (
-                    <div className="p-8 text-center bg-navy-mid/60 border border-gold/10 rounded-2xl">
-                      <p className="text-gray-400 mb-6 text-sm">{t('study.applicationPrompt', 'Review the question and formulate your answer, then click below to reveal the expected response.')}</p>
+                    <div className="p-8 text-center bg-white border border-[#D8E3FF] rounded-3xl">
+                      <p className="text-text-3 mb-6 text-sm">{t('study.applicationPrompt', 'Review the question and formulate your answer, then click below to reveal the expected response.')}</p>
                       <button 
                         onClick={handleSubmit}
-                        className="h-14 px-8 bg-gold/10 hover:bg-gold/20 border border-gold/30 rounded-xl text-gold font-black text-xs uppercase tracking-widest transition-all"
+                        className="h-14 px-8 bg-[#2563EB] hover:bg-blue-600 rounded-2xl text-white font-black text-xs uppercase tracking-widest transition-all cursor-pointer"
                       >
                         Check Answer
                       </button>
                     </div>
                   ) : (
-                    <div className="p-8 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl shadow-[0_0_20px_rgba(16,185,129,0.1)]">
-                      <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest block mb-4">Expected Response provided by System</span>
-                      <p className="text-sm md:text-base text-gray-200 leading-relaxed">
+                    <div className="p-8 bg-emerald-50 border border-emerald-200 rounded-3xl">
+                      <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest block mb-4">Expected Response provided by System</span>
+                      <p className="text-sm md:text-base text-text-1 leading-relaxed">
                         {current.answerText || current.explanation || 'No expected answer text provided.'}
                       </p>
                     </div>
@@ -1204,14 +1200,14 @@ export default function StudyPage() {
                 currentOptions?.map((option: string, idx: number) => {
                   const isSelected = selectedAnswer === idx.toString();
                   const isCorrect = idx === current.correctAnswer;
-                  let stateClasses = "border-gold/10 hover:border-gold/30 hover:bg-gold/5";
+                  let stateClasses = "border-[#D8E3FF] hover:border-blue-300 hover:bg-[#EEF3FF]";
 
                   if (isSubmitted) {
-                    if (isCorrect) stateClasses = "border-emerald-500 bg-emerald-500/10 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.2)]";
-                    else if (isSelected) stateClasses = "border-red-500 bg-red-500/10 text-red-500";
-                    else stateClasses = "border-navy-border opacity-50";
+                    if (isCorrect) stateClasses = "border-emerald-500 bg-emerald-50 text-emerald-700 font-bold";
+                    else if (isSelected) stateClasses = "border-red-500 bg-red-50 text-red-600";
+                    else stateClasses = "border-[#D8E3FF] opacity-50";
                   } else if (isSelected) {
-                    stateClasses = "border-gold bg-gold/10 text-gold shadow-[0_0_20px_rgba(201,147,10,0.1)]";
+                    stateClasses = "border-[#2563EB] bg-[#EEF3FF] text-[#2563EB]";
                   }
 
                   return (
@@ -1220,18 +1216,18 @@ export default function StudyPage() {
                       disabled={isSubmitted}
                       onClick={() => setSelectedAnswer(idx.toString())}
                       className={cn(
-                        "w-full p-6 bg-navy-mid/60 border rounded-[1.25rem] text-left transition-all duration-300 flex items-center gap-6 group",
+                        "w-full p-5 sm:p-6 bg-white border rounded-2xl text-left transition-all duration-200 flex items-center gap-5 group cursor-pointer shadow-xs",
                         stateClasses
                       )}
                     >
                       <div className={cn(
-                        "w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs border transition-all",
-                        isSelected || (isSubmitted && isCorrect) ? "bg-gold border-gold text-navy" : "bg-navy border-gold/20 text-text-3 group-hover:border-gold/40"
+                        "w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs border transition-all shrink-0",
+                        isSelected || (isSubmitted && isCorrect) ? "bg-[#2563EB] border-[#2563EB] text-white" : "bg-[#EEF3FF] border-[#D8E3FF] text-text-2 group-hover:border-blue-300"
                       )}>
                         {String.fromCharCode(65 + idx)}
                       </div>
                       <span className="text-base font-semibold flex-1 leading-snug">{option}</span>
-                      {isSubmitted && (isCorrect ? <CheckCircle className="w-6 h-6 ml-2" /> : isSelected && <XCircle className="w-6 h-6 ml-2" />)}
+                      {isSubmitted && (isCorrect ? <CheckCircle className="w-6 h-6 ml-2 text-emerald-600" /> : isSelected && <XCircle className="w-6 h-6 ml-2 text-red-500" />)}
                     </button>
                   );
                 })
@@ -1242,13 +1238,13 @@ export default function StudyPage() {
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-gold p-8 rounded-[2rem] space-y-4 shadow-2xl relative"
+                className="bg-[#EEF3FF] p-8 rounded-3xl space-y-4 border border-[#D8E3FF] relative shadow-xs"
               >
                 <div className="flex items-center gap-3">
-                   <Info className="w-4 h-4 text-navy" />
-                   <h4 className="text-[10px] font-black text-navy uppercase tracking-[0.3em]">{t('study.institutionalSynthesis')}</h4>
+                   <Info className="w-4 h-4 text-gold" />
+                   <h4 className="text-[10px] font-black text-gold uppercase tracking-[0.3em]">{t('study.institutionalSynthesis')}</h4>
                 </div>
-                <p className="text-navy font-bold leading-relaxed text-sm">
+                <p className="text-text-1 font-semibold leading-relaxed text-sm">
                   {currentExplanation}
                 </p>
               </motion.div>
@@ -1257,20 +1253,20 @@ export default function StudyPage() {
         </AnimatePresence>
       </main>
 
-      <footer className="sticky md:relative bottom-0 left-0 right-0 p-6 md:p-8 bg-navy-mid/95 border-t border-gold/10 z-30 flex items-center justify-center">
+      <footer className="sticky md:relative bottom-0 left-0 right-0 p-6 md:p-8 bg-white/95 backdrop-blur-md border-t border-[#D8E3FF] z-30 flex items-center justify-center shadow-md">
         <div className="max-w-4xl w-full flex items-center justify-between gap-6">
            <div className="flex items-center gap-2">
              <button 
                onClick={handlePrev}
                disabled={currentIndex === 0}
-               className="w-12 h-12 rounded-xl bg-navy-high border border-gold/10 flex items-center justify-center text-text-3 hover:text-gold transition-all disabled:opacity-20"
+               className="w-12 h-12 rounded-2xl bg-[#EEF3FF] border border-[#D8E3FF] flex items-center justify-center text-text-2 hover:text-[#2563EB] transition-all disabled:opacity-30 cursor-pointer"
                title="View Previous Question"
              >
                <ArrowLeft className="w-5 h-5" />
              </button>
              <div className="hidden md:flex flex-col">
                <span className="text-[9px] font-black text-text-3 uppercase tracking-widest">{t('study.protocolStatus')}</span>
-               <span className="text-xs font-bold text-emerald-500 uppercase tracking-widest">
+               <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest">
                  {isSubmitted ? t('study.synthesisComplete') : t('study.awaitingSelection')}
                </span>
              </div>
@@ -1280,14 +1276,14 @@ export default function StudyPage() {
              <button 
                onClick={handleSubmit}
                disabled={!selectedAnswer && current.type !== 'application'}
-               className="h-16 px-12 bg-gold disabled:opacity-30 rounded-2xl text-navy font-black text-xs uppercase tracking-[0.3em] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all"
+               className="h-14 px-10 bg-[#2563EB] disabled:opacity-40 rounded-2xl text-white font-black text-xs uppercase tracking-[0.2em] shadow-md hover:bg-blue-600 active:scale-95 transition-all cursor-pointer"
              >
                {current.type === 'application' ? 'Check Answer' : t('study.commitSolution')}
              </button>
            ) : (
              <button 
                onClick={handleNext}
-               className="h-16 px-12 bg-gold rounded-2xl text-navy font-black text-xs uppercase tracking-[0.3em] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-4"
+               className="h-14 px-10 bg-[#2563EB] rounded-2xl text-white font-black text-xs uppercase tracking-[0.2em] shadow-md hover:bg-blue-600 active:scale-95 transition-all flex items-center gap-3 cursor-pointer"
              >
                {currentIndex === questions.length - 1 ? t('study.concludeSession') : t('study.nextQuery')}
                <ArrowRight className="w-4 h-4" />
