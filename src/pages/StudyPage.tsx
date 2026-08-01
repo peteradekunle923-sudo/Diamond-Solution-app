@@ -803,13 +803,44 @@ export default function StudyPage() {
   };
 
   const handleNext = () => {
-    const isAtEndOfRange = activeRange && (
-      (activeRange.end && currentIndex + 1 === activeRange.end) ||
-      (!activeRange.end && currentIndex + 1 === activeRange.start) ||
-      (currentIndex === questions.length - 1)
+    const currentQNumber = currentIndex + 1;
+
+    // Check if we hit the end of activeRange or the end of ANY range in allRanges
+    let matchedRange = activeRange;
+    if (allRanges.length > 0) {
+      const found = allRanges.find((r, idx) => {
+        const effEnd = r.end ?? (allRanges[idx + 1] ? allRanges[idx + 1].start - 1 : questions.length);
+        return currentQNumber === effEnd;
+      });
+      if (found) {
+        matchedRange = found;
+      }
+    }
+
+    const isAtActiveRangeEnd = activeRange && (
+      (activeRange.end && currentQNumber === activeRange.end) ||
+      (!activeRange.end && currentQNumber === activeRange.start)
     );
 
-    if (isAtEndOfRange) {
+    const isAtAnyRangeEnd = allRanges.length > 0 && allRanges.some((r, idx) => {
+      const effEnd = r.end ?? (allRanges[idx + 1] ? allRanges[idx + 1].start - 1 : questions.length);
+      return currentQNumber === effEnd;
+    });
+
+    const isAtCourseEnd = currentIndex === questions.length - 1;
+
+    if (isAtActiveRangeEnd || isAtAnyRangeEnd || isAtCourseEnd) {
+      if (matchedRange) {
+        setActiveRange(matchedRange);
+        sessionStorage.setItem(`active_study_range_${id}`, JSON.stringify(matchedRange));
+      } else if (allRanges.length > 0) {
+        const fallbackRange = allRanges.find((r, idx) => {
+          const effEnd = r.end ?? (allRanges[idx + 1] ? allRanges[idx + 1].start - 1 : questions.length);
+          return currentQNumber >= r.start && currentQNumber <= effEnd;
+        }) || allRanges[allRanges.length - 1];
+        setActiveRange(fallbackRange);
+        sessionStorage.setItem(`active_study_range_${id}`, JSON.stringify(fallbackRange));
+      }
       setShowCompletionModal(true);
       return;
     }
@@ -1061,19 +1092,37 @@ export default function StudyPage() {
                           </p>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
                           <button 
                             onClick={() => handleProceedToNextSection(nextRange)}
-                            className="h-14 bg-[#2563EB] hover:bg-blue-600 rounded-2xl text-white font-black text-[10px] uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                            className="h-14 bg-[#2563EB] hover:bg-blue-600 rounded-2xl text-white font-black text-[10px] uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-1.5 px-2 cursor-pointer"
                           >
-                            <BookOpen className="w-3.5 h-3.5" />
-                            <span>Proceed to Next Section</span>
+                            <BookOpen className="w-3.5 h-3.5 shrink-0" />
+                            <span className="truncate">Next Section</span>
                           </button>
                           <button 
                             onClick={() => navigate(`/courses/${id}`)}
-                            className="h-14 bg-[#EEF3FF] hover:bg-blue-100 border border-[#D8E3FF] rounded-2xl text-text-2 font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center cursor-pointer"
+                            className="h-14 bg-[#EEF3FF] hover:bg-blue-100 border border-[#D8E3FF] rounded-2xl text-text-2 font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 px-2 cursor-pointer"
                           >
-                            Return to Outlines List
+                            <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
+                            <span className="truncate">Outlines List</span>
+                          </button>
+                          <button 
+                            onClick={async () => {
+                              setShowCompletionModal(false);
+                              if (user?.uid && id) {
+                                try {
+                                  await deleteDoc(doc(db, 'studyProgress', `${user.uid}_${id}`));
+                                } catch (err) {
+                                  console.error("Error resyncing progress:", err);
+                                }
+                              }
+                              window.location.reload();
+                            }}
+                            className="h-14 bg-[#EEF3FF] hover:bg-blue-100 border border-[#D8E3FF] text-[#2563EB] rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 px-2 cursor-pointer"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5 shrink-0" />
+                            <span className="truncate">Re-sync</span>
                           </button>
                         </div>
                       </div>
@@ -1085,23 +1134,41 @@ export default function StudyPage() {
                           </p>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
                           <button 
                             onClick={() => {
                               setShowCompletionModal(false);
                               setShowResults(true);
                               saveProgress({ completed: true });
                             }}
-                            className="h-14 bg-[#2563EB] hover:bg-blue-600 rounded-2xl text-white font-black text-[10px] uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                            className="h-14 bg-[#2563EB] hover:bg-blue-600 rounded-2xl text-white font-black text-[10px] uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-1.5 px-2 cursor-pointer"
                           >
-                            <Trophy className="w-3.5 h-3.5" />
-                            <span>View Final Results</span>
+                            <Trophy className="w-3.5 h-3.5 shrink-0" />
+                            <span className="truncate">Final Results</span>
                           </button>
                           <button 
                             onClick={() => navigate(`/courses/${id}`)}
-                            className="h-14 bg-[#EEF3FF] hover:bg-blue-100 border border-[#D8E3FF] rounded-2xl text-text-2 font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center cursor-pointer"
+                            className="h-14 bg-[#EEF3FF] hover:bg-blue-100 border border-[#D8E3FF] rounded-2xl text-text-2 font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 px-2 cursor-pointer"
                           >
-                            Return to Outlines List
+                            <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
+                            <span className="truncate">Outlines List</span>
+                          </button>
+                          <button 
+                            onClick={async () => {
+                              setShowCompletionModal(false);
+                              if (user?.uid && id) {
+                                try {
+                                  await deleteDoc(doc(db, 'studyProgress', `${user.uid}_${id}`));
+                                } catch (err) {
+                                  console.error("Error resyncing progress:", err);
+                                }
+                              }
+                              window.location.reload();
+                            }}
+                            className="h-14 bg-[#EEF3FF] hover:bg-blue-100 border border-[#D8E3FF] text-[#2563EB] rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 px-2 cursor-pointer"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5 shrink-0" />
+                            <span className="truncate">Re-sync</span>
                           </button>
                         </div>
                       </div>

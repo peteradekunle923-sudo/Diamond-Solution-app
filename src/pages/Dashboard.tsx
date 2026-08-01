@@ -306,9 +306,15 @@ export default function Dashboard() {
         {/* Welcome Section */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
           <div className="space-y-1">
-            <h2 className="text-4xl font-serif font-black text-text-1 tracking-tight">
-              {getTimeGreeting()} {activeProfile?.username || activeProfile?.displayName?.split(' ')[0] || 'Scholar'} 👋
-            </h2>
+            {(() => {
+              const rawName = activeProfile?.username || activeProfile?.displayName?.split(' ')[0] || 'Scholar';
+              const formattedName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+              return (
+                <h2 className="text-xl sm:text-2xl font-serif font-bold text-text-1 tracking-tight">
+                  Welcome back, {formattedName}
+                </h2>
+              );
+            })()}
             <div className="inline-flex mt-2 items-center px-3 py-1 rounded-lg bg-gold/10 border border-gold/20 text-[10px] font-black text-gold uppercase tracking-widest">
               {activeProfile?.department ? t(`dept.${activeProfile.department}`) : 'Scholar'}
             </div>

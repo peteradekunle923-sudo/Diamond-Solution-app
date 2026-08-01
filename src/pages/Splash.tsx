@@ -19,11 +19,11 @@ export default function Splash() {
 
   const handleNavigateToLogin = (isSignUp: boolean = false) => {
     const code = refCode || sessionStorage.getItem('referralCode');
-    const mode = isSignUp ? 'signup' : 'login';
+    const basePath = isSignUp ? '/register' : '/login';
     if (code) {
-      navigate(`/login?ref=${code}&mode=${mode}`);
+      navigate(`${basePath}?ref=${code}`);
     } else {
-      navigate(`/login?mode=${mode}`);
+      navigate(basePath);
     }
   };
 

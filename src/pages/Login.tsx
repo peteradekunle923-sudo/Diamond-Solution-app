@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut } from 'firebase/auth';
 import { doc, setDoc, getDoc, query, collection, where, getDocs, limit, updateDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'motion/react';
 import { Diamond, Mail, Lock, ArrowRight, ShieldCheck, Send, MessageCircle, Facebook, Twitter, Instagram, Eye, EyeOff, Fingerprint } from 'lucide-react';
@@ -57,12 +57,13 @@ export default function Login() {
   const { t, language } = useLanguage();
   const [searchParams] = useSearchParams();
   const referralFromUrl = searchParams.get('ref');
+  const location = useLocation();
   const [isLogin, setIsLogin] = useState(() => {
+    if (location.pathname === '/register') return false;
     const params = new URLSearchParams(window.location.search);
     const modeParam = params.get('mode');
     if (modeParam === 'signup') return false;
     if (modeParam === 'login') return true;
-    // Anytime they land on login without explicit mode, show the login page
     return true;
   });
   const [email, setEmail] = useState('');
@@ -128,7 +129,7 @@ export default function Login() {
 
   useEffect(() => {
     const modeParam = searchParams.get('mode');
-    if (referralFromUrl && !modeParam) {
+    if (referralFromUrl && !modeParam && location.pathname === '/login') {
       sessionStorage.setItem('referralCode', referralFromUrl);
       navigate(`/?ref=${referralFromUrl}`, { replace: true });
     } else {
@@ -137,16 +138,13 @@ export default function Login() {
         setManualReferralCode(code);
       }
       
-      if (modeParam === 'signup') {
+      if (location.pathname === '/register' || modeParam === 'signup') {
         setIsLogin(false);
-      } else if (modeParam === 'login') {
-        setIsLogin(true);
-      } else {
-        // Default to login unless explicitly requested as signup
+      } else if (location.pathname === '/login' || modeParam === 'login') {
         setIsLogin(true);
       }
     }
-  }, [referralFromUrl, navigate, searchParams]);
+  }, [referralFromUrl, navigate, searchParams, location.pathname]);
 
   useEffect(() => {
     const reason = searchParams.get('reason');
@@ -744,25 +742,52 @@ export default function Login() {
               <div className="absolute bottom-[-10%] left-[-10%] w-[300px] h-[300px] opacity-10" style={{ background: 'radial-gradient(circle, #2563EB 0%, rgba(37,99,235,0) 60%)' }} />
             </div>
 
+            <div className="flex flex-col items-center mb-6 space-y-2 text-center">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 bg-[#2563EB] diamond-mark shadow-lg shadow-[#2563EB]/30 flex items-center justify-center mb-1">
+                <Diamond className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-serif font-black tracking-tight text-slate-900">
+                Diamond Solutions
+              </h1>
+              <p className="text-slate-500 text-xs sm:text-sm font-medium">
+                {showOtpStep ? t('auth.otpSent') : isLogin ? t('auth.signin') : (t('auth.noAccount').split('?')[1]?.trim() || t('auth.login'))}
+              </p>
+            </div>
+
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="relative z-10 w-full max-w-[calc(100vw-24px)] xs:max-w-md p-5 xs:p-6 sm:p-8 md:p-10 border border-[#D8E3FF] rounded-3xl shadow-xl mt-auto mb-auto bg-white overflow-visible transition-all duration-200"
+              className="relative z-10 w-full max-w-[calc(100vw-24px)] xs:max-w-md p-5 xs:p-6 sm:p-8 md:p-10 border border-[#D8E3FF] rounded-3xl shadow-xl bg-white overflow-visible transition-all duration-200"
             >
-            <div className="flex flex-col items-center space-y-6 sm:space-y-8 md:space-y-10">
-          <div className="flex flex-col items-center space-y-3 sm:space-y-4">
-            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-[#2563EB] diamond-mark shadow-lg shadow-[#2563EB]/30 flex items-center justify-center">
-              <Diamond className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
-            </div>
-            <div className="text-center space-y-1">
-              <h2 className="text-2xl sm:text-3xl font-serif font-black tracking-tight text-slate-900">
-                {showOtpStep ? t('auth.verifyEmail') : isLogin ? t('auth.signin') : t('auth.noAccount').split('?')[1]?.trim() || t('auth.login')}
-              </h2>
-              <p className="text-slate-400 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.4em] leading-relaxed">
-                {showOtpStep ? t('auth.otpSent') : t('splash.professional')}
-              </p>
-            </div>
-          </div>
+            <div className="flex flex-col items-center space-y-6">
+              {!showOtpStep && !showForgotPassword && (
+                <div className="flex border-b border-slate-200 w-full mb-2">
+                  <button
+                    type="button"
+                    onClick={() => { navigate('/login'); setIsLogin(true); setShowForgotPassword(false); setShowOtpStep(false); }}
+                    className={cn(
+                      "flex-1 py-3 text-center text-xs sm:text-sm font-bold tracking-wide transition-all border-b-2 -mb-[2px]",
+                      isLogin
+                        ? "border-[#2563EB] text-[#2563EB]"
+                        : "border-transparent text-slate-400 hover:text-slate-600 font-medium"
+                    )}
+                  >
+                    {t('auth.signin')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { navigate('/register'); setIsLogin(false); setStep(1); setShowForgotPassword(false); setShowOtpStep(false); }}
+                    className={cn(
+                      "flex-1 py-3 text-center text-xs sm:text-sm font-bold tracking-wide transition-all border-b-2 -mb-[2px]",
+                      !isLogin
+                        ? "border-[#2563EB] text-[#2563EB]"
+                        : "border-transparent text-slate-400 hover:text-slate-600 font-medium"
+                    )}
+                  >
+                    {t('auth.noAccount').split('?')[1]?.trim() || 'Create Account'}
+                  </button>
+                </div>
+              )}
 
           {showOtpStep ? (
              <form 
@@ -1636,7 +1661,20 @@ export default function Login() {
 
           <div className="w-full text-center space-y-6">
             <button
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={() => {
+                if (isLogin) {
+                  navigate('/register');
+                  setIsLogin(false);
+                  setStep(1);
+                  setShowForgotPassword(false);
+                  setShowOtpStep(false);
+                } else {
+                  navigate('/login');
+                  setIsLogin(true);
+                  setShowForgotPassword(false);
+                  setShowOtpStep(false);
+                }
+              }}
               className="text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] hover:text-[#2563EB] transition-all"
             >
               {isLogin ? (
@@ -1676,6 +1714,9 @@ export default function Login() {
           </div>
         </div>
       </motion.div>
+      <p className="text-[10px] sm:text-[11px] text-slate-400 text-center max-w-xs sm:max-w-sm mt-6 leading-relaxed font-sans">
+        Diamond Solutions is an independent study platform and is not affiliated with, endorsed by, or sponsored by ASCP BOC.
+      </p>
     </div>
   </div>
         </ScrollView>
