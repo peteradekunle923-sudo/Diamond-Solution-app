@@ -105,7 +105,7 @@ export default function Chat() {
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center space-y-6 opacity-30">
                <div className="p-5 bg-[#EEF3FF] rounded-3xl border border-[#D8E3FF] flex items-center justify-center animate-pulse">
-                 <DiamondLogo size={60} variant="blue" />
+                 <DiamondLogo size={60} variant="blue" layout="icon" />
                </div>
                <div className="space-y-2">
                  <p className="text-sm font-serif font-black text-text-1 uppercase tracking-widest leading-loose">{t('chat.channelEstablished')}</p>

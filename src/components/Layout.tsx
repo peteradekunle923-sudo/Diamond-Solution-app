@@ -73,7 +73,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       )}>
         <div className="flex items-center gap-3">
           <NavLink to="/dashboard" className="flex items-center gap-2">
-            <DiamondLogo size="sm" />
+            <DiamondLogo size="sm" layout="icon" />
           </NavLink>
           <h1 className="text-xl font-serif font-black text-text-1 tracking-tight">
             {currentTitle}

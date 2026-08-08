@@ -25,7 +25,7 @@ const PageLoader = () => (
   <div className="fixed inset-0 bg-[#07101F] flex flex-col items-center justify-center z-50 px-4">
     <div className="flex flex-col items-center space-y-6">
       <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-md border border-white/20 flex items-center justify-center animate-pulse">
-        <DiamondLogo size={60} variant="white" />
+        <DiamondLogo size={60} variant="white" layout="icon" />
       </div>
       <div className="text-center space-y-2">
         <h3 className="text-lg font-serif font-black tracking-[0.25em] text-[#EDE8E1] uppercase animate-pulse">

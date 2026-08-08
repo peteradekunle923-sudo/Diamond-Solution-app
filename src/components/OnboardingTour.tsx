@@ -136,7 +136,7 @@ export default function OnboardingTour() {
             {/* Top Branding */}
             <div className="pt-12 pb-8 px-12 flex justify-between items-center">
               <div className="flex items-center gap-3">
-                <DiamondLogo size="sm" variant="white" />
+                <DiamondLogo size="sm" variant="white" layout="icon" />
                 <span className="font-serif font-black text-white uppercase tracking-tighter text-sm">Diamond Solution</span>
               </div>
               <div className="text-[10px] font-black text-gold/40 uppercase tracking-[0.4em]">Protocol Version 3.1</div>
