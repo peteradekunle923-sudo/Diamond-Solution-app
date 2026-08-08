@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
-import { Diamond } from 'lucide-react';
+import { DiamondLogo } from './components/DiamondLogo';
 import Login from './pages/Login';
 
 // Pages - to be created
@@ -24,8 +24,8 @@ const Leaderboard = React.lazy(() => import('./pages/Leaderboard'));
 const PageLoader = () => (
   <div className="fixed inset-0 bg-[#07101F] flex flex-col items-center justify-center z-50 px-4">
     <div className="flex flex-col items-center space-y-6">
-      <div className="w-16 h-16 bg-[#C9930A] diamond-mark drop-shadow-[0_0_20px_rgba(201,147,10,0.5)] flex items-center justify-center animate-pulse">
-        <Diamond className="w-8 h-8 text-[#07101F]" />
+      <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-md border border-white/20 flex items-center justify-center animate-pulse">
+        <DiamondLogo size={60} variant="white" />
       </div>
       <div className="text-center space-y-2">
         <h3 className="text-lg font-serif font-black tracking-[0.25em] text-[#EDE8E1] uppercase animate-pulse">

@@ -9,6 +9,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { sendEmailVerification } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { DiamondLogo } from './DiamondLogo';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, isAdmin, isVerified, profile } = useAuth();
@@ -70,7 +71,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         "sticky h-16 bg-white/90 backdrop-blur-md border-b border-[#D8E3FF] px-6 flex items-center justify-between z-30 shadow-xs",
         "top-0"
       )}>
-        <div className="flex flex-col">
+        <div className="flex items-center gap-3">
+          <NavLink to="/dashboard" className="flex items-center gap-2">
+            <DiamondLogo size="sm" />
+          </NavLink>
           <h1 className="text-xl font-serif font-black text-text-1 tracking-tight">
             {currentTitle}
           </h1>

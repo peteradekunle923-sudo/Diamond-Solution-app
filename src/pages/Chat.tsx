@@ -3,7 +3,8 @@ import { collection, onSnapshot, query, orderBy, addDoc, limit, setDoc, doc, inc
 import { db } from '../lib/firebase';
 import Layout from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
-import { Send, LifeBuoy, Diamond, ShieldCheck } from 'lucide-react';
+import { Send, LifeBuoy, ShieldCheck } from 'lucide-react';
+import { DiamondLogo } from '../components/DiamondLogo';
 import { motion } from 'motion/react';
 import { format } from 'date-fns';
 import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
@@ -103,8 +104,8 @@ export default function Chat() {
         <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-none">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center space-y-6 opacity-30">
-               <div className="w-24 h-24 bg-[#EEF3FF] rounded-3xl border border-[#D8E3FF] flex items-center justify-center animate-pulse">
-                 <Diamond className="w-10 h-10 text-[#2563EB]" />
+               <div className="p-5 bg-[#EEF3FF] rounded-3xl border border-[#D8E3FF] flex items-center justify-center animate-pulse">
+                 <DiamondLogo size={60} variant="blue" />
                </div>
                <div className="space-y-2">
                  <p className="text-sm font-serif font-black text-text-1 uppercase tracking-widest leading-loose">{t('chat.channelEstablished')}</p>

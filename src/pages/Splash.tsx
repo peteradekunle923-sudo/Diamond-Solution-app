@@ -1,8 +1,9 @@
 import React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Diamond, ArrowRight, Globe } from 'lucide-react';
+import { ArrowRight, Globe } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { DiamondLogo } from '../components/DiamondLogo';
 
 export default function Splash() {
   const navigate = useNavigate();
@@ -55,14 +56,8 @@ export default function Splash() {
       <div className="relative z-10 max-w-2xl w-full p-8 md:p-16 border border-[#D8E3FF] rounded-3xl bg-white shadow-xl animate-in fade-in zoom-in duration-700 my-auto">
         <div className="flex flex-col items-center text-center space-y-10">
           {/* Logo Section */}
-          <div className="flex flex-col items-center space-y-6">
-            <div className="w-20 h-20 bg-[#2563EB] diamond-mark shadow-lg shadow-[#2563EB]/30 flex items-center justify-center transition-transform hover:rotate-12 duration-500">
-              <Diamond className="w-10 h-10 text-white" />
-            </div>
-            <div className="space-y-2">
-              <h1 className="text-4xl md:text-5xl font-serif font-black tracking-tight text-slate-900">{t('splash.title')}</h1>
-              <p className="text-slate-400 text-xs font-black uppercase tracking-[0.4em]">{t('splash.subtitle')}</p>
-            </div>
+          <div className="flex flex-col items-center">
+            <DiamondLogo size={80} layout="vertical" showText={true} showTagline={true} />
           </div>
 
           <div className="w-full h-[1px] bg-[#D8E3FF]" />

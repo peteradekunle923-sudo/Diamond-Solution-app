@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 580" width="100%" height="100%">
+  <!-- Royal Blue Color Theme (#0A33CC) -->
+  <g fill="#0A33CC">
+    <!-- Academic Graduation Cap (Mortarboard Top) -->
+    <polygon points="250,25 435,105 250,185 65,105" />
+    
+    <!-- Cap Underband Rim -->
+    <path d="M 165,150 C 210,173 290,173 335,150 L 335,163 C 290,186 210,186 165,163 Z" />
+
+    <!-- Hanging Tassel on Left -->
+    <circle cx="250" cy="105" r="7.5" />
+    <path 
+      d="M 250,105 C 160,115 122,147 122,195 L 122,243" 
+      stroke="#0A33CC" 
+      stroke-width="8" 
+      stroke-linecap="round" 
+      fill="none" 
+    />
+    <circle cx="122" cy="247" r="8" />
+    <path d="M 111,255 C 105,303 139,303 133,255 Z" />
+
+    <!-- Integrated D Monogram - Vertical Stem -->
+    <path d="M 160,163 L 204,163 L 204,400 L 160,400 Z" />
+    
+    <!-- Integrated D Monogram - Outer Curve -->
+    <path d="M 198,163 C 305,163 368,203 368,280 C 368,357 305,400 198,400 L 198,353 C 270,353 318,323 318,280 C 318,237 270,210 198,210 Z" />
+
+    <!-- Intertwined S Monogram -->
+    <path d="M 265,237 C 320,237 378,257 378,297 C 378,337 322,353 272,365 C 230,375 212,395 212,423 C 212,461 268,479 328,479 C 368,479 398,465 398,445 C 398,431 382,431 372,441 C 358,455 338,461 318,461 C 275,461 248,445 248,423 C 248,403 270,393 312,383 C 362,371 412,347 412,297 C 412,247 358,220 285,220 C 250,220 222,230 222,247 C 222,258 236,258 246,249 C 258,241 276,237 292,237 Z" />
+  </g>
+
+  <!-- Typography Section -->
+  <text 
+    x="250" 
+    y="525" 
+    font-family="Georgia, 'Times New Roman', serif" 
+    font-size="34" 
+    font-weight="900" 
+    fill="#0A33CC" 
+    text-anchor="middle"
+    letter-spacing="-0.5"
+  >Diamond Solution</text>
+
+  <text 
+    x="250" 
+    y="555" 
+    font-family="system-ui, -apple-system, sans-serif" 
+    font-size="15" 
+    font-weight="600" 
+    fill="#475569" 
+    text-anchor="middle"
+    letter-spacing="0.2"
+  >Committed to raising first-class professionals.</text>
+</svg>

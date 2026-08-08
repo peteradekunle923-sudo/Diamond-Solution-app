@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, ArrowRight, ArrowLeft, Trophy, Target, BookOpen, GraduationCap, Sparkles, ShieldCheck, Diamond } from 'lucide-react';
+import { X, ArrowRight, ArrowLeft, Trophy, Target, BookOpen, GraduationCap, Sparkles, ShieldCheck } from 'lucide-react';
+import { DiamondLogo } from './DiamondLogo';
 import { cn } from '../lib/utils';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -135,9 +136,7 @@ export default function OnboardingTour() {
             {/* Top Branding */}
             <div className="pt-12 pb-8 px-12 flex justify-between items-center">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 diamond-gradient flex items-center justify-center p-1.5 shadow-lg shadow-gold/20 rotate-45">
-                   <Diamond className="w-full h-full text-navy -rotate-45" />
-                </div>
+                <DiamondLogo size="sm" variant="white" />
                 <span className="font-serif font-black text-white uppercase tracking-tighter text-sm">Diamond Solution</span>
               </div>
               <div className="text-[10px] font-black text-gold/40 uppercase tracking-[0.4em]">Protocol Version 3.1</div>

@@ -5,8 +5,9 @@ import { auth, db } from '../lib/firebase';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'motion/react';
-import { Diamond, Mail, Lock, ArrowRight, ShieldCheck, Send, MessageCircle, Facebook, Twitter, Instagram, Eye, EyeOff, Fingerprint } from 'lucide-react';
+import { Mail, Lock, ArrowRight, ShieldCheck, Send, MessageCircle, Facebook, Twitter, Instagram, Eye, EyeOff, Fingerprint } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { DiamondLogo } from '../components/DiamondLogo';
 import { setSessionToken } from '../context/AuthContext';
 import { cn } from '../lib/utils';
 import { isBiometricsSupported, hasEnrolledBiometrics, enrollBiometrics, authenticateBiometrics, getEnrolledEmail, clearBiometrics, getDeviceBiometricId } from '../lib/biometrics';
@@ -696,7 +697,7 @@ export default function Login() {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[9999] p-4">
           <div className="bg-white border-2 border-[#2563EB]/40 rounded-2xl max-w-md w-full p-6 space-y-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center gap-3 text-[#2563EB]">
-              <Diamond className="w-6 h-6 animate-pulse text-[#2563EB]" />
+              <DiamondLogo size={20} variant="blue" />
               <h3 className="text-base font-serif font-black uppercase tracking-wider text-slate-900">{securityModal.title}</h3>
             </div>
             <p className="text-slate-600 text-xs font-medium leading-relaxed">{securityModal.message}</p>
@@ -742,14 +743,9 @@ export default function Login() {
               <div className="absolute bottom-[-10%] left-[-10%] w-[300px] h-[300px] opacity-10" style={{ background: 'radial-gradient(circle, #2563EB 0%, rgba(37,99,235,0) 60%)' }} />
             </div>
 
-            <div className="flex flex-col items-center mb-6 space-y-2 text-center">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 bg-[#2563EB] diamond-mark shadow-lg shadow-[#2563EB]/30 flex items-center justify-center mb-1">
-                <Diamond className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-serif font-black tracking-tight text-slate-900">
-                Diamond Solutions
-              </h1>
-              <p className="text-slate-500 text-xs sm:text-sm font-medium">
+            <div className="flex flex-col items-center mb-6 text-center">
+              <DiamondLogo size={64} layout="vertical" showText={true} showTagline={true} />
+              <p className="text-slate-500 text-xs sm:text-sm font-medium mt-3">
                 {showOtpStep ? t('auth.otpSent') : isLogin ? t('auth.signin') : (t('auth.noAccount').split('?')[1]?.trim() || t('auth.login'))}
               </p>
             </div>
