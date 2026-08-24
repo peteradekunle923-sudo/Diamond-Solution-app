@@ -29,63 +29,63 @@ export default function Splash() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 relative flex flex-col justify-center items-center px-4 py-12 md:py-20">
+    <div className="min-h-screen bg-[#F4F7FE] text-slate-900 relative flex flex-col justify-center items-center px-4 py-12 md:py-20 diamond-mesh">
       {/* Language Toggle */}
-      <div className="absolute top-6 right-6 md:top-8 md:right-8 z-50 flex items-center gap-2 bg-white border border-[#D8E3FF] p-1.5 rounded-full shadow-md">
-        <Globe className="w-4 h-4 text-[#2563EB] ml-2" />
+      <div className="absolute top-6 right-6 md:top-8 md:right-8 z-50 flex items-center gap-2 bg-white border border-[#DDE5F5] p-1.5 rounded-full shadow-md">
+        <Globe className="w-4 h-4 text-[#1B3FA0] ml-2" />
         <button 
           onClick={() => setLanguage('en')}
-          className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase transition-all ${language === 'en' ? 'bg-[#2563EB] text-white shadow-md' : 'text-slate-400 hover:text-[#2563EB]'}`}
+          className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase transition-all cursor-pointer ${language === 'en' ? 'bg-[#1B3FA0] text-white shadow-md' : 'text-slate-500 hover:text-[#1B3FA0]'}`}
         >
           EN
         </button>
         <button 
           onClick={() => setLanguage('fr')}
-          className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase transition-all ${language === 'fr' ? 'bg-[#2563EB] text-white shadow-md' : 'text-slate-400 hover:text-[#2563EB]'}`}
+          className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase transition-all cursor-pointer ${language === 'fr' ? 'bg-[#1B3FA0] text-white shadow-md' : 'text-slate-500 hover:text-[#1B3FA0]'}`}
         >
           FR
         </button>
       </div>
 
-      {/* FIXED Background Ornaments */}
+      {/* Background Ornaments */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] opacity-20" style={{ background: 'radial-gradient(circle, #2563EB 0%, transparent 60%)' }} />
-        <div className="absolute bottom-[-10%] left-[-10%] w-[300px] h-[300px] opacity-10" style={{ background: 'radial-gradient(circle, #2563EB 0%, transparent 60%)' }} />
+        <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] opacity-15" style={{ background: 'radial-gradient(circle, #1B3FA0 0%, transparent 60%)' }} />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[300px] h-[300px] opacity-10" style={{ background: 'radial-gradient(circle, #0B1E3D 0%, transparent 60%)' }} />
       </div>
 
-      <div className="relative z-10 max-w-2xl w-full p-8 md:p-16 border border-[#D8E3FF] rounded-3xl bg-white shadow-xl animate-in fade-in zoom-in duration-700 my-auto">
-        <div className="flex flex-col items-center text-center space-y-10">
+      <div className="relative z-10 max-w-2xl w-full p-8 md:p-14 border border-[#DDE5F5] rounded-3xl bg-white/95 backdrop-blur-xl shadow-2xl shadow-[#0B1E3D]/5 animate-in fade-in zoom-in duration-700 my-auto">
+        <div className="flex flex-col items-center text-center space-y-8">
           {/* Logo Section */}
           <div className="flex flex-col items-center">
             <DiamondLogo size={80} layout="vertical" showText={true} showTagline={true} />
           </div>
 
-          <div className="w-full h-[1px] bg-[#D8E3FF]" />
+          <div className="w-full h-[1px] bg-[#DDE5F5]" />
 
           {/* Tagline */}
-          <p className="text-lg md:text-xl font-serif italic text-slate-600 leading-relaxed max-w-lg mx-auto">
+          <p className="text-base md:text-lg font-serif italic text-slate-600 leading-relaxed max-w-lg mx-auto">
             {t('splash.tagline')}
           </p>
 
           {/* Stats Bar */}
-          <div className="grid grid-cols-3 w-full bg-[#EEF3FF] border border-[#D8E3FF] rounded-2xl overflow-hidden divide-x divide-[#D8E3FF]">
+          <div className="grid grid-cols-3 w-full bg-[#EEF3FF] border border-[#D4E0FC] rounded-2xl overflow-hidden divide-x divide-[#D4E0FC]">
             <StatSmall num="5+" label={t('splash.departments')} />
             <StatSmall num="15,000+" label={t('splash.questions')} />
             <StatSmall num="25%" label={t('splash.commission')} />
           </div>
 
           {/* Actions */}
-          <div className="w-full space-y-4 pt-4">
+          <div className="w-full space-y-3 pt-2">
             <button 
               onClick={() => handleNavigateToLogin(true)}
-              className="w-full bg-[#2563EB] text-white py-5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] shadow-lg shadow-[#2563EB]/20 hover:bg-[#1d4ed8] active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+              className="w-full btn-primary py-4 text-xs tracking-[0.25em] uppercase font-black shadow-lg shadow-[#1B3FA0]/20"
             >
               💎 {t('splash.initiate')}
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-4 h-4 ml-1" />
             </button>
             <button 
               onClick={() => handleNavigateToLogin(false)}
-              className="w-full bg-white border border-[#D8E3FF] text-[#2563EB] py-5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] hover:bg-[#EEF3FF] transition-all shadow-sm"
+              className="w-full btn-secondary py-4 text-xs tracking-[0.25em] uppercase font-black"
             >
               {t('splash.signin')}
             </button>
@@ -102,9 +102,9 @@ export default function Splash() {
 
 function StatSmall({ num, label }: { num: string, label: string }) {
   return (
-    <div className="py-4 px-2 space-y-1">
-      <div className="text-lg md:text-xl font-serif font-black text-[#2563EB]">{num}</div>
-      <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{label}</div>
+    <div className="py-3.5 px-2 space-y-1">
+      <div className="text-lg md:text-xl font-serif font-black text-[#0A33CC]">{num}</div>
+      <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{label}</div>
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { collection, onSnapshot, query, where, getDoc, doc, setDoc, updateDoc, g
 import { db } from '../lib/firebase';
 import Layout from '../components/Layout';
 import { Search, Filter, BookOpen, ArrowRight, Layers, Lock, Zap, CheckCircle, ChevronRight } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
 import { DEPARTMENTS, DEPARTMENT_STRUCTURE, DEPARTMENT_PRICES } from '../constants';
 import { useAuth } from '../context/AuthContext';
@@ -16,10 +16,43 @@ import axios from 'axios';
 export default function CourseList() {
   const { user, profile, isAdmin } = useAuth();
   const { t } = useLanguage();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  const urlDept = searchParams.get('department');
+  const urlLevel = searchParams.get('level');
+  const urlSearch = searchParams.get('search');
+
   const [courses, setCourses] = useState<any[]>([]);
-  const [search, setSearch] = useState(() => sessionStorage.getItem('courseList_search') || '');
-  const [deptFilter, setDeptFilter] = useState(() => sessionStorage.getItem('courseList_deptFilter') || 'All');
-  const [levelFilter, setLevelFilter] = useState(() => sessionStorage.getItem('courseList_levelFilter') || 'All');
+  const [search, setSearch] = useState(() => urlSearch || sessionStorage.getItem('courseList_search') || '');
+  const [deptFilter, setDeptFilter] = useState(() => {
+    if (urlDept) return urlDept;
+    return sessionStorage.getItem('courseList_deptFilter') || 'All';
+  });
+  const [levelFilter, setLevelFilter] = useState(() => {
+    if (urlLevel) return urlLevel;
+    return sessionStorage.getItem('courseList_levelFilter') || 'All';
+  });
+
+  // Sync with searchParams on change
+  useEffect(() => {
+    if (urlDept) {
+      // Find matching department name
+      setDeptFilter(urlDept);
+    }
+  }, [urlDept]);
+
+  useEffect(() => {
+    if (urlLevel) {
+      setLevelFilter(urlLevel);
+    }
+  }, [urlLevel]);
+
+  useEffect(() => {
+    if (urlSearch !== null) {
+      setSearch(urlSearch);
+    }
+  }, [urlSearch]);
 
   useEffect(() => {
     sessionStorage.setItem('courseList_search', search);
@@ -36,7 +69,6 @@ export default function CourseList() {
   const [deptAccess, setDeptAccess] = useState<Record<string, boolean>>({});
   const [paying, setPaying] = useState(false);
   const [allFaculties, setAllFaculties] = useState<any[]>([]);
-  const navigate = useNavigate();
 
   useEffect(() => {
     // Fetch custom faculties from Firestore
@@ -384,18 +416,18 @@ export default function CourseList() {
               <button
                 key={f.name}
                 onClick={() => setDeptFilter(f.name)}
-                className="card-luxury p-8 text-left group hover:border-blue-300 transition-all flex items-center justify-between bg-white border border-[#D8E3FF] shadow-xs"
+                className="card-luxury p-6 sm:p-8 text-left group hover:border-[#1B3FA0]/40 transition-all flex items-center justify-between bg-white border border-[#DDE5F5] shadow-xs cursor-pointer"
               >
-                <div className="flex items-center gap-6">
-                  <div className="w-16 h-16 bg-[#EEF3FF] rounded-2xl flex items-center justify-center text-gold border border-[#D8E3FF] shadow-xs group-hover:scale-110 transition-all">
-                    <Layers className="w-8 h-8" />
+                <div className="flex items-center gap-5 sm:gap-6">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 bg-[#EEF3FF] rounded-2xl flex items-center justify-center text-[#1B3FA0] border border-[#D4E0FC] shadow-xs group-hover:scale-105 group-hover:bg-[#1B3FA0] group-hover:text-white transition-all">
+                    <Layers className="w-7 h-7 sm:w-8 sm:h-8" />
                   </div>
                   <div className="space-y-1">
-                    <h3 className="text-xl font-serif font-black text-text-1 group-hover:text-gold transition-colors">{t(`dept.${f.name}`)}</h3>
+                    <h3 className="text-lg sm:text-xl font-serif font-black text-[#0B1E3D] group-hover:text-[#1B3FA0] transition-colors">{t(`dept.${f.name}`)}</h3>
                     <div className="flex items-center gap-3">
-                      <span className="text-[9px] font-black text-text-3 uppercase tracking-widest leading-none">{t('courses.faculty')}</span>
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">{t('courses.faculty')}</span>
                       {(isAdmin || deptAccess[f.name]) && (
-                        <div className="flex items-center gap-1 text-emerald-600 text-[8px] font-black uppercase tracking-widest bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                        <div className="flex items-center gap-1 text-emerald-700 text-[8px] font-black uppercase tracking-widest bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
                           <CheckCircle className="w-3 h-3" />
                           {t('courses.authorized')}
                         </div>
@@ -403,8 +435,8 @@ export default function CourseList() {
                     </div>
                   </div>
                 </div>
-                <div className="w-12 h-12 bg-[#EEF3FF] rounded-2xl flex items-center justify-center border border-[#D8E3FF] group-hover:border-blue-300 transition-all">
-                  <ChevronRight className="w-6 h-6 text-text-3 group-hover:text-gold translate-x-px" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#EEF3FF] rounded-2xl flex items-center justify-center border border-[#D4E0FC] group-hover:border-[#1B3FA0]/40 transition-all">
+                  <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6 text-slate-400 group-hover:text-[#1B3FA0] translate-x-px" />
                 </div>
               </button>
             ))}
@@ -430,22 +462,22 @@ export default function CourseList() {
         <div className="space-y-8">
           <button 
             onClick={() => setDeptFilter('All')} 
-            className="flex items-center gap-2 text-[10px] font-black text-gold uppercase tracking-widest hover:underline"
+            className="flex items-center gap-2 text-[10px] font-black text-[#1B3FA0] uppercase tracking-widest hover:underline cursor-pointer"
           >
             ← {t('courses.back')}
           </button>
           
           <div className="flex items-center justify-between">
             <div className="space-y-2">
-              <h2 className="text-3xl font-serif font-black text-text-1 tracking-tight">{t(`dept.${deptFilter}`)}</h2>
-              <p className={cn("text-[10px] font-black uppercase tracking-[0.3em] leading-none", hasAccess ? "text-emerald-500" : "text-text-3")}>
+              <h2 className="text-3xl font-serif font-black text-[#0B1E3D] tracking-tight">{t(`dept.${deptFilter}`)}</h2>
+              <p className={cn("text-[10px] font-black uppercase tracking-[0.3em] leading-none", hasAccess ? "text-emerald-600" : "text-slate-500")}>
                 {hasAccess ? t('courses.authorized') : t('courses.required')}
               </p>
             </div>
             {!hasAccess && (
               <div className="text-right">
-                <p className="text-[9px] font-black text-text-3 uppercase tracking-widest mb-1 opacity-60 text-emerald-500">{t('courses.fee')}</p>
-                <p className="text-xl font-serif font-black text-white">{activePrice.curr}{activePrice.val.toLocaleString()}</p>
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">{t('courses.fee')}</p>
+                <p className="text-xl font-serif font-black text-[#0B1E3D]">{activePrice.curr}{activePrice.val.toLocaleString()}</p>
               </div>
             )}
           </div>
@@ -455,38 +487,37 @@ export default function CourseList() {
             <motion.div 
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="card-luxury p-12 bg-white border border-[#D8E3FF] text-center space-y-8 relative overflow-hidden transform-gpu isolate shadow-md rounded-3xl"
+              className="card-luxury p-12 bg-white border border-[#DDE5F5] text-center space-y-8 relative overflow-hidden transform-gpu isolate shadow-md rounded-3xl"
             >
-              <div className="absolute top-0 right-0 w-64 h-64 opacity-10 -mr-24 -mt-24 pointer-events-none" style={{ background: 'radial-gradient(circle, var(--color-gold) 0%, transparent 70%)' }} />
-              <div className="w-24 h-24 bg-[#EEF3FF] rounded-[2.5rem] flex items-center justify-center text-gold mx-auto border border-[#D8E3FF] shadow-xs">
+              <div className="w-24 h-24 bg-[#EEF3FF] rounded-[2.5rem] flex items-center justify-center text-[#1B3FA0] mx-auto border border-[#D4E0FC] shadow-xs">
                 <Lock className="w-10 h-10" />
               </div>
               <div className="space-y-4">
-                <h3 className="text-2xl font-serif font-black text-text-1 tracking-tight">{t('courses.restricted')}</h3>
-                <p className="text-[10px] font-black text-text-3 uppercase tracking-[0.4em] max-w-sm mx-auto leading-relaxed">
+                <h3 className="text-2xl font-serif font-black text-[#0B1E3D] tracking-tight">{t('courses.restricted')}</h3>
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] max-w-sm mx-auto leading-relaxed">
                   {t('courses.restrictionDesc')}
                 </p>
               </div>
               
-              <div className="grid grid-cols-3 gap-4 max-w-sm mx-auto py-4 border-y border-[#D8E3FF]">
+              <div className="grid grid-cols-3 gap-4 max-w-sm mx-auto py-4 border-y border-[#DDE5F5]">
                 <div className="text-center">
                   <span className="block text-emerald-600 font-serif font-black text-lg">Full</span>
-                  <span className="text-[7px] font-black text-text-3 uppercase tracking-widest">{t('courses.levels')}</span>
+                  <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">{t('courses.levels')}</span>
                 </div>
                 <div className="text-center">
-                  <span className="block text-text-1 font-serif font-black text-lg">∞</span>
-                  <span className="text-[7px] font-black text-text-3 uppercase tracking-widest">Access</span>
+                  <span className="block text-[#0B1E3D] font-serif font-black text-lg">∞</span>
+                  <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Access</span>
                 </div>
                 <div className="text-center">
-                   <span className="block text-text-1 font-serif font-black text-lg">High</span>
-                   <span className="text-[7px] font-black text-text-3 uppercase tracking-widest">Priority</span>
+                   <span className="block text-[#0B1E3D] font-serif font-black text-lg">High</span>
+                   <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Priority</span>
                 </div>
               </div>
 
               <button 
                 onClick={() => handleDeptPayment(deptFilter)}
                 disabled={paying}
-                className="w-full h-16 bg-[#2563EB] rounded-3xl text-white font-black text-xs uppercase tracking-[0.3em] shadow-lg shadow-blue-500/25 hover:bg-blue-600 active:scale-95 transition-all flex items-center justify-center gap-4 group mt-4 cursor-pointer"
+                className="w-full h-14 btn-primary rounded-2xl text-xs uppercase tracking-[0.25em] font-black shadow-lg shadow-[#1B3FA0]/20"
               >
                 {paying ? t('general.loading') : (
                   <>
@@ -495,31 +526,31 @@ export default function CourseList() {
                   </>
                 )}
               </button>
-              <p className="text-[8px] font-black text-text-3 uppercase tracking-[0.3em] opacity-60">{t('courses.oneTime')}</p>
+              <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em]">{t('courses.oneTime')}</p>
             </motion.div>
           ) : (
             <>
               <div className="relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-3 group-focus-within:text-gold transition-colors" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-[#1B3FA0] transition-colors" />
                 <input
                   type="text"
                   placeholder={t('courses.searchPlaceholder')}
-                  className="w-full pl-12 pr-4 py-4 bg-white border border-[#D8E3FF] rounded-2xl outline-none text-sm font-medium shadow-xs text-text-1 placeholder:text-text-3"
+                  className="w-full pl-12 pr-4 py-4 bg-white border border-[#DDE5F5] rounded-2xl outline-none text-sm font-medium shadow-xs text-[#0B1E3D] placeholder:text-slate-400 focus:border-[#1B3FA0]"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
 
               <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-none">
-                <Filter className="w-4 h-4 text-gold flex-shrink-0" />
+                <Filter className="w-4 h-4 text-[#1B3FA0] flex-shrink-0" />
                 {levels.map(lvl => (
                   <button
                     key={lvl}
                     onClick={() => setLevelFilter(lvl)}
                     className={`px-5 py-2.5 rounded-full font-bold text-[9px] uppercase tracking-[0.2em] transition-all border whitespace-nowrap cursor-pointer ${
                       levelFilter === lvl 
-                        ? 'bg-[#2563EB] text-white border-[#2563EB] shadow-md shadow-blue-500/20' 
-                        : 'bg-white text-text-2 border-[#D8E3FF] hover:border-blue-300'
+                        ? 'bg-[#1B3FA0] text-white border-[#1B3FA0] shadow-md shadow-[#1B3FA0]/20' 
+                        : 'bg-white border-[#DDE5F5] text-slate-600 hover:text-[#1B3FA0] hover:border-[#1B3FA0]/30'
                     }`}
                   >
                     {lvl}
@@ -530,16 +561,16 @@ export default function CourseList() {
               <div className="grid gap-5">
                 {loading ? (
                   <div className="flex flex-col items-center justify-center py-24 space-y-6">
-                     <div className="w-10 h-10 border-[3px] border-blue-200 border-t-[#2563EB] rounded-full animate-spin"></div>
-                     <p className="text-[10px] font-black text-text-3 uppercase tracking-[0.3em]">{t('general.loading')}</p>
+                     <div className="w-10 h-10 border-[3px] border-blue-200 border-t-[#1B3FA0] rounded-full animate-spin"></div>
+                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{t('general.loading')}</p>
                   </div>
                 ) : filteredCourses.length > 0 ? (
                   filteredCourses.map((course) => (
                     <CourseListItem key={course.id} course={course} />
                   ))
                 ) : (
-                  <div className="text-center py-24 card-luxury border-dashed border-[#D8E3FF] bg-white">
-                    <p className="text-xs font-black text-text-3 uppercase tracking-widest italic">{t('courses.noRecords')}</p>
+                  <div className="text-center py-24 card-luxury border-dashed border-[#DDE5F5] bg-white">
+                    <p className="text-xs font-black text-slate-500 uppercase tracking-widest italic">{t('courses.noRecords')}</p>
                   </div>
                 )}
               </div>
@@ -556,34 +587,25 @@ function CourseListItem({ course }: { course: any, key?: any }) {
   return (
     <Link 
       to={`/courses/${course.id}`} 
-      className="card-luxury group relative overflow-hidden transform-gpu isolate flex flex-col justify-between p-6 min-h-[140px] hover:border-blue-300 transition-all shadow-xs bg-white border border-[#D8E3FF] rounded-3xl"
+      className="card-luxury group relative overflow-hidden transform-gpu isolate flex flex-col justify-between p-6 min-h-[140px] hover:border-[#1B3FA0]/40 transition-all shadow-xs bg-white border border-[#DDE5F5] rounded-3xl"
     >
-      {/* Background thumbnail */}
-      {course.thumbnail ? (
-        <div className="absolute inset-0 z-0 opacity-10 group-hover:opacity-20 transition-opacity duration-700 pointer-events-none">
-          <img src={course.thumbnail} alt="" className="w-full h-full object-cover grayscale" />
-        </div>
-      ) : (
-        <div className="absolute top-0 right-0 w-48 h-48 opacity-10 -mr-16 -mt-16 pointer-events-none" style={{ background: 'radial-gradient(circle, var(--color-gold) 0%, transparent 70%)' }} />
-      )}
-      
       <div className="relative z-10 flex flex-col justify-between h-full space-y-4">
         <div className="flex items-center justify-between">
-          <span className="text-[8px] font-black uppercase tracking-[0.2em] text-gold bg-[#EEF3FF] px-3 py-1 rounded-full border border-[#D8E3FF]">
+          <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[#1B3FA0] bg-[#EEF3FF] px-3 py-1 rounded-full border border-[#D4E0FC]">
             {course.level}
           </span>
-          <div className="w-8 h-8 rounded-xl bg-[#EEF3FF] border border-[#D8E3FF] flex items-center justify-center text-gold group-hover:bg-[#2563EB] group-hover:text-white transition-colors">
+          <div className="w-8 h-8 rounded-xl bg-[#EEF3FF] border border-[#D4E0FC] flex items-center justify-center text-[#1B3FA0] group-hover:bg-[#1B3FA0] group-hover:text-white transition-colors">
             <BookOpen className="w-4 h-4" />
           </div>
         </div>
 
         <div>
-          <h4 className="font-serif font-black text-text-1 text-[12px] sm:text-[13px] leading-tight group-hover:text-gold transition-colors">
+          <h4 className="font-serif font-black text-[#0B1E3D] text-[13px] sm:text-[14px] leading-tight group-hover:text-[#1B3FA0] transition-colors">
             {course.title}
           </h4>
         </div>
 
-        <div className="flex items-center justify-between text-[9px] font-black text-gold uppercase tracking-[0.2em] pt-3 border-t border-[#D8E3FF] mt-auto">
+        <div className="flex items-center justify-between text-[9px] font-black text-[#1B3FA0] uppercase tracking-[0.2em] pt-3 border-t border-[#DDE5F5] mt-auto">
           <span>{t('general.view')}</span>
           <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
         </div>

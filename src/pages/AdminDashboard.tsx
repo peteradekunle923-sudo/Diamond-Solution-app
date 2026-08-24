@@ -566,16 +566,16 @@ function NavItem({ active, icon: Icon, label, onClick, badge }: { active: boolea
     <button
       onClick={onClick}
       className={cn(
-        "w-[calc(100%-16px)] flex items-center gap-3 px-4 py-2.5 mx-2 my-0.5 rounded-xl text-sm font-medium transition-all relative group",
+        "w-[calc(100%-16px)] flex items-center gap-3 px-4 py-2.5 mx-2 my-0.5 rounded-xl text-sm font-medium transition-all relative group cursor-pointer",
         active 
-          ? "bg-[#EEF3FF] text-[#2563EB] font-bold shadow-sm border-l-4 border-[#2563EB] rounded-l-none" 
-          : "text-slate-600 hover:bg-[#EEF3FF] hover:text-[#2563EB]"
+          ? "bg-[#EEF3FF] text-[#0A33CC] font-bold shadow-xs border-l-4 border-[#0A33CC] rounded-l-none" 
+          : "text-slate-600 hover:bg-[#EEF3FF] hover:text-[#0A33CC]"
       )}
     >
-      <Icon className={cn("w-[18px]", active ? "text-[#2563EB]" : "text-slate-400 group-hover:text-[#2563EB]")} />
-      <span>{label}</span>
+      <Icon className={cn("w-[18px]", active ? "text-[#0A33CC]" : "text-slate-400 group-hover:text-[#0A33CC]")} />
+      <span className="truncate">{label}</span>
       {badge !== undefined && badge > 0 && (
-        <span className="ml-auto bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full font-mono leading-none">
+        <span className="ml-auto bg-rose-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full font-mono leading-none shadow-xs">
           {badge}
         </span>
       )}

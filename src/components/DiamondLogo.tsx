@@ -37,13 +37,14 @@ export const DiamondLogo: React.FC<DiamondLogoProps> = ({
   }
 
   const colorMap = {
-    blue: '#0A33CC',
+    blue: '#1B3FA0',
     white: '#FFFFFF',
-    gold: '#C9930A',
-    custom: customColor || '#0A33CC'
+    gold: '#D4AF37',
+    navy: '#0B1E3D',
+    custom: customColor || '#1B3FA0'
   };
 
-  const fillColor = customColor || colorMap[variant] || colorMap.blue;
+  const fillColor = customColor || colorMap[variant as keyof typeof colorMap] || colorMap.blue;
 
   const isIconOnly = layout === 'icon' || (!showText && !showTagline);
   const isHorizontal = layout === 'horizontal';
@@ -99,15 +100,15 @@ export const DiamondLogo: React.FC<DiamondLogoProps> = ({
         <div className={`flex flex-col justify-center ${textClassName}`}>
           {showText && (
             <span 
-              className="font-serif font-black tracking-tight leading-tight text-slate-900"
-              style={{ color: variant === 'white' ? '#FFFFFF' : variant === 'gold' ? '#C9930A' : '#0A33CC', fontSize: `${Math.max(16, dimension * 0.38)}px` }}
+              className="font-serif font-black tracking-tight leading-tight"
+              style={{ color: variant === 'white' ? '#FFFFFF' : variant === 'gold' ? '#D4AF37' : '#0B1E3D', fontSize: `${Math.max(16, dimension * 0.38)}px` }}
             >
               Diamond Solution
             </span>
           )}
           {showTagline && (
             <span 
-              className={`font-sans font-semibold tracking-normal text-slate-600 mt-0.5 ${taglineClassName}`}
+              className={`font-sans font-medium tracking-normal text-slate-600 mt-0.5 ${taglineClassName}`}
               style={{ color: variant === 'white' ? '#E2E8F0' : '#475569', fontSize: `${Math.max(10, dimension * 0.18)}px` }}
             >
               Committed to raising first-class professionals.
@@ -126,14 +127,14 @@ export const DiamondLogo: React.FC<DiamondLogoProps> = ({
         {showText && (
           <span 
             className="font-serif font-black tracking-tight leading-none"
-            style={{ color: variant === 'white' ? '#FFFFFF' : variant === 'gold' ? '#C9930A' : '#0A33CC', fontSize: `${Math.max(18, dimension * 0.42)}px` }}
+            style={{ color: variant === 'white' ? '#FFFFFF' : variant === 'gold' ? '#D4AF37' : '#0B1E3D', fontSize: `${Math.max(18, dimension * 0.42)}px` }}
           >
             Diamond Solution
           </span>
         )}
         {showTagline && (
           <span 
-            className={`font-sans font-semibold text-slate-600 mt-1.5 ${taglineClassName}`}
+            className={`font-sans font-medium text-slate-600 mt-1.5 ${taglineClassName}`}
             style={{ color: variant === 'white' ? '#CBD5E1' : '#475569', fontSize: `${Math.max(11, dimension * 0.2)}px` }}
           >
             Committed to raising first-class professionals.

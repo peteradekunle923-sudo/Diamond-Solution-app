@@ -736,14 +736,14 @@ export default function Login() {
                 <ActivityIndicator size="large" color="#2563EB" />
               </div>
             )}
-            <div className="min-h-[100dvh] w-full bg-[#F8FAFC] text-slate-900 relative flex flex-col items-center px-3 sm:px-4 py-6 sm:py-8 md:py-12 overflow-x-hidden overflow-y-auto transition-all duration-200" style={{ display: 'flex', flexDirection: 'column', flex: 1, backgroundColor: '#F8FAFC' }}>
+            <div className="min-h-[100dvh] w-full bg-[#F4F7FE] text-slate-900 relative flex flex-col items-center px-3 sm:px-4 py-6 sm:py-8 md:py-12 overflow-x-hidden overflow-y-auto transition-all duration-200 diamond-mesh" style={{ display: 'flex', flexDirection: 'column', flex: 1, backgroundColor: '#F4F7FE' }}>
             {/* Fixed Background Ornaments */}
             <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-              <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] opacity-15" style={{ background: 'radial-gradient(circle, #2563EB 0%, rgba(37,99,235,0) 60%)' }} />
+              <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] opacity-15" style={{ background: 'radial-gradient(circle, #0A33CC 0%, rgba(10,51,204,0) 60%)' }} />
               <div className="absolute bottom-[-10%] left-[-10%] w-[300px] h-[300px] opacity-10" style={{ background: 'radial-gradient(circle, #2563EB 0%, rgba(37,99,235,0) 60%)' }} />
             </div>
 
-            <div className="flex flex-col items-center mb-6 text-center">
+            <div className="flex flex-col items-center mb-6 text-center z-10">
               <DiamondLogo size={64} layout="vertical" showText={true} showTagline={true} />
               <p className="text-slate-500 text-xs sm:text-sm font-medium mt-3">
                 {showOtpStep ? t('auth.otpSent') : isLogin ? t('auth.signin') : (t('auth.noAccount').split('?')[1]?.trim() || t('auth.login'))}
@@ -753,7 +753,7 @@ export default function Login() {
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="relative z-10 w-full max-w-[calc(100vw-24px)] xs:max-w-md p-5 xs:p-6 sm:p-8 md:p-10 border border-[#D8E3FF] rounded-3xl shadow-xl bg-white overflow-visible transition-all duration-200"
+              className="relative z-10 w-full max-w-[calc(100vw-24px)] xs:max-w-md p-5 xs:p-6 sm:p-8 md:p-10 border border-[#D8E3FF] rounded-3xl shadow-xl shadow-blue-900/5 bg-white overflow-visible transition-all duration-200"
             >
             <div className="flex flex-col items-center space-y-6">
               {!showOtpStep && !showForgotPassword && (
@@ -762,9 +762,9 @@ export default function Login() {
                     type="button"
                     onClick={() => { navigate('/login'); setIsLogin(true); setShowForgotPassword(false); setShowOtpStep(false); }}
                     className={cn(
-                      "flex-1 py-3 text-center text-xs sm:text-sm font-bold tracking-wide transition-all border-b-2 -mb-[2px]",
+                      "flex-1 py-3 text-center text-xs sm:text-sm font-bold tracking-wide transition-all border-b-2 -mb-[2px] cursor-pointer",
                       isLogin
-                        ? "border-[#2563EB] text-[#2563EB]"
+                        ? "border-[#0A33CC] text-[#0A33CC]"
                         : "border-transparent text-slate-400 hover:text-slate-600 font-medium"
                     )}
                   >
@@ -774,9 +774,9 @@ export default function Login() {
                     type="button"
                     onClick={() => { navigate('/register'); setIsLogin(false); setStep(1); setShowForgotPassword(false); setShowOtpStep(false); }}
                     className={cn(
-                      "flex-1 py-3 text-center text-xs sm:text-sm font-bold tracking-wide transition-all border-b-2 -mb-[2px]",
+                      "flex-1 py-3 text-center text-xs sm:text-sm font-bold tracking-wide transition-all border-b-2 -mb-[2px] cursor-pointer",
                       !isLogin
-                        ? "border-[#2563EB] text-[#2563EB]"
+                        ? "border-[#0A33CC] text-[#0A33CC]"
                         : "border-transparent text-slate-400 hover:text-slate-600 font-medium"
                     )}
                   >
