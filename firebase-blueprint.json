@@ -50,6 +50,7 @@
         "department": { "type": "string" },
         "level": { "type": "string" },
         "price": { "type": "number" },
+        "imageUrl": { "type": "string" },
         "thumbnail": { "type": "string" },
         "objectives": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
@@ -185,6 +186,7 @@
         "id": { "type": "string" },
         "name": { "type": "string" },
         "price": { "type": "number" },
+        "imageUrl": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       }

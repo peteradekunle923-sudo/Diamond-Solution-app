@@ -78,18 +78,24 @@ export default function CourseList() {
         price: doc.data().price || 10000,
         priceUSD: doc.data().priceUSD || Math.ceil((doc.data().price || 10000) / 1500),
         levels: doc.data().levels || null,
+        imageUrl: doc.data().imageUrl || '',
         isCustom: true 
       }));
       
       const deletedStaticNames = snap.docs.filter(doc => doc.data().isDeleted).map(doc => doc.data().name);
       
-      const staticDepts = DEPARTMENTS.filter(name => !deletedStaticNames.includes(name)).map(name => ({
-        name,
-        price: DEPARTMENT_PRICES[name]?.ngn || 10000,
-        priceUSD: DEPARTMENT_PRICES[name]?.usd || 7,
-        levels: null,
-        isCustom: false
-      }));
+      const staticDepts = DEPARTMENTS.filter(name => !deletedStaticNames.includes(name)).map(name => {
+        const customDoc = snap.docs.find(d => d.data().name === name);
+        const data = customDoc ? customDoc.data() : null;
+        return {
+          name,
+          price: DEPARTMENT_PRICES[name]?.ngn || 10000,
+          priceUSD: DEPARTMENT_PRICES[name]?.usd || 7,
+          levels: data?.levels || null,
+          imageUrl: data?.imageUrl || '',
+          isCustom: false
+        };
+      });
 
       // Custom override static
       const merged = [...activeCustom];
@@ -419,8 +425,12 @@ export default function CourseList() {
                 className="card-luxury p-6 sm:p-8 text-left group hover:border-[#1B3FA0]/40 transition-all flex items-center justify-between bg-white border border-[#DDE5F5] shadow-xs cursor-pointer"
               >
                 <div className="flex items-center gap-5 sm:gap-6">
-                  <div className="w-14 h-14 sm:w-16 sm:h-16 bg-[#EEF3FF] rounded-2xl flex items-center justify-center text-[#1B3FA0] border border-[#D4E0FC] shadow-xs group-hover:scale-105 group-hover:bg-[#1B3FA0] group-hover:text-white transition-all">
-                    <Layers className="w-7 h-7 sm:w-8 sm:h-8" />
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 bg-[#EEF3FF] rounded-2xl overflow-hidden flex items-center justify-center text-[#1B3FA0] border border-[#D4E0FC] shadow-xs group-hover:scale-105 transition-all">
+                    {f.imageUrl ? (
+                      <img src={f.imageUrl} alt={f.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      <Layers className="w-7 h-7 sm:w-8 sm:h-8" />
+                    )}
                   </div>
                   <div className="space-y-1">
                     <h3 className="text-lg sm:text-xl font-serif font-black text-[#0B1E3D] group-hover:text-[#1B3FA0] transition-colors">{t(`dept.${f.name}`)}</h3>
@@ -584,31 +594,31 @@ export default function CourseList() {
 
 function CourseListItem({ course }: { course: any, key?: any }) {
   const { t } = useLanguage();
+  const courseImg = course.imageUrl || course.thumbnail;
   return (
     <Link 
       to={`/courses/${course.id}`} 
-      className="card-luxury group relative overflow-hidden transform-gpu isolate flex flex-col justify-between p-6 min-h-[140px] hover:border-[#1B3FA0]/40 transition-all shadow-xs bg-white border border-[#DDE5F5] rounded-3xl"
+      className="card-luxury group relative overflow-hidden transform-gpu isolate flex items-center justify-between p-6 hover:border-[#1B3FA0]/40 transition-all shadow-xs bg-white border border-[#DDE5F5] rounded-3xl cursor-pointer"
     >
-      <div className="relative z-10 flex flex-col justify-between h-full space-y-4">
-        <div className="flex items-center justify-between">
-          <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[#1B3FA0] bg-[#EEF3FF] px-3 py-1 rounded-full border border-[#D4E0FC]">
+      <div className="flex items-center gap-5 min-w-0 pr-4">
+        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden bg-[#EEF3FF] border border-[#D4E0FC] flex items-center justify-center text-[#1B3FA0] shrink-0 shadow-xs group-hover:scale-105 transition-all">
+          {courseImg ? (
+            <img src={courseImg} alt={course.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+          ) : (
+            <BookOpen className="w-7 h-7" />
+          )}
+        </div>
+        <div className="space-y-1.5 min-w-0">
+          <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[#1B3FA0] bg-[#EEF3FF] px-3 py-1 rounded-full border border-[#D4E0FC] inline-block">
             {course.level}
           </span>
-          <div className="w-8 h-8 rounded-xl bg-[#EEF3FF] border border-[#D4E0FC] flex items-center justify-center text-[#1B3FA0] group-hover:bg-[#1B3FA0] group-hover:text-white transition-colors">
-            <BookOpen className="w-4 h-4" />
-          </div>
-        </div>
-
-        <div>
-          <h4 className="font-serif font-black text-[#0B1E3D] text-[13px] sm:text-[14px] leading-tight group-hover:text-[#1B3FA0] transition-colors">
+          <h4 className="font-serif font-black text-[#0B1E3D] text-[15px] sm:text-[16px] leading-tight group-hover:text-[#1B3FA0] transition-colors truncate">
             {course.title}
           </h4>
         </div>
-
-        <div className="flex items-center justify-between text-[9px] font-black text-[#1B3FA0] uppercase tracking-[0.2em] pt-3 border-t border-[#DDE5F5] mt-auto">
-          <span>{t('general.view')}</span>
-          <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-        </div>
+      </div>
+      <div className="w-10 h-10 rounded-2xl bg-[#EEF3FF] border border-[#D4E0FC] flex items-center justify-center text-slate-400 group-hover:text-[#1B3FA0] group-hover:border-[#1B3FA0]/40 transition-all shrink-0">
+        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
       </div>
     </Link>
   );

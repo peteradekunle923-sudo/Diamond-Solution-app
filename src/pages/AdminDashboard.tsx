@@ -9,7 +9,8 @@ import {
   Shield, LayoutDashboard, Users, Link as LinkIcon, CreditCard, Wallet,
   BarChart2, Building2, FileText, Bell, Quote, LogOut, Search, 
   Filter, Plus, Edit3, Trash2, CheckCircle2, AlertCircle, XCircle, ArrowRight, ArrowLeft,
-  Layers, X, Download, MessageCircle, Check, Target, ShieldAlert, Clock, Menu, BookOpen, RotateCcw
+  Layers, X, Download, MessageCircle, Check, Target, ShieldAlert, Clock, Menu, BookOpen, RotateCcw,
+  Image as ImageIcon, Upload, Camera
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { downloadCSV } from '../lib/csvUtils';
@@ -21,8 +22,11 @@ import { useLanguage } from '../context/LanguageContext';
 import { DEPARTMENTS, DEPARTMENT_STRUCTURE, DEPARTMENT_PRICES } from '../constants';
 import { useNavigate } from 'react-router-dom';
 import { isBiometricsSupported, authenticateBiometrics } from '../lib/biometrics';
+import ImageUploader from '../components/ImageUploader';
+import { compressImage } from '../lib/imageUtils';
+import { MediaManager } from '../components/MediaManager';
 
-type Tab = 'dashboard' | 'users' | 'affiliates' | 'withdrawals' | 'payments' | 'analytics' | 'departments' | 'questions' | 'notifications' | 'quotes' | 'support' | 'logs' | 'settings';
+type Tab = 'dashboard' | 'users' | 'affiliates' | 'withdrawals' | 'payments' | 'analytics' | 'departments' | 'questions' | 'pictures' | 'notifications' | 'quotes' | 'support' | 'logs' | 'settings';
 
 export default function AdminDashboard() {
   const { t } = useLanguage();
@@ -316,6 +320,7 @@ export default function AdminDashboard() {
           <div className="px-4 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mt-4">{t('admin.content')}</div>
           <NavItem active={activeTab === 'departments'} icon={Building2} label={t('admin.departments')} onClick={() => { setActiveTab('departments'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} />
           <NavItem active={activeTab === 'questions'} icon={FileText} label={t('admin.questions')} onClick={() => { setActiveTab('questions'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} />
+          <NavItem active={activeTab === 'pictures'} icon={ImageIcon} label="Pictures & Media" onClick={() => { setActiveTab('pictures'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} />
           <NavItem active={activeTab === 'notifications'} icon={Bell} label={t('admin.notifications')} onClick={() => { setActiveTab('notifications'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} />
           <NavItem active={activeTab === 'quotes'} icon={Quote} label={t('admin.quotes')} onClick={() => { setActiveTab('quotes'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} />
           <NavItem active={activeTab === 'support'} icon={MessageCircle} label={t('admin.support')} onClick={() => { setActiveTab('support'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} badge={stats.pendingSupports} />
@@ -398,6 +403,7 @@ export default function AdminDashboard() {
                 />
               )}
               {activeTab === 'questions' && <QuestionsManager initialFilter={selectedDeptFilter} requestClearance={requestSecurityClearance} />}
+              {activeTab === 'pictures' && <MediaManager />}
               {activeTab === 'notifications' && <NotificationsManager />}
               {activeTab === 'quotes' && <QuotesManager />}
               {activeTab === 'support' && <SupportManager />}
@@ -1555,6 +1561,7 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
   const [facultyName, setFacultyName] = useState('');
   const [facultyPrice, setFacultyPrice] = useState(10000);
   const [facultyPriceUSD, setFacultyPriceUSD] = useState(7);
+  const [facultyImageUrl, setFacultyImageUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [customFaculties, setCustomFaculties] = useState<any[]>([]);
   const [selectedLevels, setSelectedLevels] = useState<string[]>([]);
@@ -1735,6 +1742,7 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
           price: facultyPrice,
           priceUSD: facultyPriceUSD,
           levels: finalLevels,
+          imageUrl: facultyImageUrl,
           updatedAt: new Date().toISOString()
         });
         alert('Faculty record successfully updated in archives.');
@@ -1744,6 +1752,7 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
           price: facultyPrice,
           priceUSD: facultyPriceUSD,
           levels: finalLevels,
+          imageUrl: facultyImageUrl,
           createdAt: new Date().toISOString()
         });
         alert('Faculty successfully manifested in archives.');
@@ -1753,6 +1762,7 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
       setFacultyName('');
       setFacultyPrice(10000);
       setFacultyPriceUSD(7);
+      setFacultyImageUrl('');
       setSelectedLevels([]);
       setManualLevelInput('');
     } catch (err) {
@@ -1767,6 +1777,7 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
     setFacultyName(faculty.name);
     setFacultyPrice(faculty.price);
     setFacultyPriceUSD(faculty.priceUSD || Math.ceil(faculty.price / 1500));
+    setFacultyImageUrl(faculty.imageUrl || '');
     
     const levels = faculty.levels || [];
     const standardLevels = ['200L', '300L', '400L', '500L', '600L', 'Application Questions'];
@@ -1784,20 +1795,49 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
     return Array.from(new Set([...DEPARTMENTS.filter(d => !deletedStaticNames.includes(d)), ...activeCustomFaculties.map(f => f.name)]));
   })();
 
+  const handleQuickFacultyImage = async (dept: any, file: File) => {
+    try {
+      const compressed = await compressImage(file, 480, 480, 0.78);
+      if (dept.id && !dept.isStatic) {
+        await updateDoc(doc(db, 'faculties', dept.id), {
+          imageUrl: compressed,
+          updatedAt: new Date().toISOString()
+        });
+      } else {
+        await setDoc(doc(db, 'faculties', dept.name), {
+          name: dept.name,
+          price: dept.price || 10000,
+          priceUSD: dept.priceUSD || 7,
+          imageUrl: compressed,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      }
+      alert(`Picture updated successfully for ${dept.name}!`);
+    } catch (e) {
+      console.error(e);
+      alert('Failed to upload department picture.');
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-xl font-serif font-black text-slate-900">Departments & Faculties</h2>
+          <p className="text-xs text-slate-500 mt-0.5">Manage department tuition fees, custom levels, and left-aligned card pictures</p>
+        </div>
         <button 
           onClick={() => {
             setEditingFacultyId(null);
             setFacultyName('');
             setFacultyPrice(10000);
             setFacultyPriceUSD(7);
+            setFacultyImageUrl('');
             setSelectedLevels([]);
             setManualLevelInput('');
             setShowAddFaculty(true);
           }}
-          className="bg-[#2563EB] hover:bg-[#1d4ed8] text-white px-8 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-lg shadow-[#2563EB]/20 flex items-center gap-3 hover:scale-105 active:scale-95 transition-all text-nowrap"
+          className="bg-[#2563EB] hover:bg-[#1d4ed8] text-white px-8 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-lg shadow-[#2563EB]/20 flex items-center gap-3 hover:scale-105 active:scale-95 transition-all text-nowrap cursor-pointer"
         >
           <Plus className="w-5 h-5" />
           {t('admin.addFaculty')}
@@ -1809,7 +1849,7 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
           <table className="w-full text-left">
             <thead>
               <tr className="bg-[#EEF3FF]/50 border-b border-[#D8E3FF]">
-                <th className="px-6 py-6 text-[11px] font-bold text-slate-500 uppercase tracking-widest font-mono">{t('admin.facultyName')}</th>
+                <th className="px-6 py-6 text-[11px] font-bold text-slate-500 uppercase tracking-widest font-mono">Picture & Name</th>
                 <th className="px-6 py-6 text-[11px] font-bold text-slate-500 uppercase tracking-widest font-mono">{t('admin.systemSlug')}</th>
                 <th className="px-6 py-6 text-[11px] font-bold text-slate-500 uppercase tracking-widest font-mono">{t('admin.tuitionBase')}</th>
                 <th className="px-6 py-6 text-[11px] font-bold text-slate-500 uppercase tracking-widest font-mono">{t('admin.operationalMode')}</th>
@@ -1827,7 +1867,32 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
                 };
               }), ...customFaculties.filter(cf => !cf.isDeleted && !DEPARTMENTS.includes(cf.name))].map((dept, i) => (
                 <tr key={i} className="hover:bg-[#EEF3FF]/40 group transition-all text-nowrap">
-                  <td className="px-6 py-6 font-serif font-black text-[15px] text-slate-900 group-hover:text-[#2563EB] transition-colors">{dept.name}</td>
+                  <td className="px-6 py-5">
+                    <div className="flex items-center gap-3.5">
+                      <div className="relative group/pic w-12 h-12 rounded-xl overflow-hidden bg-[#EEF3FF] border border-[#D8E3FF] shrink-0 flex items-center justify-center">
+                        {dept.imageUrl ? (
+                          <img src={dept.imageUrl} alt={dept.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          <Building2 className="w-5 h-5 text-[#2563EB]" />
+                        )}
+                        <label className="absolute inset-0 bg-[#0B1E3D]/60 opacity-0 group-hover/pic:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+                          <Camera className="w-4 h-4 text-white" />
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={(e) => {
+                              if (e.target.files?.[0]) handleQuickFacultyImage(dept, e.target.files[0]);
+                            }} 
+                          />
+                        </label>
+                      </div>
+                      <div>
+                        <div className="font-serif font-black text-[15px] text-slate-900 group-hover:text-[#2563EB] transition-colors">{dept.name}</div>
+                        <div className="text-[10px] text-slate-400 font-sans">{dept.imageUrl ? '✓ Picture Uploaded' : '• No picture set'}</div>
+                      </div>
+                    </div>
+                  </td>
                   <td className="px-6 py-6 text-[11px] text-slate-400 font-mono italic tracking-tighter">{dept.name.toLowerCase().replace(/\s+/g, '-')}</td>
                   <td className="px-6 py-6 font-mono font-black">
                     <div className="text-[#2563EB]">₦{dept.price.toLocaleString()}</div>
@@ -1845,19 +1910,19 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
                         onClick={() => {
                           if (onEditArchive) onEditArchive(dept.name);
                         }}
-                        className="text-blue-600 text-[10px] font-black uppercase tracking-widest hover:underline transition-colors"
+                        className="text-blue-600 text-[10px] font-black uppercase tracking-widest hover:underline transition-colors cursor-pointer"
                       >
                         {t('admin.archives')}
                       </button>
                       <button 
                         onClick={() => requestClearance(dept.id || dept.name, 'update', async () => openEditModal(dept))}
-                        className="text-emerald-600 text-[10px] font-black uppercase tracking-widest hover:underline text-nowrap"
+                        className="text-emerald-600 text-[10px] font-black uppercase tracking-widest hover:underline text-nowrap cursor-pointer"
                       >
-                        Update Fee
+                        Edit Details
                       </button>
                       <button 
                         onClick={() => openManageLevelsModal(dept)}
-                        className="text-amber-600 hover:text-amber-700 transition-colors p-1.5 rounded hover:bg-amber-50 flex items-center gap-1"
+                        className="text-amber-600 hover:text-amber-700 transition-colors p-1.5 rounded hover:bg-amber-50 flex items-center gap-1 cursor-pointer"
                         title="Manage Levels"
                       >
                         <Layers className="w-4 h-4" />
@@ -1876,7 +1941,7 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
                            }
                            alert('Faculty record successfully erased.');
                          })}
-                         className="text-red-500 hover:text-red-600 transition-colors p-2 rounded-lg hover:bg-red-50 flex items-center justify-center"
+                         className="text-red-500 hover:text-red-600 transition-colors p-2 rounded-lg hover:bg-red-50 flex items-center justify-center cursor-pointer"
                          title="Erase Faculty Record"
                        >
                          <Trash2 className="w-4 h-4 leading-none" />
@@ -1893,7 +1958,7 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
       
       <AnimatePresence mode="wait">
         {showAddFaculty && (
-          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6">
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 overflow-y-auto">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1905,12 +1970,24 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-md bg-white border border-[#D8E3FF] rounded-3xl p-8 shadow-2xl"
+              className="relative w-full max-w-lg bg-white border border-[#D8E3FF] rounded-3xl p-8 shadow-2xl my-8 max-h-[90vh] overflow-y-auto"
             >
-              <h3 className="font-serif font-black text-2xl text-slate-900 mb-6 uppercase tracking-tight">
-                {editingFacultyId ? t('admin.modifyFaculty') : t('admin.initializeFaculty')}
-              </h3>
-              <form onSubmit={handleAddFaculty} className="space-y-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-serif font-black text-2xl text-slate-900 uppercase tracking-tight">
+                  {editingFacultyId ? t('admin.modifyFaculty') : t('admin.initializeFaculty')}
+                </h3>
+                <button onClick={() => setShowAddFaculty(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <form onSubmit={handleAddFaculty} className="space-y-5">
+                <ImageUploader 
+                  value={facultyImageUrl} 
+                  onChange={setFacultyImageUrl} 
+                  label="Department Picture (Shown on left of card in dashboard)" 
+                  placeholderText="Upload department icon or banner (JPG, PNG, WebP)"
+                />
+
                 <div>
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">{t('admin.facultyName')}</label>
                   <input 
@@ -1984,7 +2061,7 @@ function DepartmentsManager({ onEditArchive, requestClearance }: { onEditArchive
                 <button 
                   type="submit" 
                   disabled={loading}
-                  className="w-full bg-[#2563EB] hover:bg-[#1d4ed8] text-white py-4 rounded-xl font-black text-[12px] uppercase tracking-[0.2em] shadow-lg shadow-[#2563EB]/20 transition-all"
+                  className="w-full bg-[#2563EB] hover:bg-[#1d4ed8] text-white py-4 rounded-xl font-black text-[12px] uppercase tracking-[0.2em] shadow-lg shadow-[#2563EB]/20 transition-all cursor-pointer"
                 >
                   {loading ? 'Processing...' : editingFacultyId ? t('admin.publishUpdates') : t('admin.initializeProtocol')}
                 </button>
@@ -2209,7 +2286,7 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
   const [courseSearch, setCourseSearch] = useState('');
   const [questionSearch, setQuestionSearch] = useState('');
   const [showEditCourse, setShowEditCourse] = useState(false);
-  const [editCourseData, setEditCourseData] = useState({ id: '', title: '', department: '', level: '', description: '' });
+  const [editCourseData, setEditCourseData] = useState({ id: '', title: '', department: '', level: '', description: '', imageUrl: '' });
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [bulkDeleteConfirmText, setBulkDeleteConfirmText] = useState('');
   const [showCourseContentModal, setShowCourseContentModal] = useState(false);
@@ -2238,7 +2315,7 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
   };
   
   // States for new course
-  const [newCourse, setNewCourse] = useState({ title: '', department: initialFilter || allDepts[0], level: '100L', description: '' });
+  const [newCourse, setNewCourse] = useState({ title: '', department: initialFilter || allDepts[0], level: '100L', description: '', imageUrl: '' });
   
   // States for new question
   const [newQuestion, setNewQuestion] = useState({
@@ -2481,7 +2558,8 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
         title: newCourse.title.trim(),
         description: newCourse.description.trim(),
         price: 0,
-        thumbnail: 'https://images.unsplash.com/photo-1532187875685-d6d1dd2e43f5?auto=format&fit=crop&q=80',
+        imageUrl: newCourse.imageUrl || '',
+        thumbnail: newCourse.imageUrl || 'https://images.unsplash.com/photo-1532187875685-d6d1dd2e43f5?auto=format&fit=crop&q=80',
         createdAt: new Date().toISOString()
       });
       setShowAddCourse(false);
@@ -2490,7 +2568,7 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
         const deletedStaticNames = customFaculties.filter(f => f.isDeleted).map(f => f.name);
         return Array.from(new Set([...DEPARTMENTS.filter(d => !deletedStaticNames.includes(d)), ...activeCustomFaculties.map(f => f.name)]));
       })();
-      setNewCourse({ title: '', department: allDeptsList[0], level: '100L', description: '' });
+      setNewCourse({ title: '', department: allDeptsList[0], level: '100L', description: '', imageUrl: '' });
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'courses');
     }
@@ -2504,7 +2582,8 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
         title: editCourseData.title.trim(),
         department: editCourseData.department,
         level: editCourseData.level,
-        description: editCourseData.description.trim()
+        description: editCourseData.description.trim(),
+        imageUrl: editCourseData.imageUrl || ''
       });
       
       // Update activeCourse state with the edited values
@@ -2513,7 +2592,8 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
         title: editCourseData.title.trim(),
         department: editCourseData.department,
         level: editCourseData.level,
-        description: editCourseData.description.trim()
+        description: editCourseData.description.trim(),
+        imageUrl: editCourseData.imageUrl || ''
       });
       
       setShowEditCourse(false);
@@ -2925,56 +3005,96 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
        </div>
 
        {activeCourse ? (
-         <div className="bg-white border border-[#D8E3FF] rounded-2xl overflow-hidden p-10 shadow-sm relative">
+         <div className="bg-white border border-[#D8E3FF] rounded-2xl overflow-hidden p-8 md:p-10 shadow-sm relative">
             <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none text-slate-900"><FileText className="w-40 h-40" /></div>
-            <div className="flex items-center justify-between mb-12 relative z-10">
-              <div>
-                <h3 className="font-serif font-black text-2xl text-slate-900 tracking-tight">{activeCourse.title}</h3>
-                <div className="flex items-center gap-3 mt-2">
-                  <span className="text-[9px] font-black bg-[#EEF3FF] text-[#2563EB] px-3 py-1 rounded-full uppercase tracking-widest border border-[#D8E3FF]">
-                    {activeCourse.department}
-                  </span>
-                  <span className="text-[9px] font-black bg-slate-100 text-slate-600 px-3 py-1 rounded-full uppercase tracking-widest border border-slate-200">
-                    {activeCourse.level}
-                  </span>
-                  <button
-                    onClick={() => {
-                      setEditCourseData({
-                        id: activeCourse.id,
-                        title: activeCourse.title || '',
-                        department: activeCourse.department || '',
-                        level: activeCourse.level || '',
-                        description: activeCourse.description || ''
-                      });
-                      setShowEditCourse(true);
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EEF3FF] text-[#2563EB] hover:bg-[#EEF3FF]/80 text-[9px] font-black uppercase tracking-widest border border-[#D8E3FF] transition-all ml-2"
-                  >
-                    <Edit3 className="w-3 h-3" />
-                    Edit Details
-                  </button>
-                  {showTrash && questions.filter(q => q.isDeleted === true).length > 0 ? (
-                    <button
-                      onClick={restoreAllQuestionsInTrash}
-                      className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-[9px] font-black uppercase tracking-widest border border-emerald-200 transition-all ml-2"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      Restore All Questions ({questions.filter(q => q.isDeleted === true).length})
-                    </button>
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10 relative z-10">
+              <div className="flex items-center gap-5">
+                <div className="relative group/cpic w-20 h-20 rounded-2xl overflow-hidden bg-[#EEF3FF] border-2 border-[#D8E3FF] shrink-0 shadow-sm flex items-center justify-center">
+                  {activeCourse.imageUrl || activeCourse.thumbnail ? (
+                    <img 
+                      src={activeCourse.imageUrl || activeCourse.thumbnail} 
+                      alt={activeCourse.title} 
+                      className="w-full h-full object-cover" 
+                      referrerPolicy="no-referrer" 
+                    />
                   ) : (
-                    !showTrash && questions.length > 0 && (
-                      <button
-                        onClick={handleBulkDeleteQuestions}
-                        className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 text-rose-600 hover:bg-rose-100 text-[9px] font-black uppercase tracking-widest border border-rose-200 transition-all ml-2"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        Bulk Delete ({questions.length})
-                      </button>
-                    )
+                    <BookOpen className="w-8 h-8 text-[#2563EB]" />
                   )}
+                  <label className="absolute inset-0 bg-[#0B1E3D]/60 opacity-0 group-hover/cpic:opacity-100 transition-opacity flex flex-col items-center justify-center cursor-pointer text-white">
+                    <Camera className="w-5 h-5 mb-0.5" />
+                    <span className="text-[8px] font-black uppercase tracking-wider">Change</span>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={async (e) => {
+                        if (e.target.files?.[0]) {
+                          try {
+                            const compressed = await compressImage(e.target.files[0], 480, 480, 0.78);
+                            await updateDoc(doc(db, 'courses', activeCourse.id), {
+                              imageUrl: compressed,
+                              thumbnail: compressed
+                            });
+                            setActiveCourse({ ...activeCourse, imageUrl: compressed, thumbnail: compressed });
+                            alert('Course picture updated successfully!');
+                          } catch (err) {
+                            console.error(err);
+                            alert('Failed to upload course picture.');
+                          }
+                        }
+                      }} 
+                    />
+                  </label>
+                </div>
+                <div>
+                  <h3 className="font-serif font-black text-2xl text-slate-900 tracking-tight">{activeCourse.title}</h3>
+                  <div className="flex flex-wrap items-center gap-2.5 mt-2">
+                    <span className="text-[9px] font-black bg-[#EEF3FF] text-[#2563EB] px-3 py-1 rounded-full uppercase tracking-widest border border-[#D8E3FF]">
+                      {activeCourse.department}
+                    </span>
+                    <span className="text-[9px] font-black bg-slate-100 text-slate-600 px-3 py-1 rounded-full uppercase tracking-widest border border-slate-200">
+                      {activeCourse.level}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setEditCourseData({
+                          id: activeCourse.id,
+                          title: activeCourse.title || '',
+                          department: activeCourse.department || '',
+                          level: activeCourse.level || '',
+                          description: activeCourse.description || '',
+                          imageUrl: activeCourse.imageUrl || activeCourse.thumbnail || ''
+                        });
+                        setShowEditCourse(true);
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EEF3FF] text-[#2563EB] hover:bg-[#EEF3FF]/80 text-[9px] font-black uppercase tracking-widest border border-[#D8E3FF] transition-all cursor-pointer"
+                    >
+                      <Edit3 className="w-3 h-3" />
+                      Edit Details
+                    </button>
+                    {showTrash && questions.filter(q => q.isDeleted === true).length > 0 ? (
+                      <button
+                        onClick={restoreAllQuestionsInTrash}
+                        className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-[9px] font-black uppercase tracking-widest border border-emerald-200 transition-all cursor-pointer"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        Restore All ({questions.filter(q => q.isDeleted === true).length})
+                      </button>
+                    ) : (
+                      !showTrash && questions.length > 0 && (
+                        <button
+                          onClick={handleBulkDeleteQuestions}
+                          className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 text-rose-600 hover:bg-rose-100 text-[9px] font-black uppercase tracking-widest border border-rose-200 transition-all cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Bulk Delete ({questions.length})
+                        </button>
+                      )
+                    )}
+                  </div>
                 </div>
               </div>
-              <div className="flex gap-4">
+              <div className="flex flex-wrap gap-3">
                 <button 
                   onClick={downloadTemplate}
                   className="bg-[#EEF3FF] border border-[#D8E3FF] text-[#2563EB] px-6 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#EEF3FF]/80 transition-all flex items-center gap-2"
@@ -3247,7 +3367,7 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
        </AnimatePresence>
        <AnimatePresence>
          {showAddCourse && (
-           <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+           <div className="fixed inset-0 z-50 flex items-center justify-center p-6 overflow-y-auto">
              <motion.div 
                initial={{ opacity: 0 }}
                animate={{ opacity: 1 }}
@@ -3259,10 +3379,22 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
                initial={{ opacity: 0, scale: 0.95, y: 20 }}
                animate={{ opacity: 1, scale: 1, y: 0 }}
                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-               className="relative w-full max-w-md bg-white border border-[#D8E3FF] rounded-3xl p-8 shadow-2xl"
+               className="relative w-full max-w-lg bg-white border border-[#D8E3FF] rounded-3xl p-8 shadow-2xl my-8 max-h-[90vh] overflow-y-auto"
              >
-               <h3 className="font-serif font-black text-2xl text-slate-900 mb-6">Archive Provisioning</h3>
+               <div className="flex items-center justify-between mb-6">
+                 <h3 className="font-serif font-black text-2xl text-slate-900">Archive Provisioning</h3>
+                 <button onClick={() => setShowAddCourse(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
+                   <X className="w-5 h-5" />
+                 </button>
+               </div>
                <form onSubmit={handleAddCourse} className="space-y-4">
+                 <ImageUploader
+                   value={newCourse.imageUrl || ''}
+                   onChange={(url) => setNewCourse({ ...newCourse, imageUrl: url })}
+                   label="Course Picture (Shown on left of course cards)"
+                   placeholderText="Upload course picture or cover (JPG, PNG, WebP)"
+                 />
+
                  <div>
                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Archive Title</label>
                    <input 
@@ -3303,7 +3435,7 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
                       </select>
                     </div>
                  </div>
-                 <button type="submit" className="w-full bg-[#2563EB] hover:bg-[#1d4ed8] text-white py-4 rounded-xl font-black text-[12px] uppercase tracking-[0.2em] shadow-lg shadow-[#2563EB]/20">
+                 <button type="submit" className="w-full bg-[#2563EB] hover:bg-[#1d4ed8] text-white py-4 rounded-xl font-black text-[12px] uppercase tracking-[0.2em] shadow-lg shadow-[#2563EB]/20 cursor-pointer">
                    Execute Provisioning
                  </button>
                </form>
@@ -3315,7 +3447,7 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
        {/* Edit Course Modal */}
        <AnimatePresence>
          {showEditCourse && (
-           <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+           <div className="fixed inset-0 z-50 flex items-center justify-center p-6 overflow-y-auto">
              <motion.div 
                initial={{ opacity: 0 }}
                animate={{ opacity: 1 }}
@@ -3327,15 +3459,22 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
                initial={{ opacity: 0, scale: 0.95, y: 20 }}
                animate={{ opacity: 1, scale: 1, y: 0 }}
                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-               className="relative w-full max-w-md bg-white border border-[#D8E3FF] rounded-3xl p-8 shadow-2xl"
+               className="relative w-full max-w-lg bg-white border border-[#D8E3FF] rounded-3xl p-8 shadow-2xl my-8 max-h-[90vh] overflow-y-auto"
              >
                <div className="flex items-center justify-between mb-6">
                  <h3 className="font-serif font-black text-2xl text-slate-900">Edit Archive Details</h3>
-                 <button onClick={() => setShowEditCourse(false)} className="text-slate-400 hover:text-slate-700 transition-colors">
+                 <button onClick={() => setShowEditCourse(false)} className="text-slate-400 hover:text-slate-700 transition-colors cursor-pointer">
                    <X className="w-5 h-5" />
                  </button>
                </div>
                <form onSubmit={handleUpdateCourse} className="space-y-4">
+                 <ImageUploader
+                   value={editCourseData.imageUrl || ''}
+                   onChange={(url) => setEditCourseData({ ...editCourseData, imageUrl: url })}
+                   label="Course Picture (Shown on left of course cards)"
+                   placeholderText="Upload course picture or cover (JPG, PNG, WebP)"
+                 />
+
                  <div>
                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Archive Title</label>
                    <input 
@@ -3386,7 +3525,7 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
                     className="w-full bg-[#EEF3FF] border border-[#D8E3FF] rounded-xl p-4 text-sm text-slate-900 focus:border-[#2563EB] outline-none resize-none font-sans"
                    />
                  </div>
-                 <button type="submit" className="w-full bg-[#2563EB] hover:bg-[#1d4ed8] text-white py-4 rounded-xl font-black text-[12px] uppercase tracking-[0.2em] shadow-lg shadow-[#2563EB]/20 transition-all active:scale-95">
+                 <button type="submit" className="w-full bg-[#2563EB] hover:bg-[#1d4ed8] text-white py-4 rounded-xl font-black text-[12px] uppercase tracking-[0.2em] shadow-lg shadow-[#2563EB]/20 transition-all active:scale-95 cursor-pointer">
                    Save Changes
                  </button>
                </form>

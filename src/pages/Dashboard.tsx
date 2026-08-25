@@ -10,7 +10,7 @@ import {
   Wallet, MessageSquare, Zap, Target, CheckCircle, Bell, 
   Globe, Send, Facebook, Twitter, Instagram, MessageCircle, 
   Clock, ShieldAlert, Search, Lock, CheckCircle2, ChevronRight,
-  Flame, TrendingUp, Sparkles
+  Flame, TrendingUp, Sparkles, Building2
 } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
@@ -81,6 +81,15 @@ export default function Dashboard() {
 
   // User's department access
   const [userPaidDepts, setUserPaidDepts] = useState<string[]>([]);
+  const [facultiesList, setFacultiesList] = useState<any[]>([]);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'faculties'), (snap) => {
+      const active = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter((f: any) => !f.isDeleted);
+      setFacultiesList(active);
+    });
+    return () => unsub();
+  }, []);
 
   // Department-based Top This Week Leaderboard state
   const [topWeekScholars, setTopWeekScholars] = useState<Array<{
@@ -1077,24 +1086,23 @@ export default function Dashboard() {
               See all
             </Link>
           </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
-            {[
-              { id: 'Biomedical Laboratory Science (BMLS)', icon: '🧬', name: 'Biomedical Lab Science', progress: 75 },
-              { id: 'Medicine and Surgery (MBBS)', icon: '🩺', name: 'Medicine & Surgery', progress: 50 },
-              { id: 'Nursing', icon: '💉', name: 'Nursing', progress: 60 },
-              { id: 'Physiotherapy', icon: '🦴', name: 'Physiotherapy', progress: 35 },
-              { id: 'Pharmacy', icon: '💊', name: 'Pharmacy', progress: 25 },
-            ].map((dept) => {
-              const isPaid = userPaidDepts.some(d => d.includes(dept.name) || dept.id.includes(d));
+          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-none">
+            {(facultiesList.length > 0 ? facultiesList : DEPARTMENTS.map(d => ({ name: d, imageUrl: '' }))).map((dept: any) => {
+              const deptName = dept.name;
+              const isPaid = userPaidDepts.some(d => d.includes(deptName) || deptName.includes(d));
               return (
                 <div 
-                  key={dept.id} 
-                  onClick={() => navigate(`/courses?department=${encodeURIComponent(dept.id)}`)}
-                  className="dept-card-mockup flex flex-col justify-between cursor-pointer hover:border-[#1B3FA0]/40 transition-all"
+                  key={deptName} 
+                  onClick={() => navigate(`/courses?department=${encodeURIComponent(deptName)}`)}
+                  className="card-luxury p-5 bg-white border border-[#DDE5F5] rounded-3xl flex flex-col justify-between cursor-pointer hover:border-[#1B3FA0]/40 transition-all min-w-[210px] shadow-xs group shrink-0"
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#EEF3FF] border border-[#D4E0FC] flex items-center justify-center text-lg">
-                      {dept.icon}
+                    <div className="w-12 h-12 rounded-2xl bg-[#EEF3FF] border border-[#D4E0FC] overflow-hidden flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-all">
+                      {dept.imageUrl ? (
+                        <img src={dept.imageUrl} alt={deptName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      ) : (
+                        <Building2 className="w-6 h-6 text-[#1B3FA0]" />
+                      )}
                     </div>
                     {isPaid && (
                       <span className="text-[8px] font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 uppercase">
@@ -1103,15 +1111,10 @@ export default function Dashboard() {
                     )}
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-[#0B1E3D] font-serif line-clamp-1">{dept.name}</div>
-                    <div className="flex items-center gap-2 mt-2">
-                      <div className="flex-1 h-1.5 rounded-full bg-[#EEF3FF] overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-r from-[#1B3FA0] to-[#60A5FA] rounded-full" 
-                          style={{ width: `${dept.progress}%` }} 
-                        />
-                      </div>
-                      <span className="text-[10px] font-bold text-slate-500">{dept.progress}%</span>
+                    <div className="text-xs font-bold text-[#0B1E3D] font-serif line-clamp-1 group-hover:text-[#1B3FA0] transition-colors">{deptName}</div>
+                    <div className="text-[10px] text-slate-400 mt-1.5 flex items-center gap-1 font-semibold">
+                      <span>Explore Department</span>
+                      <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
                     </div>
                   </div>
                 </div>
