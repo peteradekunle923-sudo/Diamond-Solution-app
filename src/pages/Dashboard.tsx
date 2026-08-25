@@ -245,11 +245,11 @@ export default function Dashboard() {
       if (snap.exists()) {
         const data = snap.data();
         const links = [];
-        if (data.telegram) links.push({ name: 'Telegram', icon: Send, url: `https://t.me/${data.telegram.replace('@', '')}`, color: 'text-[#229ED9]' });
-        if (data.whatsapp) links.push({ name: 'WhatsApp', icon: MessageCircle, url: `https://wa.me/${data.whatsapp.replace('+', '')}`, color: 'text-emerald-500' });
+        if (data.telegram) links.push({ name: 'Telegram', icon: Send, url: data.telegram, color: 'text-[#229ED9]' });
+        if (data.whatsapp) links.push({ name: 'WhatsApp', icon: MessageCircle, url: data.whatsapp, color: 'text-emerald-500' });
         if (data.facebook) links.push({ name: 'Facebook', icon: Facebook, url: data.facebook, color: 'text-blue-600' });
-        if (data.twitter) links.push({ name: 'X (Twitter)', icon: Twitter, url: data.twitter.startsWith('http') ? data.twitter : `https://x.com/${data.twitter.replace('@', '')}`, color: 'text-white' });
-        if (data.instagram) links.push({ name: 'Instagram', icon: Instagram, url: data.instagram.startsWith('http') ? data.instagram : `https://instagram.com/${data.instagram.replace('@', '')}`, color: 'text-pink-500' });
+        if (data.twitter) links.push({ name: 'X (Twitter)', icon: Twitter, url: data.twitter, color: 'text-white' });
+        if (data.instagram) links.push({ name: 'Instagram', icon: Instagram, url: data.instagram, color: 'text-pink-500' });
         
         setDynamicSocialLinks(links);
       } else {
@@ -1078,7 +1078,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ============ 5. DEPARTMENT NAVIGATION (SIDE-BY-SIDE CAROUSEL) ============ */}
+        {/* ============ 5. DEPARTMENT NAVIGATION (HORIZONTAL CAROUSEL) ============ */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-serif font-black text-base text-[#0B1E3D]">Departments</h3>
@@ -1094,26 +1094,26 @@ export default function Dashboard() {
                 <div 
                   key={deptName} 
                   onClick={() => navigate(`/courses?department=${encodeURIComponent(deptName)}`)}
-                  className="card-luxury p-5 bg-white border border-[#DDE5F5] rounded-3xl flex flex-col justify-between cursor-pointer hover:border-[#1B3FA0]/40 transition-all min-w-[210px] shadow-xs group shrink-0"
+                  className="card-luxury p-0 overflow-hidden bg-white border border-[#DDE5F5] rounded-3xl flex items-stretch cursor-pointer hover:border-[#1B3FA0]/40 transition-all min-w-[280px] sm:min-w-[320px] shadow-xs group shrink-0"
                 >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="w-12 h-12 rounded-2xl bg-[#EEF3FF] border border-[#D4E0FC] overflow-hidden flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-all">
-                      {dept.imageUrl ? (
-                        <img src={dept.imageUrl} alt={deptName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                      ) : (
-                        <Building2 className="w-6 h-6 text-[#1B3FA0]" />
-                      )}
-                    </div>
+                  <div className="w-24 sm:w-28 shrink-0 relative bg-[#EEF3FF] overflow-hidden flex items-center justify-center">
+                    {dept.imageUrl ? (
+                      <img src={dept.imageUrl} alt={deptName} className="w-full h-full object-cover absolute inset-0 group-hover:scale-105 transition-transform duration-500" referrerPolicy="no-referrer" />
+                    ) : (
+                      <Building2 className="w-8 h-8 text-[#1B3FA0]" />
+                    )}
+                  </div>
+                  <div className="p-4 sm:p-5 flex-1 min-w-0 flex flex-col justify-center space-y-1">
                     {isPaid && (
-                      <span className="text-[8px] font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 uppercase">
+                      <span className="text-[8px] font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 uppercase inline-block mb-1">
                         Active
                       </span>
                     )}
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-[#0B1E3D] font-serif line-clamp-1 group-hover:text-[#1B3FA0] transition-colors">{deptName}</div>
-                    <div className="text-[10px] text-slate-400 mt-1.5 flex items-center gap-1 font-semibold">
-                      <span>Explore Department</span>
+                    <h4 className="text-xs sm:text-sm font-bold text-[#0B1E3D] font-serif group-hover:text-[#1B3FA0] transition-colors leading-snug line-clamp-2">
+                      {deptName}
+                    </h4>
+                    <div className="text-[10px] text-slate-400 flex items-center gap-1 font-semibold pt-0.5">
+                      <span>Explore</span>
                       <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
                     </div>
                   </div>

@@ -422,6 +422,20 @@ export default function StudyPage() {
     }
   }, [selectedAnswer, isSubmitted, loading]);
 
+  useEffect(() => {
+    if (questions.length > 0 && questions[currentIndex]) {
+      const qId = questions[currentIndex].id;
+      const savedAns = answers[qId];
+      if (savedAns) {
+        setSelectedAnswer(savedAns.selectedAnswer);
+        setIsSubmitted(savedAns.isSubmitted);
+      } else {
+        setSelectedAnswer(null);
+        setIsSubmitted(false);
+      }
+    }
+  }, [currentIndex, questions, answers]);
+
   const [timeLeft, setTimeLeft] = useState(60);
 
   useEffect(() => {

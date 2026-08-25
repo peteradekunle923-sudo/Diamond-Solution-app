@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, BookOpen, User, MessageCircle, TrendingUp, ShieldAlert, Send, Shield, Layers, Trophy } from 'lucide-react';
+import { Home, BookOpen, User, MessageCircle, TrendingUp, ShieldAlert, Send, Shield, Layers } from 'lucide-react';
 import axios from 'axios';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -89,7 +89,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <nav className="fixed bottom-4 left-4 right-4 max-w-lg mx-auto h-16 bg-[#0B1E3D] rounded-full border border-[#1E3B6E] flex items-center justify-around px-2 z-50 shadow-2xl shadow-[#0B1E3D]/40 backdrop-blur-lg">
         <Tab icon={Home} label={t('nav.home')} to="/dashboard" />
         <Tab icon={Layers} label={t('nav.study')} to="/courses" />
-        <Tab icon={Trophy} label="Rank" to="/leaderboard" />
         <Tab icon={MessageCircle} label={t('nav.chat')} to="/chat" badge={unreadCount} />
         <Tab icon={User} label={t('nav.profile')} to="/profile" />
         {isAdmin && <Tab icon={Shield} label={t('nav.admin')} to="/admin" />}

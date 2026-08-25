@@ -598,27 +598,22 @@ function CourseListItem({ course }: { course: any, key?: any }) {
   return (
     <Link 
       to={`/courses/${course.id}`} 
-      className="card-luxury group relative overflow-hidden transform-gpu isolate flex items-center justify-between p-6 hover:border-[#1B3FA0]/40 transition-all shadow-xs bg-white border border-[#DDE5F5] rounded-3xl cursor-pointer"
+      className="card-luxury group relative overflow-hidden transform-gpu isolate flex items-center p-0 hover:border-[#1B3FA0]/40 transition-all shadow-xs bg-white border border-[#DDE5F5] rounded-3xl cursor-pointer"
     >
-      <div className="flex items-center gap-5 min-w-0 pr-4">
-        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden bg-[#EEF3FF] border border-[#D4E0FC] flex items-center justify-center text-[#1B3FA0] shrink-0 shadow-xs group-hover:scale-105 transition-all">
-          {courseImg ? (
-            <img src={courseImg} alt={course.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-          ) : (
-            <BookOpen className="w-7 h-7" />
-          )}
-        </div>
-        <div className="space-y-1.5 min-w-0">
-          <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[#1B3FA0] bg-[#EEF3FF] px-3 py-1 rounded-full border border-[#D4E0FC] inline-block">
-            {course.level}
-          </span>
-          <h4 className="font-serif font-black text-[#0B1E3D] text-[15px] sm:text-[16px] leading-tight group-hover:text-[#1B3FA0] transition-colors truncate">
-            {course.title}
-          </h4>
-        </div>
+      <div className="w-20 sm:w-24 h-20 sm:h-24 shrink-0 relative bg-[#EEF3FF] overflow-hidden flex items-center justify-center">
+        {courseImg ? (
+          <img src={courseImg} alt={course.title} className="w-full h-full object-cover absolute inset-0 group-hover:scale-105 transition-transform duration-500" referrerPolicy="no-referrer" />
+        ) : (
+          <BookOpen className="w-8 h-8 text-[#1B3FA0]" />
+        )}
       </div>
-      <div className="w-10 h-10 rounded-2xl bg-[#EEF3FF] border border-[#D4E0FC] flex items-center justify-center text-slate-400 group-hover:text-[#1B3FA0] group-hover:border-[#1B3FA0]/40 transition-all shrink-0">
-        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+      <div className="p-4 sm:p-5 flex-1 min-w-0 space-y-1.5">
+        <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[#1B3FA0] bg-[#EEF3FF] px-3 py-1 rounded-full border border-[#D4E0FC] inline-block">
+          {course.level}
+        </span>
+        <h4 className="font-serif font-black text-[#0B1E3D] text-[15px] sm:text-[16px] leading-tight group-hover:text-[#1B3FA0] transition-colors">
+          {course.title}
+        </h4>
       </div>
     </Link>
   );
