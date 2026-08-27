@@ -1203,16 +1203,16 @@ export default function StudyPage() {
           </div>
         </div>
       )}
-      <header className="sticky top-0 bg-white/90 backdrop-blur-md border-b border-[#D8E3FF] px-6 py-4 flex items-center justify-between z-30 shadow-xs">
+      <header className="sticky top-0 bg-[#0B1E3D]/95 backdrop-blur-md border-b border-[#1E3B6E] px-6 py-4 flex items-center justify-between z-30 shadow-lg shadow-[#0B1E3D]/20">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate(`/courses/${id}`)} className="w-10 h-10 rounded-2xl bg-[#EEF3FF] border border-[#D8E3FF] flex items-center justify-center text-text-2 hover:text-[#2563EB] transition-all cursor-pointer">
+          <button onClick={() => navigate(`/courses/${id}`)} className="w-10 h-10 rounded-2xl bg-[#152E59] border border-[#1E3B6E] flex items-center justify-center text-blue-200 hover:text-[#F3C644] hover:border-[#F3C644]/50 transition-all cursor-pointer">
             <ChevronLeft className="w-5 h-5 relative right-[1px]" />
           </button>
           <div>
-            <h1 className="text-xs sm:text-sm font-serif font-black text-text-1 leading-tight">
+            <h1 className="text-xs sm:text-sm font-serif font-black text-white leading-tight">
               {getMatchedOutline(currentIndex + 1) || course?.title || 'Course'}
             </h1>
-            <p className="text-[9px] font-black text-gold uppercase tracking-widest mt-0.5">
+            <p className="text-[9px] font-black text-[#F3C644] uppercase tracking-widest mt-0.5">
               {t('study.questionStatus').replace('{n}', (currentIndex + 1).toString()).replace('{m}', questions.length.toString())}
             </p>
           </div>
@@ -1221,21 +1221,21 @@ export default function StudyPage() {
           {!isSubmitted && !showResults && (
             <div className={cn(
               "px-4 py-2 rounded-xl border font-mono text-[10px] font-black tracking-widest transition-all",
-              timeLeft <= 10 ? "bg-red-50 border-red-200 text-red-500 animate-pulse" : "bg-[#EEF3FF] border-[#D8E3FF] text-text-1"
+              timeLeft <= 10 ? "bg-red-500/20 border-red-500/40 text-red-400 animate-pulse" : "bg-[#152E59] border-[#1E3B6E] text-white"
             )}>
               {timeLeft}s
             </div>
           )}
-          <div className="px-4 py-2 bg-[#EEF3FF] rounded-xl border border-[#D8E3FF] font-black text-[10px] text-gold uppercase tracking-widest">
+          <div className="px-4 py-2 bg-[#152E59] rounded-xl border border-[#1E3B6E] font-black text-[10px] text-[#F3C644] uppercase tracking-widest shadow-xs">
             Score: {score.correct}
           </div>
         </div>
       </header>
 
-      <div className="h-1.5 bg-[#EEF3FF] w-full overflow-hidden">
+      <div className="h-1.5 bg-[#152E59] w-full overflow-hidden">
         <motion.div 
           animate={{ width: `${progress}%` }}
-          className="h-full bg-[#2563EB]"
+          className="h-full bg-[#F3C644]"
         />
       </div>
 
@@ -1269,9 +1269,9 @@ export default function StudyPage() {
                       </button>
                     </div>
                   ) : (
-                    <div className="p-8 bg-emerald-50 border border-emerald-200 rounded-3xl">
-                      <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest block mb-4">Expected Response provided by System</span>
-                      <p className="text-sm md:text-base text-text-1 leading-relaxed">
+                    <div className="p-8 bg-[#0B1E3D] border border-[#1E3B6E] rounded-3xl shadow-lg shadow-[#0B1E3D]/10">
+                      <span className="text-[10px] font-black text-[#F3C644] uppercase tracking-widest block mb-4">Expected Response provided by System</span>
+                      <p className="text-sm md:text-base text-[#F1F5F9] font-medium leading-relaxed">
                         {current.answerText || current.explanation || 'No expected answer text provided.'}
                       </p>
                     </div>
@@ -1319,13 +1319,13 @@ export default function StudyPage() {
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-[#EEF3FF] p-8 rounded-3xl space-y-4 border border-[#D8E3FF] relative shadow-xs"
+                className="bg-[#0B1E3D] p-8 rounded-3xl space-y-4 border border-[#1E3B6E] relative shadow-lg shadow-[#0B1E3D]/10"
               >
                 <div className="flex items-center gap-3">
-                   <Info className="w-4 h-4 text-gold" />
-                   <h4 className="text-[10px] font-black text-gold uppercase tracking-[0.3em]">{t('study.institutionalSynthesis')}</h4>
+                   <Info className="w-4.5 h-4.5 text-[#F3C644]" />
+                   <h4 className="text-[10px] font-black text-[#F3C644] uppercase tracking-[0.3em]">{t('study.institutionalSynthesis')}</h4>
                 </div>
-                <p className="text-text-1 font-semibold leading-relaxed text-sm">
+                <p className="text-[#F1F5F9] font-medium leading-relaxed text-sm sm:text-base selection:bg-[#F3C644] selection:text-[#0B1E3D]">
                   {currentExplanation}
                 </p>
               </motion.div>
@@ -1334,20 +1334,20 @@ export default function StudyPage() {
         </AnimatePresence>
       </main>
 
-      <footer className="sticky md:relative bottom-0 left-0 right-0 p-6 md:p-8 bg-white/95 backdrop-blur-md border-t border-[#D8E3FF] z-30 flex items-center justify-center shadow-md">
+      <footer className="sticky md:relative bottom-0 left-0 right-0 p-6 md:p-8 bg-[#0B1E3D]/95 backdrop-blur-md border-t border-[#1E3B6E] z-30 flex items-center justify-center shadow-xl shadow-[#0B1E3D]/20">
         <div className="max-w-4xl w-full flex items-center justify-between gap-6">
            <div className="flex items-center gap-2">
              <button 
                onClick={handlePrev}
                disabled={currentIndex === 0}
-               className="w-12 h-12 rounded-2xl bg-[#EEF3FF] border border-[#D8E3FF] flex items-center justify-center text-text-2 hover:text-[#2563EB] transition-all disabled:opacity-30 cursor-pointer"
+               className="w-12 h-12 rounded-2xl bg-[#152E59] border border-[#1E3B6E] flex items-center justify-center text-blue-200 hover:text-[#F3C644] hover:border-[#F3C644]/50 transition-all disabled:opacity-30 cursor-pointer"
                title="View Previous Question"
              >
                <ArrowLeft className="w-5 h-5" />
              </button>
              <div className="hidden md:flex flex-col">
-               <span className="text-[9px] font-black text-text-3 uppercase tracking-widest">{t('study.protocolStatus')}</span>
-               <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest">
+               <span className="text-[9px] font-black text-blue-200 uppercase tracking-widest">{t('study.protocolStatus')}</span>
+               <span className="text-xs font-bold text-[#F3C644] uppercase tracking-widest">
                  {isSubmitted ? t('study.synthesisComplete') : t('study.awaitingSelection')}
                </span>
              </div>
@@ -1357,14 +1357,14 @@ export default function StudyPage() {
              <button 
                onClick={handleSubmit}
                disabled={!selectedAnswer && current.type !== 'application'}
-               className="h-14 px-10 bg-[#2563EB] disabled:opacity-40 rounded-2xl text-white font-black text-xs uppercase tracking-[0.2em] shadow-md hover:bg-blue-600 active:scale-95 transition-all cursor-pointer"
+               className="h-14 px-10 bg-[#F3C644] hover:bg-[#F59E0B] disabled:opacity-40 rounded-2xl text-[#0B1E3D] font-black text-xs uppercase tracking-[0.2em] shadow-lg hover:shadow-xl active:scale-95 transition-all cursor-pointer"
              >
                {current.type === 'application' ? 'Check Answer' : t('study.commitSolution')}
              </button>
            ) : (
              <button 
                onClick={handleNext}
-               className="h-14 px-10 bg-[#2563EB] rounded-2xl text-white font-black text-xs uppercase tracking-[0.2em] shadow-md hover:bg-blue-600 active:scale-95 transition-all flex items-center gap-3 cursor-pointer"
+               className="h-14 px-10 bg-[#F3C644] hover:bg-[#F59E0B] rounded-2xl text-[#0B1E3D] font-black text-xs uppercase tracking-[0.2em] shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center gap-3 cursor-pointer"
              >
                {currentIndex === questions.length - 1 ? t('study.concludeSession') : t('study.nextQuery')}
                <ArrowRight className="w-4 h-4" />

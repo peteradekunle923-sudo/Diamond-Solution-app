@@ -344,12 +344,12 @@ export default function ActivityLog() {
 
                           {/* Explanation block */}
                           {log.explanation && (
-                            <div className="p-5 rounded-xl bg-gold/5 border border-gold/10 space-y-2">
-                              <div className="flex items-center gap-2 text-gold">
+                            <div className="p-5 rounded-2xl bg-[#0B1E3D] border border-[#1E3B6E] space-y-2 shadow-md shadow-[#0B1E3D]/15">
+                              <div className="flex items-center gap-2 text-[#F3C644]">
                                 <HelpCircle className="w-4 h-4" />
                                 <span className="text-[9px] font-black uppercase tracking-widest">Detailed Explanation</span>
                               </div>
-                              <p className="text-text-2 text-xs leading-relaxed font-serif italic">
+                              <p className="text-[#F1F5F9] text-xs sm:text-sm leading-relaxed font-sans font-medium">
                                 {log.explanation}
                               </p>
                             </div>

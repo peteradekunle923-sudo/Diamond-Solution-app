@@ -387,7 +387,7 @@ export default function CourseDetail() {
 
       <div className="px-3 pt-8 relative z-10 space-y-12 pb-24 max-w-4xl mx-auto w-full section-container">
         <div 
-          className="card-luxury p-8 sm:p-10 bg-white border border-[#DDE5F5] shadow-xs rounded-3xl"
+          className="p-8 sm:p-10 bg-gradient-to-br from-[#1E3A8A] via-[#1E40AF] to-[#1D4ED8] border border-blue-400/25 shadow-xl shadow-[#0B1E3D]/20 rounded-3xl text-white"
           style={{ willChange: 'auto', transform: 'translateZ(0)', backfaceVisibility: 'hidden' }}
         >
           <div className="space-y-10">
@@ -397,14 +397,14 @@ export default function CourseDetail() {
               className="space-y-6"
             >
               <div className="flex flex-wrap items-center gap-3">
-                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-[#D4AF37] bg-[#FEF9E7] px-4 py-2 rounded-xl border border-[#F5E5A4] shadow-xs">
+                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-[#F3C644] bg-[#F3C644]/15 px-4 py-2 rounded-xl border border-[#F3C644]/30 shadow-xs">
                   {t(`dept.${course.department}`)}
                 </span>
-                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-500 bg-[#EEF3FF] px-4 py-2 rounded-xl border border-[#D4E0FC]">
+                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-100 bg-white/10 px-4 py-2 rounded-xl border border-white/20 shadow-xs">
                   {course.level} {t('course.level')}
                 </span>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-serif font-black text-[#0B1E3D] leading-tight tracking-tight">
+              <h2 className="text-2xl sm:text-3xl font-serif font-black text-white leading-tight tracking-tight">
                 {course.title}
               </h2>
             </motion.div>
@@ -413,7 +413,7 @@ export default function CourseDetail() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.05 }}
-              className="text-slate-600 leading-relaxed text-lg font-medium border-l-2 border-[#D4AF37]/40 pl-6 italic"
+              className="text-blue-100 leading-relaxed text-lg font-medium border-l-2 border-[#F3C644] pl-6 italic"
             >
               {course.description || "Synthesize your academic competence with expert-reviewed examination protocols and exhaustive logical explanations curated by Diamond's internal collegiate board."}
             </motion.p>
@@ -422,7 +422,7 @@ export default function CourseDetail() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="grid grid-cols-3 gap-6 py-10 border-y border-[#DDE5F5]"
+              className="grid grid-cols-3 gap-6 py-10 border-y border-white/15"
             >
               <Feature icon={Award} label={t('course.status')} value={t('course.institutional')} />
               <Feature icon={ShieldCheck} label={t('course.security')} value={t('course.encrypted')} />
@@ -433,8 +433,8 @@ export default function CourseDetail() {
               {hasPaid ? (
                 <div className="space-y-6">
                   {/* Protocol Initiation Dashboard */}
-                  <div className="bg-[#EEF3FF] p-6 rounded-3xl border border-[#D4E0FC] space-y-4 text-left">
-                    <span className="text-[10px] font-black text-[#1B3FA0] uppercase tracking-[0.3em] block mb-2">Protocol Launch Configurations</span>
+                  <div className="bg-black/20 backdrop-blur-xs p-6 rounded-3xl border border-white/15 space-y-4 text-left">
+                    <span className="text-[10px] font-black text-[#F3C644] uppercase tracking-[0.3em] block mb-2">Protocol Launch Configurations</span>
                     
                     <div className="grid grid-cols-1 gap-4">
                       {/* Option 1: Resume */}
@@ -442,17 +442,17 @@ export default function CourseDetail() {
                         onClick={() => handleStartProtocol(progress?.currentIndex || 0, false)}
                         className={`flex items-center gap-4 p-4 rounded-2xl border text-left transition-all ${
                           progress?.completed
-                            ? 'opacity-40 border-[#DDE5F5] cursor-not-allowed bg-transparent'
-                            : 'bg-white border-[#DDE5F5] hover:border-[#1B3FA0]/40'
+                            ? 'opacity-40 border-white/10 cursor-not-allowed bg-transparent'
+                            : 'bg-white/10 border-white/20 hover:bg-white/20 hover:border-white/30 text-white cursor-pointer'
                         }`}
                         disabled={progress?.completed || initiating}
                       >
-                        <div className="w-10 h-10 rounded-xl bg-[#EEF3FF] flex items-center justify-center text-[#1B3FA0] flex-shrink-0 border border-[#D4E0FC]">
-                          <Play className="w-4 h-4 fill-[#1B3FA0]" />
+                        <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center text-[#F3C644] flex-shrink-0 border border-white/20">
+                          <Play className="w-4 h-4 fill-current" />
                         </div>
                         <div className="truncate flex-1">
-                          <span className="text-[10px] font-black text-[#0B1E3D] uppercase tracking-widest block">Resume Session</span>
-                          <span className="text-[10px] font-semibold text-slate-500 block truncate">
+                          <span className="text-[10px] font-black text-white uppercase tracking-widest block">Resume Session</span>
+                          <span className="text-[10px] font-semibold text-blue-200 block truncate">
                             {progress?.completed ? 'Session Concluded' : `Continue from Question ${(progress?.currentIndex || 0) + 1}`}
                           </span>
                         </div>
@@ -460,9 +460,9 @@ export default function CourseDetail() {
                     </div>
 
                     {/* Option 3: Custom Number */}
-                    <div className="pt-4 border-t border-[#D4E0FC] flex flex-col md:flex-row gap-4 items-stretch md:items-end justify-between">
+                    <div className="pt-4 border-t border-white/15 flex flex-col md:flex-row gap-4 items-stretch md:items-end justify-between">
                       <div className="flex-1 min-w-0">
-                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-2">
+                        <label className="text-[9px] font-black text-blue-200 uppercase tracking-widest block mb-2">
                           Custom Start Question Number (1 - {questions.length || 1})
                         </label>
                         <input 
@@ -472,7 +472,7 @@ export default function CourseDetail() {
                           value={customStartNum}
                           onChange={(e) => setCustomStartNum(e.target.value)}
                           placeholder="e.g. 5"
-                          className="w-full h-11 bg-white border border-[#D4E0FC] focus:border-[#1B3FA0] rounded-2xl px-4 text-xs font-bold font-mono text-[#0B1E3D] tracking-wide outline-none"
+                          className="w-full h-11 bg-white/10 border border-white/20 focus:border-[#F3C644] rounded-2xl px-4 text-xs font-bold font-mono text-white placeholder:text-blue-200/50 tracking-wide outline-none transition-all"
                         />
                       </div>
                       <button
@@ -485,7 +485,7 @@ export default function CourseDetail() {
                           handleStartProtocol(num - 1, false);
                         }}
                         disabled={initiating || questions.length === 0}
-                        className="h-11 px-6 btn-primary disabled:opacity-45 rounded-2xl text-[10px] uppercase tracking-widest cursor-pointer"
+                        className="h-11 px-6 bg-[#F3C644] hover:bg-[#F59E0B] text-[#0B1E3D] font-black disabled:opacity-45 rounded-2xl text-[10px] uppercase tracking-widest cursor-pointer shadow-md transition-all active:scale-[0.98]"
                       >
                         <span>Jump to Qn</span>
                       </button>
@@ -496,19 +496,19 @@ export default function CourseDetail() {
                 <button 
                   onClick={handlePayment}
                   disabled={paying}
-                  className="w-full h-16 btn-primary rounded-3xl text-xs uppercase tracking-[0.3em] font-black shadow-lg shadow-[#1B3FA0]/20 flex items-center justify-center gap-4 cursor-pointer"
+                  className="w-full h-16 bg-[#F3C644] hover:bg-[#F59E0B] text-[#0B1E3D] rounded-3xl text-xs uppercase tracking-[0.3em] font-black shadow-xl shadow-black/30 flex items-center justify-center gap-4 cursor-pointer transition-all active:scale-[0.99]"
                 >
                   {paying ? (
-                    <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    <div className="w-5 h-5 border-2 border-[#0B1E3D]/30 border-t-[#0B1E3D] rounded-full animate-spin" />
                   ) : (
                     <>
-                      <Lock className="w-5 h-5 opacity-80 group-hover:rotate-12 transition-transform" />
+                      <Lock className="w-5 h-5 opacity-90 group-hover:rotate-12 transition-transform" />
                       <span>{t('payment.authorize')}: {userCurrency === 'USD' ? '$' : '₦'}{displayPrice.toLocaleString()}</span>
                     </>
                   )}
                 </button>
               )}
-              <p className="text-center mt-6 text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">
+              <p className="text-center mt-6 text-[9px] font-black text-blue-200 uppercase tracking-[0.3em]">
                 {t('course.paymentTags')}
               </p>
             </div>
@@ -587,12 +587,12 @@ function extractQuestionRange(text: string): { start: number; end: number | null
 function Feature({ icon: Icon, label, value }: any) {
   return (
     <div className="flex flex-col items-center text-center space-y-2">
-      <div className="w-10 h-10 rounded-2xl bg-[#EEF3FF] flex items-center justify-center text-[#1B3FA0] border border-[#D4E0FC]">
+      <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center text-[#F3C644] border border-white/20">
         <Icon className="w-5 h-5" />
       </div>
       <div className="space-y-1">
-        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{label}</p>
-        <p className="text-sm font-bold text-[#0B1E3D] tracking-tight">{value}</p>
+        <p className="text-[9px] font-black text-blue-200 uppercase tracking-widest">{label}</p>
+        <p className="text-sm font-bold text-white tracking-tight">{value}</p>
       </div>
     </div>
   );
@@ -602,27 +602,27 @@ function ObjectiveItem({ text, onClick, isClickable }: { text: string; onClick?:
   return (
     <div 
       onClick={onClick}
-      className={`card-luxury p-6 flex items-start gap-4 transition-all duration-200 bg-white border border-[#DDE5F5] rounded-3xl ${
+      className={`p-6 flex items-start gap-4 transition-all duration-300 bg-[#0B1E3D] border border-[#1E3B6E] rounded-3xl shadow-md shadow-[#0B1E3D]/10 ${
         isClickable 
-          ? 'hover:bg-[#EEF3FF] hover:border-[#1B3FA0]/40 cursor-pointer group/item active:scale-[0.99]' 
+          ? 'hover:bg-[#122A54] hover:border-[#F3C644]/60 hover:shadow-xl hover:shadow-[#0B1E3D]/25 cursor-pointer group/item active:scale-[0.99]' 
           : ''
       }`}
     >
-      <div className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 border mt-1 transition-colors ${
+      <div className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 border mt-1 transition-all duration-300 ${
         isClickable
-          ? 'bg-[#EEF3FF] text-[#1B3FA0] border-[#D4E0FC] group-hover/item:bg-[#1B3FA0] group-hover/item:text-white'
-          : 'bg-emerald-50 text-emerald-600 border-emerald-200'
+          ? 'bg-[#152E59] text-[#F3C644] border-[#1E3B6E] group-hover/item:bg-[#F3C644] group-hover/item:text-[#0B1E3D] group-hover/item:border-[#F3C644]'
+          : 'bg-[#152E59] text-[#F3C644] border-[#1E3B6E]'
       }`}>
         {isClickable ? <Play className="w-3 h-3 fill-current" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
       </div>
       <div className="flex-1">
-        <p className={`font-semibold text-sm leading-relaxed transition-colors ${
-          isClickable ? 'text-[#0B1E3D] group-hover/item:text-[#1B3FA0]' : 'text-[#0B1E3D]'
+        <p className={`font-bold text-sm leading-relaxed transition-colors duration-200 ${
+          isClickable ? 'text-[#F3C644] group-hover/item:text-[#FEF08A]' : 'text-[#F3C644]'
         }`}>
           {text}
         </p>
         {isClickable && (
-          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#1B3FA0] mt-1.5 block">
+          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#93C5FD] group-hover/item:text-white mt-1.5 block transition-colors">
             Click to launch section
           </span>
         )}
