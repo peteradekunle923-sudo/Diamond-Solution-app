@@ -15,7 +15,7 @@ import {
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { cn } from '../lib/utils';
-import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
+import { handleFirestoreError, OperationType, safeOnSnapshot } from '../lib/firebaseUtils';
 import { format, startOfWeek, endOfWeek, subDays, eachDayOfInterval } from 'date-fns';
 import { 
   ResponsiveContainer, 
@@ -84,7 +84,7 @@ export default function Dashboard() {
   const [facultiesList, setFacultiesList] = useState<any[]>([]);
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'faculties'), (snap) => {
+    const unsub = safeOnSnapshot(collection(db, 'faculties'), (snap) => {
       const active = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter((f: any) => !f.isDeleted);
       setFacultiesList(active);
     });
@@ -130,7 +130,7 @@ export default function Dashboard() {
   // Fetch all courses for live search
   useEffect(() => {
     const qCourses = query(collection(db, 'courses'));
-    const unsub = onSnapshot(qCourses, (snap) => {
+    const unsub = safeOnSnapshot(qCourses, (snap) => {
       const docs = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter((c: any) => !c.isDeleted);
       setAllCourses(docs);
     }, (err) => handleFirestoreError(err, OperationType.LIST, 'courses'));
@@ -146,7 +146,7 @@ export default function Dashboard() {
       where('userId', '==', activeUserUid),
       where('status', '==', 'success')
     );
-    const unsub = onSnapshot(qPayments, (snap) => {
+    const unsub = safeOnSnapshot(qPayments, (snap) => {
       const depts: string[] = [];
       snap.docs.forEach(d => {
         const data = d.data();
@@ -241,7 +241,7 @@ export default function Dashboard() {
 
   // Listen for Institutional Social Links & Wisdom Quote
   useEffect(() => {
-    const unsubSettings = onSnapshot(doc(db, 'settings', 'institutional_links'), (snap) => {
+    const unsubSettings = safeOnSnapshot(doc(db, 'settings', 'institutional_links'), (snap) => {
       if (snap.exists()) {
         const data = snap.data();
         const links = [];
@@ -264,7 +264,7 @@ export default function Dashboard() {
     }, (err) => handleFirestoreError(err, OperationType.GET, 'settings/institutional_links'));
 
     const q = query(collection(db, 'quotes'), orderBy('createdAt', 'desc'), limit(1));
-    const unsubQuote = onSnapshot(q, (snapshot) => {
+    const unsubQuote = safeOnSnapshot(q, (snapshot) => {
       if (!snapshot.empty) setQuote(snapshot.docs[0].data());
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'quotes');
@@ -285,7 +285,7 @@ export default function Dashboard() {
       where('userId', '==', activeUserUid)
     );
 
-    const unsubStats = onSnapshot(qPractice, (snapshot) => {
+    const unsubStats = safeOnSnapshot(qPractice, (snapshot) => {
       const practiceDocs = snapshot.docs.map(doc => doc.data());
 
       let totalAttempted = 0;
@@ -371,7 +371,7 @@ export default function Dashboard() {
       where('userId', '==', activeUserUid)
     );
 
-    const unsub = onSnapshot(qProgress, async (snapshot) => {
+    const unsub = safeOnSnapshot(qProgress, async (snapshot) => {
       if (snapshot.empty) {
         setLastActivity(null);
         return;
@@ -463,7 +463,7 @@ export default function Dashboard() {
       limit(500)
     );
 
-    const unsub = onSnapshot(q, async (snapshot) => {
+    const unsub = safeOnSnapshot(q, async (snapshot) => {
       const userAggregates: Record<string, { attempted: number; correct: number }> = {};
       
       snapshot.docs.forEach(docSnap => {

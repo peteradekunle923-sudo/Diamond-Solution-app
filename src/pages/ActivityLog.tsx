@@ -152,9 +152,9 @@ export default function ActivityLog() {
 
           {/* Stats quick overview */}
           <div className="flex gap-4">
-            <div className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-center min-w-[70px]">
-              <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest block mb-0.5">Correct</span>
-              <span className="text-lg font-serif font-black text-emerald-400">{logs.filter(l => l.isCorrect).length}</span>
+            <div className="px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-xl text-center min-w-[70px]">
+              <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest block mb-0.5">Correct</span>
+              <span className="text-lg font-serif font-black text-blue-400">{logs.filter(l => l.isCorrect).length}</span>
             </div>
             <div className="px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-center min-w-[70px]">
               <span className="text-[8px] font-black text-red-400 uppercase tracking-widest block mb-0.5">Wrong</span>
@@ -230,7 +230,7 @@ export default function ActivityLog() {
                   className={cn(
                     "card-luxury overflow-hidden transition-all duration-300 border bg-navy-mid/40 hover:border-gold/30",
                     log.isCorrect 
-                      ? "border-emerald-500/10 hover:border-emerald-500/30" 
+                      ? "border-blue-500/10 hover:border-blue-500/30" 
                       : isSkipped 
                         ? "border-gold/10 hover:border-gold/30" 
                         : "border-red-500/10 hover:border-red-500/30"
@@ -258,7 +258,7 @@ export default function ActivityLog() {
 
                     <div className="flex items-center gap-4">
                       {log.isCorrect ? (
-                        <div className="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                        <div className="w-8 h-8 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
                           <Check className="w-4 h-4" />
                         </div>
                       ) : isSkipped ? (
@@ -314,7 +314,7 @@ export default function ActivityLog() {
                                       className={cn(
                                         "p-4 rounded-xl text-xs font-bold border transition-colors flex items-center gap-3",
                                         isCorrectOption 
-                                          ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                                          ? "bg-blue-500/10 border-blue-500/30 text-blue-300"
                                           : isSelectedOption 
                                             ? "bg-red-500/10 border-red-500/30 text-red-300"
                                             : "bg-navy-high border-gold/10 text-text-2"
@@ -326,7 +326,7 @@ export default function ActivityLog() {
                                       <span className="flex-1">{option}</span>
 
                                       {isCorrectOption && (
-                                        <span className="text-[9px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">
+                                        <span className="text-[9px] font-black uppercase tracking-wider bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">
                                           Correct Answer
                                         </span>
                                       )}
@@ -354,17 +354,6 @@ export default function ActivityLog() {
                               </p>
                             </div>
                           )}
-
-                          {/* Study Page redirect button */}
-                          <div className="flex justify-end pt-2">
-                            <button
-                              onClick={() => navigate(`/courses/${log.courseId}/study`)}
-                              className="px-4 py-2 rounded-xl bg-navy-high border border-gold/10 hover:border-gold/30 text-[9px] font-black uppercase tracking-widest text-gold hover:bg-gold/5 transition-all flex items-center gap-2"
-                            >
-                              <BookOpen className="w-3.5 h-3.5" />
-                              <span>Go to Study Area</span>
-                            </button>
-                          </div>
                         </div>
                       </motion.div>
                     )}

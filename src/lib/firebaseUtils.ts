@@ -1,4 +1,5 @@
 import { auth } from './firebase';
+import { onSnapshot, DocumentReference, Query, Unsubscribe, getDocs } from 'firebase/firestore';
 
 export enum OperationType {
   CREATE = 'create',
@@ -45,6 +46,54 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   }
   
   const errMsg = String(errInfo.error);
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  console.warn('Firestore Error / Quota Notice: ', JSON.stringify(errInfo));
+  
+  // Do not throw for resource-exhausted / quota exceeded / list operations in listeners to prevent crashing snapshot listeners
+  if (errMsg.includes('resource-exhausted') || errMsg.includes('Quota') || errMsg.includes('quota') || operationType === OperationType.LIST) {
+    return;
+  }
+  
   throw new Error(JSON.stringify(errInfo));
 }
+
+export function safeOnSnapshot<T>(
+  queryOrRef: DocumentReference<T> | Query<T>,
+  onNext: (snapshot: any) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
+  let isUnsubscribed = false;
+  
+  const unsubscribe = onSnapshot(
+    queryOrRef as any,
+    (snapshot) => {
+      if (!isUnsubscribed) {
+        onNext(snapshot);
+      }
+    },
+    (error) => {
+      console.warn('SafeOnSnapshot caught error (quota/network):', error);
+      if (!isUnsubscribed) {
+        if (onError) {
+          onError(error as Error);
+        }
+        // Fallback: try fetching once via getDocs/getDoc if resource exhausted
+        const errStr = String(error);
+        if (errStr.includes('resource-exhausted') || errStr.includes('quota') || errStr.includes('Quota')) {
+          getDocs(queryOrRef as any).then((snap) => {
+            if (!isUnsubscribed) {
+              onNext(snap);
+            }
+          }).catch((err) => {
+            console.warn('Fallback getDocs also failed:', err);
+          });
+        }
+      }
+    }
+  );
+
+  return () => {
+    isUnsubscribed = true;
+    unsubscribe();
+  };
+}
+
