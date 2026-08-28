@@ -11,7 +11,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { DiamondLogo } from './DiamondLogo';
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default function Layout({ children, className }: { children: React.ReactNode; className?: string }) {
   const { user, isAdmin, isVerified, profile } = useAuth();
   const { t } = useLanguage();
   const location = useLocation();
@@ -44,7 +44,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const currentTitle = pageTitles[location.pathname] || t('nav.study');
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F8F9FB] pb-24">
+    <div className={cn("flex flex-col min-h-screen bg-[#F8F9FB] pb-24", className)}>
       {/* Top Bar */}
       <header className={cn(
         "sticky h-16 bg-white/95 backdrop-blur-xl border-b border-[#DDE5F5] px-4 sm:px-6 flex items-center justify-between z-30 shadow-xs top-0"

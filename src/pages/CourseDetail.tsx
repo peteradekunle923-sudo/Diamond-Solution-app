@@ -375,7 +375,7 @@ export default function CourseDetail() {
   );
 
   return (
-    <Layout>
+    <Layout className="bg-white">
       <div className="pt-8 px-6 max-w-4xl mx-auto w-full relative z-20 page-wrapper">
         <button 
           onClick={() => navigate('/courses')}
@@ -387,7 +387,7 @@ export default function CourseDetail() {
 
       <div className="px-3 pt-8 relative z-10 space-y-12 pb-24 max-w-4xl mx-auto w-full section-container">
         <div 
-          className="p-8 sm:p-10 bg-gradient-to-br from-[#1E3A8A] via-[#1E40AF] to-[#1D4ED8] border border-blue-400/25 shadow-xl shadow-[#0B1E3D]/20 rounded-3xl text-white"
+          className="p-8 sm:p-10 bg-gradient-to-br from-[#1E3A8A] via-[#1E40AF] to-[#1D4ED8] border border-blue-400/25 shadow-xl shadow-black/30 rounded-3xl text-white"
           style={{ willChange: 'auto', transform: 'translateZ(0)', backfaceVisibility: 'hidden' }}
         >
           <div className="space-y-10">
@@ -602,27 +602,25 @@ function ObjectiveItem({ text, onClick, isClickable }: { text: string; onClick?:
   return (
     <div 
       onClick={onClick}
-      className={`p-6 flex items-start gap-4 transition-all duration-300 bg-[#0B1E3D] border border-[#1E3B6E] rounded-3xl shadow-md shadow-[#0B1E3D]/10 ${
+      className={`p-6 flex items-start gap-4 transition-all duration-300 bg-gradient-to-br from-[#1E3A8A] to-[#1D4ED8] border border-blue-400/30 rounded-3xl shadow-lg shadow-[#071326]/40 ${
         isClickable 
-          ? 'hover:bg-[#122A54] hover:border-[#F3C644]/60 hover:shadow-xl hover:shadow-[#0B1E3D]/25 cursor-pointer group/item active:scale-[0.99]' 
+          ? 'hover:from-[#2563EB] hover:to-[#1D4ED8] hover:border-[#F3C644] hover:shadow-2xl hover:shadow-[#1E3A8A]/50 cursor-pointer group/item active:scale-[0.99]' 
           : ''
       }`}
     >
-      <div className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 border mt-1 transition-all duration-300 ${
+      <div className={`w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 border mt-0.5 transition-all duration-300 ${
         isClickable
-          ? 'bg-[#152E59] text-[#F3C644] border-[#1E3B6E] group-hover/item:bg-[#F3C644] group-hover/item:text-[#0B1E3D] group-hover/item:border-[#F3C644]'
-          : 'bg-[#152E59] text-[#F3C644] border-[#1E3B6E]'
+          ? 'bg-white/15 text-[#F3C644] border-white/20 group-hover/item:bg-[#F3C644] group-hover/item:text-[#0B1E3D] group-hover/item:border-[#F3C644]'
+          : 'bg-white/15 text-[#F3C644] border-white/20'
       }`}>
-        {isClickable ? <Play className="w-3 h-3 fill-current" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+        {isClickable ? <Play className="w-3.5 h-3.5 fill-current" /> : <CheckCircle2 className="w-4 h-4" />}
       </div>
       <div className="flex-1">
-        <p className={`font-bold text-sm leading-relaxed transition-colors duration-200 ${
-          isClickable ? 'text-[#F3C644] group-hover/item:text-[#FEF08A]' : 'text-[#F3C644]'
-        }`}>
+        <p className="font-bold text-sm leading-relaxed text-white transition-colors duration-200">
           {text}
         </p>
         {isClickable && (
-          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#93C5FD] group-hover/item:text-white mt-1.5 block transition-colors">
+          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#F3C644] group-hover/item:text-[#FDE68A] mt-2 block transition-colors">
             Click to launch section
           </span>
         )}
