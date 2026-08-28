@@ -387,7 +387,7 @@ export default function CourseDetail() {
 
       <div className="px-3 pt-8 relative z-10 space-y-12 pb-24 max-w-4xl mx-auto w-full section-container">
         <div 
-          className="p-8 sm:p-10 bg-gradient-to-br from-[#1E3A8A] via-[#1E40AF] to-[#1D4ED8] border border-blue-400/25 shadow-xl shadow-black/30 rounded-3xl text-white"
+          className="p-8 sm:p-10 bg-white border border-[#DDE5F5] shadow-lg shadow-slate-200/60 rounded-3xl"
           style={{ willChange: 'auto', transform: 'translateZ(0)', backfaceVisibility: 'hidden' }}
         >
           <div className="space-y-10">
@@ -397,14 +397,14 @@ export default function CourseDetail() {
               className="space-y-6"
             >
               <div className="flex flex-wrap items-center gap-3">
-                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-[#F3C644] bg-[#F3C644]/15 px-4 py-2 rounded-xl border border-[#F3C644]/30 shadow-xs">
+                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-[#B45309] bg-[#FEF3C7] px-4 py-2 rounded-xl border border-[#FDE68A] shadow-xs">
                   {t(`dept.${course.department}`)}
                 </span>
-                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-100 bg-white/10 px-4 py-2 rounded-xl border border-white/20 shadow-xs">
+                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-600 bg-[#EEF3FF] px-4 py-2 rounded-xl border border-[#D4E0FC] shadow-xs">
                   {course.level} {t('course.level')}
                 </span>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-serif font-black text-white leading-tight tracking-tight">
+              <h2 className="text-2xl sm:text-3xl font-serif font-black text-[#0B1E3D] leading-tight tracking-tight">
                 {course.title}
               </h2>
             </motion.div>
@@ -413,7 +413,7 @@ export default function CourseDetail() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.05 }}
-              className="text-blue-100 leading-relaxed text-lg font-medium border-l-2 border-[#F3C644] pl-6 italic"
+              className="text-slate-600 leading-relaxed text-lg font-medium border-l-2 border-[#D4AF37] pl-6 italic"
             >
               {course.description || "Synthesize your academic competence with expert-reviewed examination protocols and exhaustive logical explanations curated by Diamond's internal collegiate board."}
             </motion.p>
@@ -422,7 +422,7 @@ export default function CourseDetail() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="grid grid-cols-3 gap-6 py-10 border-y border-white/15"
+              className="grid grid-cols-3 gap-6 py-10 border-y border-[#DDE5F5]"
             >
               <Feature icon={Award} label={t('course.status')} value={t('course.institutional')} />
               <Feature icon={ShieldCheck} label={t('course.security')} value={t('course.encrypted')} />
@@ -432,8 +432,8 @@ export default function CourseDetail() {
             <div className="pt-4">
               {hasPaid ? (
                 <div className="space-y-6">
-                  {/* Protocol Initiation Dashboard */}
-                  <div className="bg-black/20 backdrop-blur-xs p-6 rounded-3xl border border-white/15 space-y-4 text-left">
+                  {/* Protocol Initiation Dashboard - Exempted in Royal Blue */}
+                  <div className="bg-gradient-to-br from-[#1E3A8A] via-[#1E40AF] to-[#1D4ED8] p-6 sm:p-8 rounded-3xl border border-blue-400/30 space-y-4 text-left shadow-lg shadow-[#1E3A8A]/20 text-white">
                     <span className="text-[10px] font-black text-[#F3C644] uppercase tracking-[0.3em] block mb-2">Protocol Launch Configurations</span>
                     
                     <div className="grid grid-cols-1 gap-4">
@@ -496,19 +496,19 @@ export default function CourseDetail() {
                 <button 
                   onClick={handlePayment}
                   disabled={paying}
-                  className="w-full h-16 bg-[#F3C644] hover:bg-[#F59E0B] text-[#0B1E3D] rounded-3xl text-xs uppercase tracking-[0.3em] font-black shadow-xl shadow-black/30 flex items-center justify-center gap-4 cursor-pointer transition-all active:scale-[0.99]"
+                  className="w-full h-16 bg-[#1B3FA0] hover:bg-[#152E59] text-white rounded-3xl text-xs uppercase tracking-[0.3em] font-black shadow-xl shadow-[#1B3FA0]/20 flex items-center justify-center gap-4 cursor-pointer transition-all active:scale-[0.99]"
                 >
                   {paying ? (
-                    <div className="w-5 h-5 border-2 border-[#0B1E3D]/30 border-t-[#0B1E3D] rounded-full animate-spin" />
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
                     <>
-                      <Lock className="w-5 h-5 opacity-90 group-hover:rotate-12 transition-transform" />
+                      <Lock className="w-5 h-5 text-[#F3C644] group-hover:rotate-12 transition-transform" />
                       <span>{t('payment.authorize')}: {userCurrency === 'USD' ? '$' : '₦'}{displayPrice.toLocaleString()}</span>
                     </>
                   )}
                 </button>
               )}
-              <p className="text-center mt-6 text-[9px] font-black text-blue-200 uppercase tracking-[0.3em]">
+              <p className="text-center mt-6 text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">
                 {t('course.paymentTags')}
               </p>
             </div>
@@ -587,12 +587,12 @@ function extractQuestionRange(text: string): { start: number; end: number | null
 function Feature({ icon: Icon, label, value }: any) {
   return (
     <div className="flex flex-col items-center text-center space-y-2">
-      <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center text-[#F3C644] border border-white/20">
+      <div className="w-10 h-10 rounded-2xl bg-[#EEF3FF] flex items-center justify-center text-[#1B3FA0] border border-[#D4E0FC]">
         <Icon className="w-5 h-5" />
       </div>
       <div className="space-y-1">
-        <p className="text-[9px] font-black text-blue-200 uppercase tracking-widest">{label}</p>
-        <p className="text-sm font-bold text-white tracking-tight">{value}</p>
+        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{label}</p>
+        <p className="text-sm font-bold text-[#0B1E3D] tracking-tight">{value}</p>
       </div>
     </div>
   );
