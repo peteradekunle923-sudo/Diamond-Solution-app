@@ -1284,11 +1284,11 @@ export default function StudyPage() {
                   let stateClasses = "border-[#D8E3FF] hover:border-blue-300 hover:bg-[#EEF3FF]";
 
                   if (isSubmitted) {
-                    if (isCorrect) stateClasses = "border-[#1B3FA0] bg-[#EEF3FF] text-[#0B1E3D] font-bold";
-                    else if (isSelected) stateClasses = "border-red-500 bg-red-50 text-red-600";
+                    if (isCorrect) stateClasses = "border-[#1B3FA0] bg-[#EEF3FF]";
+                    else if (isSelected) stateClasses = "border-red-500 bg-red-50";
                     else stateClasses = "border-[#D8E3FF] opacity-50";
                   } else if (isSelected) {
-                    stateClasses = "border-[#2563EB] bg-[#EEF3FF] text-[#2563EB]";
+                    stateClasses = "border-[#2563EB] bg-[#EEF3FF]";
                   }
 
                   return (
@@ -1307,7 +1307,7 @@ export default function StudyPage() {
                       )}>
                         {String.fromCharCode(65 + idx)}
                       </div>
-                      <span className="text-base font-semibold flex-1 leading-snug">{option}</span>
+                      <span className="text-base font-semibold flex-1 leading-snug text-black">{option}</span>
                       {isSubmitted && (isCorrect ? <CheckCircle className="w-6 h-6 ml-2 text-[#1B3FA0]" /> : isSelected && <XCircle className="w-6 h-6 ml-2 text-red-500" />)}
                     </button>
                   );

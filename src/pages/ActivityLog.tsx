@@ -290,11 +290,11 @@ export default function ActivityLog() {
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.25, ease: 'easeInOut' }}
                       >
-                        <div className="px-6 pb-6 pt-2 border-t border-gold/5 bg-navy-high/20 space-y-6">
+                        <div className="px-6 pb-6 pt-4 border-t border-[#DDE5F5] bg-slate-50/60 space-y-6">
                           {/* Full Question Text */}
                           <div className="space-y-2">
-                            <p className="text-[9px] font-black text-text-3 uppercase tracking-widest">Question</p>
-                            <p className="text-text-1 text-sm md:text-base font-medium leading-relaxed">
+                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Question</p>
+                            <p className="text-black text-sm md:text-base font-semibold leading-relaxed">
                               {log.questionText}
                             </p>
                           </div>
@@ -314,24 +314,31 @@ export default function ActivityLog() {
                                       className={cn(
                                         "p-4 rounded-xl text-xs font-bold border transition-colors flex items-center gap-3",
                                         isCorrectOption 
-                                          ? "bg-blue-500/10 border-blue-500/30 text-blue-300"
+                                          ? "bg-[#EEF3FF] border-[#1B3FA0]"
                                           : isSelectedOption 
-                                            ? "bg-red-500/10 border-red-500/30 text-red-300"
-                                            : "bg-navy-high border-gold/10 text-text-2"
+                                            ? "bg-red-50 border-red-500"
+                                            : "bg-white border-[#D8E3FF]"
                                       )}
                                     >
-                                      <span className="font-mono text-[10px] w-5 h-5 rounded-md bg-navy/40 flex items-center justify-center border border-gold/10 uppercase">
+                                      <span className={cn(
+                                        "font-mono text-[10px] w-6 h-6 rounded-lg flex items-center justify-center border font-black uppercase shrink-0",
+                                        isCorrectOption 
+                                          ? "bg-[#1B3FA0] text-white border-[#1B3FA0]"
+                                          : isSelectedOption 
+                                            ? "bg-red-500 text-white border-red-500"
+                                            : "bg-[#EEF3FF] text-slate-700 border-[#D8E3FF]"
+                                      )}>
                                         {String.fromCharCode(65 + idx)}
                                       </span>
-                                      <span className="flex-1">{option}</span>
+                                      <span className="flex-1 text-sm font-semibold text-black leading-snug">{option}</span>
 
                                       {isCorrectOption && (
-                                        <span className="text-[9px] font-black uppercase tracking-wider bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">
+                                        <span className="text-[9px] font-black uppercase tracking-wider bg-[#1B3FA0]/15 text-[#1B3FA0] px-2.5 py-1 rounded-md border border-[#1B3FA0]/30">
                                           Correct Answer
                                         </span>
                                       )}
                                       {isSelectedOption && !isCorrectOption && (
-                                        <span className="text-[9px] font-black uppercase tracking-wider bg-red-500/20 text-red-400 px-2 py-0.5 rounded">
+                                        <span className="text-[9px] font-black uppercase tracking-wider bg-red-100 text-red-600 px-2.5 py-1 rounded-md border border-red-200">
                                           Your Choice
                                         </span>
                                       )}
