@@ -427,18 +427,28 @@ export default function Login() {
                 if (!isBlocked) {
                   const blockDuration = 24 * 60 * 60 * 1000;
                   const futureBlockedUntil = Date.now() + blockDuration;
-                  await updateDoc(doc(db, 'users', res.user.uid), {
-                    status: 'device_blocked',
-                    deviceBlockPending: true,
-                    blockedUntil: futureBlockedUntil,
-                    reactivationPaid: false
-                  });
+                  try {
+                    await updateDoc(doc(db, 'users', res.user.uid), {
+                      status: 'device_blocked',
+                      deviceBlockPending: true,
+                      blockedUntil: futureBlockedUntil,
+                      reactivationPaid: false
+                    });
+                    userData.status = 'device_blocked';
+                    userData.deviceBlockPending = true;
+                  } catch (blockErr) {
+                    console.warn("Could not update device_blocked status:", blockErr);
+                  }
                 }
               } else {
                 const updatedDevices = [...registeredDevices, currentDeviceId];
-                await updateDoc(doc(db, 'users', res.user.uid), {
-                  registeredDeviceIds: updatedDevices
-                });
+                try {
+                  await updateDoc(doc(db, 'users', res.user.uid), {
+                    registeredDeviceIds: updatedDevices
+                  });
+                } catch (devErr) {
+                  console.warn("Could not update registeredDeviceIds:", devErr);
+                }
               }
             }
           }
@@ -457,13 +467,21 @@ export default function Login() {
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         const deviceId = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-        // Start single-session validation
-        const { SessionService } = await import('../lib/SessionService');
-        await SessionService.startSession(res.user.uid);
+        // Start single-session validation safely
+        try {
+          const { SessionService } = await import('../lib/SessionService');
+          await SessionService.startSession(res.user.uid);
+        } catch (sessionErr) {
+          console.warn("SessionService start warning:", sessionErr);
+        }
 
         await res.user.getIdToken(true);
         sessionStorage.removeItem('diamond_onboard_shown');
-        navigate('/dashboard');
+        if (userData?.status === 'suspended' || userData?.status === 'device_blocked' || userData?.deviceBlockPending) {
+          navigate('/reactivate');
+        } else {
+          navigate('/dashboard');
+        }
       } else {
         setError('No valid biometric credentials detected. Please log in with your email and password first.');
       }
@@ -544,25 +562,39 @@ export default function Login() {
               if (!isBlocked) {
                 const blockDuration = 24 * 60 * 60 * 1000;
                 const futureBlockedUntil = Date.now() + blockDuration;
-                await updateDoc(userDocRef, {
-                  status: 'device_blocked',
-                  deviceBlockPending: true,
-                  blockedUntil: futureBlockedUntil,
-                  reactivationPaid: false
-                });
+                try {
+                  await updateDoc(userDocRef, {
+                    status: 'device_blocked',
+                    deviceBlockPending: true,
+                    blockedUntil: futureBlockedUntil,
+                    reactivationPaid: false
+                  });
+                  userData.status = 'device_blocked';
+                  userData.deviceBlockPending = true;
+                } catch (blockErr) {
+                  console.warn("Could not set device_blocked status:", blockErr);
+                }
               }
             } else {
               const updatedDevices = [...registeredDevices, currentDeviceId];
-              await updateDoc(userDocRef, {
-                registeredDeviceIds: updatedDevices
-              });
+              try {
+                await updateDoc(userDocRef, {
+                  registeredDeviceIds: updatedDevices
+                });
+              } catch (devErr) {
+                console.warn("Could not update registeredDeviceIds:", devErr);
+              }
             }
           }
         }
 
-        // Start single-session validation
-        const { SessionService } = await import('../lib/SessionService');
-        await SessionService.startSession(res.user.uid);
+        // Start single-session validation safely
+        try {
+          const { SessionService } = await import('../lib/SessionService');
+          await SessionService.startSession(res.user.uid);
+        } catch (sessionErr) {
+          console.warn("SessionService start warning:", sessionErr);
+        }
         
         if (enableBiometricsOnLogin && biometricsSupported) {
           try {
@@ -576,7 +608,11 @@ export default function Login() {
         await res.user.getIdToken(true);
         // Clear session tour flag on explicit login as requested
         sessionStorage.removeItem('diamond_onboard_shown');
-        navigate('/dashboard');
+        if (userData?.status === 'suspended' || userData?.status === 'device_blocked' || userData?.deviceBlockPending) {
+          navigate('/reactivate');
+        } else {
+          navigate('/dashboard');
+        }
       } else {
         setSessionToken('PENDING_LOGIN'); // Bypass onSnapshot auto-logout
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);

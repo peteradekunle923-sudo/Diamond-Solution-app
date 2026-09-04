@@ -35,7 +35,17 @@
         "updatedAt": { "type": "string", "format": "date-time" },
         "isVerified": { "type": "boolean" },
         "biometricDeviceId": { "type": "string" },
-        "biometricEnrolledAt": { "type": "string", "format": "date-time" }
+        "biometricEnrolledAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["active", "device_blocked", "suspended"] },
+        "registeredDeviceIds": { "type": "array", "items": { "type": "string" } },
+        "deviceBlockPending": { "type": "boolean" },
+        "blockedUntil": { "type": "number" },
+        "reactivationPaid": { "type": "boolean" },
+        "reactivatedAt": { "type": "string", "format": "date-time" },
+        "suspensionReason": { "type": "string" },
+        "sessionToken": { "type": "string" },
+        "sessionDeviceId": { "type": "string" },
+        "lastLoginAt": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "email", "role"]
     },

@@ -38,11 +38,15 @@ export class SessionService {
 
     // Update Firestore users/{uid} and backup user_sessions/{uid} for compatibility
     const userRef = doc(db, 'users', uid);
-    await setDoc(userRef, {
-      sessionToken,
-      sessionDeviceId,
-      lastLoginAt: new Date().toISOString()
-    }, { merge: true });
+    try {
+      await setDoc(userRef, {
+        sessionToken,
+        sessionDeviceId,
+        lastLoginAt: new Date().toISOString()
+      }, { merge: true });
+    } catch (err) {
+      console.warn("User doc session update warning:", err);
+    }
 
     const backupSessionRef = doc(db, 'user_sessions', uid);
     await setDoc(backupSessionRef, {

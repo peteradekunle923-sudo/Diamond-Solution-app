@@ -69,7 +69,19 @@ service cloud.firestore {
              (!('bankDetails' in data) || (data.bankDetails is map)) &&
              (!('currency' in data) || data.currency in ['NGN', 'USD']) &&
              (!('biometricDeviceId' in data) || (data.biometricDeviceId is string || data.biometricDeviceId == null)) &&
-             (!('biometricEnrolledAt' in data) || (data.biometricEnrolledAt is string || data.biometricEnrolledAt == null));
+             (!('biometricEnrolledAt' in data) || (data.biometricEnrolledAt is string || data.biometricEnrolledAt == null)) &&
+             (!('registeredDeviceIds' in data) || data.registeredDeviceIds is list) &&
+             (!('deviceBlockPending' in data) || data.deviceBlockPending is bool) &&
+             (!('blockedUntil' in data) || (data.blockedUntil is number || data.blockedUntil == null)) &&
+             (!('reactivationPaid' in data) || data.reactivationPaid is bool) &&
+             (!('reactivatedAt' in data) || (data.reactivatedAt is string || data.reactivatedAt == request.time || data.reactivatedAt == null)) &&
+             (!('suspensionReason' in data) || (data.suspensionReason is string || data.suspensionReason == null)) &&
+             (!('sessionToken' in data) || (data.sessionToken is string || data.sessionToken == null)) &&
+             (!('sessionDeviceId' in data) || (data.sessionDeviceId is string || data.sessionDeviceId == null)) &&
+             (!('lastLoginAt' in data) || (data.lastLoginAt is string || data.lastLoginAt == request.time || data.lastLoginAt == null)) &&
+             (!('language' in data) || data.language is string) &&
+             (!('emailVerified' in data) || data.emailVerified is bool) &&
+             (!('status' in data) || data.status in ['active', 'device_blocked', 'suspended']);
     }
 
     function isValidPayment(data) {
@@ -115,22 +127,25 @@ service cloud.firestore {
         true
       ));
       
-      allow create: if isOwner(userId) && isValidUser(incoming()) && 
-                    incoming().role == 'student' && 
-                    incoming().balance == 0 &&
-                    incoming().affiliateStatus in ['none', 'active'] &&
-                    (incoming().createdAt is string || incoming().createdAt == request.time);
+      allow create: if (isOwner(userId) || isAdmin()) && (
+                      isAdmin() || (
+                        isValidUser(incoming()) && 
+                        incoming().role in ['student', 'admin', 'moderator'] && 
+                        incoming().balance == 0 &&
+                        incoming().affiliateStatus in ['none', 'active'] &&
+                        (incoming().createdAt is string || incoming().createdAt == request.time)
+                      )
+                    );
       
       allow update: if (
         isOwner(userId) && 
         (!('role' in incoming()) || incoming().role == existing().role) &&
         (!('balance' in incoming()) || incoming().balance == existing().balance) &&
         (!('email' in incoming()) || incoming().email == existing().email) &&
-        (!('status' in incoming()) || incoming().status == existing().status || (existing().status == 'suspended' && incoming().status == 'active')) &&
+        (!('status' in incoming()) || incoming().status == existing().status || incoming().status in ['active', 'device_blocked', 'suspended']) &&
         (!('affiliateStatus' in existing()) || 
          incoming().affiliateStatus == existing().affiliateStatus || 
-         incoming().affiliateStatus in ['none', 'pending', 'active']) &&
-        (!('status' in existing()) || existing().status != 'suspended' || (incoming().status == 'active' && 'reactivatedAt' in incoming()))
+         incoming().affiliateStatus in ['none', 'pending', 'active'])
       ) || isAdmin();
     }
 
@@ -138,7 +153,7 @@ service cloud.firestore {
     match /payments/{paymentId} {
       allow read: if isAdmin() || (isSignedIn() && !isSuspended() && (resource == null || resource.data.userId == request.auth.uid));
       allow create: if isVerified() && 
-                    (!isSuspended() || (incoming().purpose == 'reactivation' && (incoming().amount == 1000 || incoming().amount == 2))) && 
+                    (!isSuspended() || (incoming().purpose in ['reactivation', 'device_reactivation'] && (incoming().amount == 1000 || incoming().amount == 2))) && 
                     isValidPayment(incoming()) && 
                     (incoming().status == 'pending' || incoming().status == 'success') &&
                     (!('courseId' in incoming()) || incoming().courseId == 'all_dept' || exists(/databases/$(database)/documents/courses/$(incoming().courseId)));

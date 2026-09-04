@@ -43,6 +43,14 @@ export function getFriendlyErrorMessage(err: any): string {
   if (code.includes('network-request-failed') || message.includes('network-request-failed')) {
     return 'Network error. Please check your internet connection.';
   }
+
+  if (
+    code.includes('permission-denied') || 
+    message.includes('missing or insufficient permissions') ||
+    message.includes('permission-denied')
+  ) {
+    return 'Account verification or security policy required. Please check your account status or contact support.';
+  }
   
   // Clean up any Firebase-prefixed messages that slip through
   if (err.message && err.message.startsWith('Firebase:')) {
