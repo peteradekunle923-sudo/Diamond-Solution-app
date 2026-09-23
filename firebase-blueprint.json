@@ -61,6 +61,7 @@
         "description": { "type": "string" },
         "department": { "type": "string" },
         "level": { "type": "string" },
+        "questionType": { "type": "string", "enum": ["objective", "application"] },
         "price": { "type": "number" },
         "imageUrl": { "type": "string" },
         "thumbnail": { "type": "string" },

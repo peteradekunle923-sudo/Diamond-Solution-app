@@ -188,7 +188,7 @@ export default function StudyPage() {
 
     // (one-time fetch below replaces the old live listener/unsubscribe pattern)
 
-    const setupQuestionsListener = () => {
+    const setupQuestionsListener = (targetCourse?: any) => {
       // Fetch once instead of subscribing live. Question content
       // essentially never changes mid-quiz for a given student, so a
       // real-time listener buys nothing here — it only adds an open
@@ -197,11 +197,16 @@ export default function StudyPage() {
       // gets edited by an admin, for as long as the listener stays
       // open. A one-time fetch has the same initial cost with none
       // of that ongoing multiplier.
+      const activeC = targetCourse || course;
       const q = query(collection(db, 'courses', id!, 'content'), orderBy('order', 'asc'));
       const loadQuestionsOnce = async () => {
         try {
           const snapshot = await getDocs(q);
-          const fetchedQuestions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter((q: any) => !q.isDeleted);
+          const fetchedQuestions = snapshot.docs.map(doc => {
+            const data = doc.data();
+            const inferredType = data.type || (activeC?.questionType ? activeC.questionType : (activeC?.level === 'Application Questions' ? 'application' : 'objective'));
+            return { id: doc.id, ...data, type: inferredType };
+          }).filter((q: any) => !q.isDeleted);
           setQuestions(fetchedQuestions);
 
           // Load Progress
@@ -276,7 +281,7 @@ export default function StudyPage() {
           if (isAdmin) {
             console.log("User is admin or has global payment access, bypassing payment checkout");
             setPaymentVerified(true);
-            setupQuestionsListener();
+            setupQuestionsListener(courseData);
             return;
           }
 
@@ -325,7 +330,7 @@ export default function StudyPage() {
 
           if (hasSpecificPayment || hasDeptPayment || hasDeptDocPayment) {
             setPaymentVerified(true);
-            setupQuestionsListener();
+            setupQuestionsListener(courseData);
           } else {
             console.log("Access denied: No valid payment found for user", user.uid);
             setLoading(false);
@@ -1257,7 +1262,7 @@ export default function StudyPage() {
           >
             <div className="card-luxury p-8 sm:p-10 bg-white border border-[#D8E3FF] shadow-xs rounded-3xl">
               <span className="text-[9px] font-black text-text-3 uppercase tracking-[0.4em] mb-4 block">{t('study.archiveQuery')} • {current.category || 'MCQ'}</span>
-              <p className="text-xl md:text-2xl font-serif font-black text-text-1 leading-relaxed">
+              <p className="text-xl md:text-2xl font-serif font-black text-text-1 leading-relaxed whitespace-pre-wrap">
                 {currentQuestionText}
               </p>
             </div>
@@ -1278,7 +1283,7 @@ export default function StudyPage() {
                   ) : (
                     <div className="p-8 bg-[#0B1E3D] border border-[#1E3B6E] rounded-3xl shadow-lg shadow-[#0B1E3D]/10">
                       <span className="text-[10px] font-black text-[#F3C644] uppercase tracking-widest block mb-4">Expected Response provided by System</span>
-                      <p className="text-sm md:text-base text-[#F1F5F9] font-medium leading-relaxed">
+                      <p className="text-sm md:text-base text-[#F1F5F9] font-medium leading-relaxed whitespace-pre-wrap">
                         {current.answerText || current.explanation || 'No expected answer text provided.'}
                       </p>
                     </div>
@@ -1314,7 +1319,7 @@ export default function StudyPage() {
                       )}>
                         {String.fromCharCode(65 + idx)}
                       </div>
-                      <span className="text-base font-semibold flex-1 leading-snug text-black">{option}</span>
+                      <span className="text-base font-semibold flex-1 leading-snug text-black whitespace-pre-wrap">{option}</span>
                       {isSubmitted && (isCorrect ? <CheckCircle className="w-6 h-6 ml-2 text-[#1B3FA0]" /> : isSelected && <XCircle className="w-6 h-6 ml-2 text-red-500" />)}
                     </button>
                   );
@@ -1332,7 +1337,7 @@ export default function StudyPage() {
                    <Info className="w-4.5 h-4.5 text-[#F3C644]" />
                    <h4 className="text-[10px] font-black text-[#F3C644] uppercase tracking-[0.3em]">{t('study.institutionalSynthesis')}</h4>
                 </div>
-                <p className="text-[#F1F5F9] font-medium leading-relaxed text-sm sm:text-base selection:bg-[#F3C644] selection:text-[#0B1E3D]">
+                <p className="text-[#F1F5F9] font-medium leading-relaxed text-sm sm:text-base selection:bg-[#F3C644] selection:text-[#0B1E3D] whitespace-pre-wrap">
                   {currentExplanation}
                 </p>
               </motion.div>

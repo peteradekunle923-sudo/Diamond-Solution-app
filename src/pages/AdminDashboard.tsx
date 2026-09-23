@@ -2664,7 +2664,7 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
   const [courseSearch, setCourseSearch] = useState('');
   const [questionSearch, setQuestionSearch] = useState('');
   const [showEditCourse, setShowEditCourse] = useState(false);
-  const [editCourseData, setEditCourseData] = useState({ id: '', title: '', department: '', level: '', description: '', imageUrl: '' });
+  const [editCourseData, setEditCourseData] = useState({ id: '', title: '', department: '', level: '', questionType: 'objective' as 'objective' | 'application', description: '', imageUrl: '' });
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [bulkDeleteConfirmText, setBulkDeleteConfirmText] = useState('');
   const [showCourseContentModal, setShowCourseContentModal] = useState(false);
@@ -2693,7 +2693,7 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
   };
   
   // States for new course
-  const [newCourse, setNewCourse] = useState({ title: '', department: initialFilter || allDepts[0], level: '100L', description: '', imageUrl: '' });
+  const [newCourse, setNewCourse] = useState({ title: '', department: initialFilter || allDepts[0], level: '100L', questionType: 'objective' as 'objective' | 'application', description: '', imageUrl: '' });
   
   // States for new question
   const [newQuestion, setNewQuestion] = useState({
@@ -2749,7 +2749,7 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
   const exportQuestionsCSV = () => {
     if (!questions.length || !activeCourse) return;
     
-    const isAppQuestion = activeCourse.level === 'Application Questions';
+    const isAppQuestion = activeCourse.questionType === 'application' || activeCourse.level === 'Application Questions';
     const headers = isAppQuestion
       ? ["Question", "Expected Answer"]
       : ["Question", "Option A", "Option B", "Option C", "Option D", "Option E", "Correct Answer (A-E or 0-4)", "Explanation"];
@@ -2786,7 +2786,7 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
   };
 
   const downloadTemplate = () => {
-    const isAppQuestion = activeCourse?.level === 'Application Questions';
+    const isAppQuestion = activeCourse?.questionType === 'application' || activeCourse?.level === 'Application Questions';
     const headers = isAppQuestion 
       ? ["Question", "Expected Answer"]
       : ["Question", "Option A", "Option B", "Option C", "Option D", "Option E", "Correct Answer (A-E or 0-4)", "Explanation"];
@@ -2820,18 +2820,28 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
       try {
         setLoading(true);
         const contentRef = collection(db, 'courses', activeCourse.id, 'content');
-        const isAppQuestion = activeCourse.level === 'Application Questions';
+        const isAppQuestion = activeCourse.questionType === 'application' || activeCourse.level === 'Application Questions';
         
         let batch = writeBatch(db);
         let batchCount = 0;
 
         for (const row of dataRows) {
-          if (!row) continue;
+          if (!row || row.length === 0) continue;
           if (!isAppQuestion && row.length < 6) continue;
-          if (isAppQuestion && row.length < 1) continue;
+          if (isAppQuestion && !row[0]?.trim() && !row[1]?.trim()) continue;
           
           let correctIdx = 0;
-          if (!isAppQuestion) {
+          let expectedAnswer = '';
+          let questionContent = (row[0] !== undefined && row[0] !== null) ? row[0] : 'Untitled Question';
+          
+          if (isAppQuestion) {
+            // For application questions:
+            // If 2 columns: column 0 is Question, column 1 is Expected Answer
+            // If template with 8 columns: column 1 or column 7 could have expected answer
+            expectedAnswer = (row[1] !== undefined && row[1] !== null && row[1] !== '') 
+              ? row[1] 
+              : (row[7] !== undefined && row[7] !== null ? row[7] : '');
+          } else {
             const val = row[6]?.toString().trim().toUpperCase();
             if (['A', 'B', 'C', 'D', 'E'].includes(val)) {
               correctIdx = ['A', 'B', 'C', 'D', 'E'].indexOf(val);
@@ -2843,10 +2853,10 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
           const newDocRef = doc(contentRef);
           batch.set(newDocRef, {
             type: isAppQuestion ? 'application' : 'objective',
-            question: row[0] || 'Untitled Question',
+            question: questionContent,
             options: isAppQuestion ? [] : [row[1] || 'Opt A', row[2] || 'Opt B', row[3] || 'Opt C', row[4] || 'Opt D', row[5] || 'Opt E'],
             correctAnswer: isAppQuestion ? 0 : correctIdx,
-            answerText: isAppQuestion ? (row[1] || '') : '',
+            answerText: isAppQuestion ? expectedAnswer : '',
             explanation: isAppQuestion ? '' : (row[7] || ''),
             courseId: activeCourse.id,
             order: currentOrder++,
@@ -2881,7 +2891,7 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
 
   // Helper inside or outside
   const parseCSV = (csvText: string) => {
-    const result = [];
+    const result: string[][] = [];
     let row: string[] = [];
     let cell = '';
     let inQuotes = false;
@@ -2894,16 +2904,28 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
             else { cell += char; }
         } else {
             if (char === '"') { inQuotes = true; } 
-            else if (char === ',') { row.push(cell.trim()); cell = ''; } 
+            else if (char === ',') { 
+                row.push(cell); 
+                cell = ''; 
+            } 
             else if (char === '\n' || char === '\r') {
-                row.push(cell.trim());
-                if (row.length > 1 || (row.length === 1 && row[0] !== '')) result.push(row);
-                row = []; cell = '';
+                row.push(cell);
+                // Check if the row contains at least one non-empty cell (ignoring pure whitespace rows)
+                if (row.some(c => c.trim().length > 0)) {
+                  result.push(row);
+                }
+                row = []; 
+                cell = '';
                 if (char === '\r' && nextChar === '\n') i++;
             } else { cell += char; }
         }
     }
-    if (cell !== '' || row.length > 0) { row.push(cell.trim()); result.push(row); }
+    if (cell !== '' || row.length > 0) { 
+        row.push(cell); 
+        if (row.some(c => c.trim().length > 0)) {
+          result.push(row);
+        }
+    }
     return result;
   };
 
@@ -2935,6 +2957,7 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
         ...newCourse,
         title: newCourse.title.trim(),
         description: newCourse.description.trim(),
+        questionType: newCourse.questionType || 'objective',
         price: 0,
         imageUrl: newCourse.imageUrl || '',
         thumbnail: newCourse.imageUrl || 'https://images.unsplash.com/photo-1532187875685-d6d1dd2e43f5?auto=format&fit=crop&q=80',
@@ -2946,7 +2969,7 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
         const deletedStaticNames = customFaculties.filter(f => f.isDeleted).map(f => f.name);
         return Array.from(new Set([...DEPARTMENTS.filter(d => !deletedStaticNames.includes(d)), ...activeCustomFaculties.map(f => f.name)]));
       })();
-      setNewCourse({ title: '', department: allDeptsList[0], level: '100L', description: '', imageUrl: '' });
+      setNewCourse({ title: '', department: allDeptsList[0], level: '100L', questionType: 'objective', description: '', imageUrl: '' });
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'courses');
     }
@@ -2960,6 +2983,7 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
         title: editCourseData.title.trim(),
         department: editCourseData.department,
         level: editCourseData.level,
+        questionType: editCourseData.questionType || 'objective',
         description: editCourseData.description.trim(),
         imageUrl: editCourseData.imageUrl || ''
       });
@@ -2970,6 +2994,7 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
         title: editCourseData.title.trim(),
         department: editCourseData.department,
         level: editCourseData.level,
+        questionType: editCourseData.questionType || 'objective',
         description: editCourseData.description.trim(),
         imageUrl: editCourseData.imageUrl || ''
       });
@@ -3084,8 +3109,9 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
   };
 
   const startEditQuestion = (q: any) => {
+    const courseDefaultType = activeCourse?.questionType || (activeCourse?.level === 'Application Questions' ? 'application' : 'objective');
     setNewQuestion({
-      type: q.type || (activeCourse?.level === 'Application Questions' ? 'application' : 'objective'),
+      type: q.type || courseDefaultType,
       question: q.question,
       options: q.options ? [...q.options] : ['', '', '', '', ''],
       correctAnswer: q.correctAnswer || 0,
@@ -3433,6 +3459,14 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
                     <span className="text-[9px] font-black bg-slate-100 text-slate-600 px-3 py-1 rounded-full uppercase tracking-widest border border-slate-200">
                       {activeCourse.level}
                     </span>
+                    <span className={cn(
+                      "text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest border",
+                      (activeCourse.questionType === 'application' || activeCourse.level === 'Application Questions')
+                        ? "bg-amber-50 text-amber-700 border-amber-200"
+                        : "bg-blue-50 text-blue-700 border-blue-200"
+                    )}>
+                      {(activeCourse.questionType === 'application' || activeCourse.level === 'Application Questions') ? 'Application' : 'Objective'}
+                    </span>
                     <button
                       onClick={() => {
                         setEditCourseData({
@@ -3440,6 +3474,7 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
                           title: activeCourse.title || '',
                           department: activeCourse.department || '',
                           level: activeCourse.level || '',
+                          questionType: (activeCourse.questionType || (activeCourse.level === 'Application Questions' ? 'application' : 'objective')) as 'objective' | 'application',
                           description: activeCourse.description || '',
                           imageUrl: activeCourse.imageUrl || activeCourse.thumbnail || ''
                         });
@@ -3520,8 +3555,9 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
                 <button 
                   onClick={() => {
                     setEditingQuestionId(null);
+                    const courseDefaultType = activeCourse?.questionType || (activeCourse?.level === 'Application Questions' ? 'application' : 'objective');
                     setNewQuestion({
-                      type: activeCourse?.level === 'Application Questions' ? 'application' : 'objective',
+                      type: courseDefaultType,
                       question: '',
                       options: ['', '', '', '', ''],
                       correctAnswer: 0,
@@ -3572,13 +3608,13 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
                     <div key={q.id} className="bg-[#EEF3FF]/40 border border-[#D8E3FF] p-6 rounded-2xl flex items-start justify-between group hover:border-[#2563EB]/40 transition-all">
                       <div className="space-y-4 flex-1">
                         <div className="flex items-center gap-4">
-                          <span className="w-8 h-8 rounded-lg bg-[#EEF3FF] border border-[#D8E3FF] flex items-center justify-center text-[#2563EB] font-mono text-[10px] font-black">
+                          <span className="w-8 h-8 rounded-lg bg-[#EEF3FF] border border-[#D8E3FF] flex items-center justify-center text-[#2563EB] font-mono text-[10px] font-black shrink-0">
                             {idx + 1}
                           </span>
-                          <h4 className="text-[15px] font-medium text-slate-900 leading-relaxed">{q.question}</h4>
+                          <h4 className="text-[15px] font-medium text-slate-900 leading-relaxed whitespace-pre-wrap">{q.question}</h4>
                         </div>
                         {q.type === 'application' ? (
-                          <div className="ml-12 p-4 bg-white rounded-xl border border-[#D8E3FF] text-[12px] text-emerald-700">
+                          <div className="ml-12 p-4 bg-white rounded-xl border border-[#D8E3FF] text-[12px] text-emerald-700 whitespace-pre-wrap leading-relaxed">
                             <span className="font-black uppercase tracking-widest text-[9px] block mb-1 text-[#2563EB]">Expected Answer</span>
                             {q.answerText || q.explanation}
                           </div>
@@ -3588,7 +3624,7 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
                               <div 
                                 key={oi} 
                                 className={cn(
-                                  "p-3 rounded-xl border text-[12px] transition-all",
+                                  "p-3 rounded-xl border text-[12px] transition-all whitespace-pre-wrap",
                                   oi === q.correctAnswer 
                                     ? "bg-emerald-50 border-emerald-300 text-emerald-700 font-bold" 
                                     : "bg-white border-[#D8E3FF] text-slate-600"
@@ -3601,7 +3637,7 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
                           </div>
                         )}
                         {q.explanation && (
-                          <div className="ml-12 p-4 bg-white rounded-xl border border-[#D8E3FF] text-[11px] text-slate-500 italic">
+                          <div className="ml-12 p-4 bg-white rounded-xl border border-[#D8E3FF] text-[11px] text-slate-500 italic whitespace-pre-wrap leading-relaxed">
                             <span className="font-black uppercase tracking-widest text-[9px] block mb-1 text-[#2563EB]">{t('admin.explanation')}</span>
                             {q.explanation}
                           </div>
@@ -3813,6 +3849,17 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
                       </select>
                     </div>
                  </div>
+                 <div>
+                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Question Type</label>
+                   <select 
+                     value={newCourse.questionType || 'objective'}
+                     onChange={e => setNewCourse({ ...newCourse, questionType: e.target.value as 'objective' | 'application' })}
+                     className="w-full bg-[#EEF3FF] border border-[#D8E3FF] rounded-xl p-4 text-sm font-semibold text-slate-900 focus:border-[#2563EB] outline-none cursor-pointer"
+                   >
+                     <option value="objective">Objectives (Multiple Choice)</option>
+                     <option value="application">Application Question</option>
+                   </select>
+                 </div>
                  <button type="submit" className="w-full bg-[#2563EB] hover:bg-[#1d4ed8] text-white py-4 rounded-xl font-black text-[12px] uppercase tracking-[0.2em] shadow-lg shadow-[#2563EB]/20 cursor-pointer">
                    Execute Provisioning
                  </button>
@@ -3892,6 +3939,17 @@ function QuestionsManager({ initialFilter, requestClearance }: { initialFilter: 
                         {getDeptLevels(editCourseData.department).map((l: string) => <option key={l} value={l}>{l}</option>)}
                       </select>
                     </div>
+                 </div>
+                 <div>
+                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Question Type</label>
+                   <select 
+                     value={editCourseData.questionType || 'objective'}
+                     onChange={e => setEditCourseData({ ...editCourseData, questionType: e.target.value as 'objective' | 'application' })}
+                     className="w-full bg-[#EEF3FF] border border-[#D8E3FF] rounded-xl p-4 text-sm font-semibold text-slate-900 focus:border-[#2563EB] outline-none cursor-pointer"
+                   >
+                     <option value="objective">Objectives (Multiple Choice)</option>
+                     <option value="application">Application Question</option>
+                   </select>
                  </div>
                  <div>
                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Description (Optional)</label>
