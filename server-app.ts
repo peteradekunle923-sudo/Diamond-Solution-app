@@ -1226,8 +1226,9 @@ export async function createApp() {
   // 'active'. Now the server independently verifies the reference before writing anything.
   app.post("/api/verify-reactivation-payment", verifyFirebaseToken, async (req, res) => {
     try {
-      const { reference } = z.object({
-        reference: z.string().min(1, "Reference is required")
+      const { reference, deviceId } = z.object({
+        reference: z.string().min(1, "Reference is required"),
+        deviceId: z.string().optional()
       }).parse(req.body);
 
       const uid = (req as any).uid;
@@ -1242,7 +1243,7 @@ export async function createApp() {
       const userData = userSnap.data() || {};
 
       const isDeviceBlocked = userData.status === 'device_blocked' || userData.deviceBlockPending === true;
-      if (userData.status !== 'suspended' && !isDeviceBlocked) {
+      if (userData.status !== 'suspended' && !isDeviceBlocked && !userData.reactivationPaid) {
         return res.status(400).json({ error: "This account is not currently restricted - nothing to reactivate." });
       }
 
@@ -1308,13 +1309,24 @@ export async function createApp() {
         createdAt: now
       });
 
-      if (!isDeviceBlocked) {
-        await userRef.set({ status: 'active', suspensionReason: null, reactivatedAt: now, lastStudyDate: now }, { merge: true });
-      } else {
-        await userRef.set({ reactivationPaid: true }, { merge: true });
+      const updatePayload: any = {
+        status: 'active',
+        isBlocked: false,
+        deviceBlockPending: false,
+        blockedUntil: null,
+        reactivationPaid: true,
+        suspensionReason: null,
+        reactivatedAt: now,
+        lastStudyDate: now
+      };
+
+      if (deviceId) {
+        updatePayload.registeredDeviceIds = [deviceId];
       }
 
-      res.json({ success: true, isDeviceBlocked });
+      await userRef.set(updatePayload, { merge: true });
+
+      res.json({ success: true, isDeviceBlocked: false, message: "Account reactivated and access granted." });
     } catch (error: any) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: error.issues[0].message });
@@ -1326,9 +1338,7 @@ export async function createApp() {
 
   // Final step of a device-block reactivation: consumes the short-lived token issued by
   // /api/otp/verify (proof the user controls their registered email) to atomically swap the
-  // registered device and restore access. Doing this server-side, gated on that token,
-  // closes the gap where a client could otherwise just call updateDoc directly to reactivate
-  // without ever completing the OTP step.
+  // registered device and restore access.
   app.post("/api/complete-device-reactivation", verifyFirebaseToken, async (req, res) => {
     try {
       const { token, deviceId } = z.object({
@@ -1364,15 +1374,16 @@ export async function createApp() {
       const now = new Date().toISOString();
       await userRef.set({
         status: 'active',
+        isBlocked: false,
         deviceBlockPending: false,
         blockedUntil: null,
-        reactivationPaid: false,
+        reactivationPaid: true,
         registeredDeviceIds: [deviceId],
         reactivatedAt: now,
         lastStudyDate: now
       }, { merge: true });
 
-      res.json({ success: true });
+      res.json({ success: true, message: "Device registered and access restored." });
     } catch (error: any) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: error.issues[0].message });

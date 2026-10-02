@@ -424,21 +424,37 @@ export default function Login() {
 
             if (!registeredDevices.includes(currentDeviceId)) {
               if (registeredDevices.length >= 2) {
-                const isBlocked = userData.status === 'device_blocked' || userData.deviceBlockPending;
-                if (!isBlocked) {
-                  const blockDuration = 24 * 60 * 60 * 1000;
-                  const futureBlockedUntil = Date.now() + blockDuration;
+                if (userData.reactivationPaid === true) {
                   try {
                     await updateDoc(doc(db, 'users', res.user.uid), {
-                      status: 'device_blocked',
-                      deviceBlockPending: true,
-                      blockedUntil: futureBlockedUntil,
-                      reactivationPaid: false
+                      registeredDeviceIds: [currentDeviceId],
+                      status: 'active',
+                      isBlocked: false,
+                      deviceBlockPending: false,
+                      blockedUntil: null
                     });
-                    userData.status = 'device_blocked';
-                    userData.deviceBlockPending = true;
-                  } catch (blockErr) {
-                    console.warn("Could not update device_blocked status:", blockErr);
+                    userData.status = 'active';
+                    userData.deviceBlockPending = false;
+                  } catch (devErr) {
+                    console.warn("Could not update registeredDeviceIds for paid user:", devErr);
+                  }
+                } else {
+                  const isBlocked = userData.status === 'device_blocked' || userData.deviceBlockPending;
+                  if (!isBlocked) {
+                    const blockDuration = 24 * 60 * 60 * 1000;
+                    const futureBlockedUntil = Date.now() + blockDuration;
+                    try {
+                      await updateDoc(doc(db, 'users', res.user.uid), {
+                        status: 'device_blocked',
+                        deviceBlockPending: true,
+                        blockedUntil: futureBlockedUntil,
+                        reactivationPaid: false
+                      });
+                      userData.status = 'device_blocked';
+                      userData.deviceBlockPending = true;
+                    } catch (blockErr) {
+                      console.warn("Could not update device_blocked status:", blockErr);
+                    }
                   }
                 }
               } else {
@@ -562,21 +578,37 @@ export default function Login() {
 
           if (!registeredDevices.includes(currentDeviceId)) {
             if (registeredDevices.length >= 2) {
-              const isBlocked = userData.status === 'device_blocked' || userData.deviceBlockPending;
-              if (!isBlocked) {
-                const blockDuration = 24 * 60 * 60 * 1000;
-                const futureBlockedUntil = Date.now() + blockDuration;
+              if (userData.reactivationPaid === true) {
                 try {
                   await updateDoc(userDocRef, {
-                    status: 'device_blocked',
-                    deviceBlockPending: true,
-                    blockedUntil: futureBlockedUntil,
-                    reactivationPaid: false
+                    registeredDeviceIds: [currentDeviceId],
+                    status: 'active',
+                    isBlocked: false,
+                    deviceBlockPending: false,
+                    blockedUntil: null
                   });
-                  userData.status = 'device_blocked';
-                  userData.deviceBlockPending = true;
-                } catch (blockErr) {
-                  console.warn("Could not set device_blocked status:", blockErr);
+                  userData.status = 'active';
+                  userData.deviceBlockPending = false;
+                } catch (devErr) {
+                  console.warn("Could not update registeredDeviceIds for paid user:", devErr);
+                }
+              } else {
+                const isBlocked = userData.status === 'device_blocked' || userData.deviceBlockPending;
+                if (!isBlocked) {
+                  const blockDuration = 24 * 60 * 60 * 1000;
+                  const futureBlockedUntil = Date.now() + blockDuration;
+                  try {
+                    await updateDoc(userDocRef, {
+                      status: 'device_blocked',
+                      deviceBlockPending: true,
+                      blockedUntil: futureBlockedUntil,
+                      reactivationPaid: false
+                    });
+                    userData.status = 'device_blocked';
+                    userData.deviceBlockPending = true;
+                  } catch (blockErr) {
+                    console.warn("Could not set device_blocked status:", blockErr);
+                  }
                 }
               }
             } else {
@@ -612,9 +644,8 @@ export default function Login() {
         await res.user.getIdToken(true);
         // Clear session tour flag on explicit login as requested
         sessionStorage.removeItem('diamond_onboard_shown');
-        const destination = (userData?.status === 'suspended' || userData?.status === 'device_blocked' || userData?.deviceBlockPending)
-          ? '/reactivate'
-          : '/dashboard';
+        const isRestricted = (userData?.status === 'suspended' || userData?.status === 'device_blocked' || userData?.deviceBlockPending) && userData?.reactivationPaid !== true;
+        const destination = isRestricted ? '/reactivate' : '/dashboard';
         // Delay navigation so AuthContext's auth-state listener updates first - otherwise
         // ProtectedRoute briefly still sees user=null and bounces straight back to /login
         // (same race the OTP device-verification path below already guards against).

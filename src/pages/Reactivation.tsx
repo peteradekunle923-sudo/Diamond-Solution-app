@@ -18,7 +18,7 @@ export default function Reactivation() {
   // Device block specific state
   const [timeLeftStr, setTimeLeftStr] = useState('');
   const [isBlockExpired, setIsBlockExpired] = useState(true);
-  const [paystackPaid, setPaystackPaid] = useState(false);
+  const [paystackPaid, setPaystackPaid] = useState(profile?.reactivationPaid === true);
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [otpVerified, setOtpVerified] = useState(false);
@@ -26,7 +26,14 @@ export default function Reactivation() {
   const [otpSuccessMsg, setOtpSuccessMsg] = useState('');
   const [otpToken, setOtpToken] = useState('');
 
-  const isDeviceBlocked = profile?.status === 'device_blocked' || profile?.deviceBlockPending;
+  const isDeviceBlocked = (profile?.status === 'device_blocked' || profile?.deviceBlockPending) && profile?.reactivationPaid !== true;
+
+  // Sync paystackPaid state when profile updates
+  useEffect(() => {
+    if (profile?.reactivationPaid === true) {
+      setPaystackPaid(true);
+    }
+  }, [profile?.reactivationPaid]);
 
   // 24 hours countdown logic
   useEffect(() => {
@@ -98,12 +105,11 @@ export default function Reactivation() {
     try {
       const finalRef = typeof reference === 'string' ? reference : (reference.reference || reference.transaction || reference.trans || reference.trxref);
       const idToken = await user!.getIdToken();
-      // The backend independently verifies the reference with Paystack (status, amount,
-      // currency, one-time use) before writing the payment record or touching the account's
-      // status - this used to be a pure client-side write with no verification at all, which
-      // meant a suspended account could just set itself back to 'active' for free.
+      const currentDeviceId = getOrGenerateDeviceId();
+      
       const response = await axios.post('/api/verify-reactivation-payment', {
-        reference: finalRef
+        reference: finalRef,
+        deviceId: currentDeviceId
       }, {
         headers: { Authorization: `Bearer ${idToken}` }
       });
@@ -113,13 +119,17 @@ export default function Reactivation() {
         return;
       }
 
-      if (!response.data.isDeviceBlocked) {
-        window.location.href = '/dashboard';
-      } else {
-        // Device block: flag as paid and request OTP
-        setPaystackPaid(true);
-        await handleRequestOtp();
+      setPaystackPaid(true);
+
+      // Start fresh unique session to immediately logout other devices and authorize this device
+      try {
+        const { SessionService } = await import('../lib/SessionService');
+        await SessionService.startSession(user!.uid);
+      } catch (sessErr) {
+        console.warn("Session initiation warning:", sessErr);
       }
+
+      window.location.href = '/dashboard';
     } catch (err: any) {
       console.error(err);
       setOtpError(err?.response?.data?.error || 'Failed to verify payment. Please contact support.');
@@ -318,8 +328,8 @@ export default function Reactivation() {
               </div>
             )}
 
-            {/* OTP Code Generation & Submission Stage */}
-            {paystackPaid && !otpVerified && (
+            {/* Payment Confirmed Stage */}
+            {paystackPaid && (
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -331,105 +341,28 @@ export default function Reactivation() {
                     <span className="text-xs font-black text-emerald-700 uppercase tracking-wider">Payment Confirmed</span>
                   </div>
                   <p className="text-[11px] text-slate-600">
-                    Reactivation fee received successfully. We must now verify your identity via email OTP confirmation.
+                    Reactivation fee confirmed. Your account is reactivated and this device is authorized.
                   </p>
                 </div>
 
-                {otpError && (
-                  <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-[11px] text-red-600 flex items-center gap-2 font-medium">
-                    <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
-                    <span>{otpError}</span>
-                  </div>
-                )}
-
-                {otpSuccessMsg && (
-                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-700 flex items-center gap-2 font-medium">
-                    <Mail className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>{otpSuccessMsg}</span>
-                  </div>
-                )}
-
-                {!otpSent ? (
-                  <button
-                    onClick={handleRequestOtp}
-                    disabled={otpLoading}
-                    className="w-full bg-[#2563EB] hover:bg-[#1d4ed8] text-white py-4 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-md"
-                  >
-                    {otpLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Send Verification OTP'}
-                  </button>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        6-Digit Verification Code
-                      </label>
-                      <input 
-                        type="text"
-                        maxLength={6}
-                        value={otpCode}
-                        onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                        placeholder="Enter OTP"
-                        className="w-full bg-[#EEF3FF] border border-[#D8E3FF] rounded-xl p-4 text-center font-mono font-black text-xl tracking-[0.4em] text-[#2563EB] focus:outline-none focus:border-[#2563EB]"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <button
-                        onClick={handleRequestOtp}
-                        disabled={otpLoading}
-                        className="bg-white border border-[#D8E3FF] text-[#2563EB] hover:bg-[#EEF3FF] py-4 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all"
-                      >
-                        Resend Code
-                      </button>
-                      <button
-                        onClick={handleVerifyOtp}
-                        disabled={otpLoading || otpCode.length !== 6}
-                        className="bg-[#2563EB] hover:bg-[#1d4ed8] text-white py-4 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all disabled:opacity-40 shadow-md"
-                      >
-                        {otpLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Verify Code'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-            )}
-
-            {/* Device Swap Confirmation Stage */}
-            {otpVerified && (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="space-y-6"
-              >
-                <div className="bg-[#EEF3FF] border border-[#D8E3FF] p-5 rounded-2xl flex flex-col items-center text-center space-y-3">
-                  <Monitor className="w-8 h-8 text-[#2563EB] animate-bounce" />
-                  <h3 className="text-lg font-serif font-black text-slate-900 uppercase tracking-wider">
-                    Register This Device?
-                  </h3>
-                  <p className="text-[11px] text-slate-600 leading-relaxed">
-                    Would you like to authorize this current device as your primary account device?
-                    <strong> This will immediately log out your account from all other devices.</strong>
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <button
-                    onClick={async () => {
+                <button
+                  onClick={async () => {
+                    setLoading(true);
+                    try {
                       const { SessionService } = await import('../lib/SessionService');
-                      await SessionService.forceSignOut('session_expired');
-                    }}
-                    className="bg-white border border-[#D8E3FF] text-slate-600 hover:bg-[#EEF3FF] py-4 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all"
-                  >
-                    No, Cancel
-                  </button>
-                  <button
-                    onClick={handleDeviceRegisterAndAccess}
-                    disabled={loading}
-                    className="bg-[#2563EB] hover:bg-[#1d4ed8] text-white py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-2"
-                  >
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Yes, Register'}
-                  </button>
-                </div>
+                      if (user?.uid) {
+                        await SessionService.startSession(user.uid);
+                      }
+                      window.location.href = '/dashboard';
+                    } catch (e) {
+                      window.location.href = '/dashboard';
+                    }
+                  }}
+                  disabled={loading}
+                  className="w-full bg-[#2563EB] hover:bg-[#1d4ed8] text-white py-4 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-md"
+                >
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Proceed to Dashboard'}
+                </button>
               </motion.div>
             )}
 
