@@ -201,11 +201,13 @@ service cloud.firestore {
       match /content/{contentId} {
         // Master Gate: Check payment or admin status
         allow read: if isAdmin() || (isSignedIn() && !isSuspended() && (
+          hasPaidCourse() ||
           // Option 1: Legacy Course-Specific Payment
           (exists(/databases/$(database)/documents/payments/$(request.auth.uid + "_" + courseId)) &&
            get(/databases/$(database)/documents/payments/$(request.auth.uid + "_" + courseId)).data.status == "success") ||
           // Option 2: Modern Department-Based Payment (using faculty name from course)
-          (exists(/databases/$(database)/documents/payments/$( "dept_pay_" + request.auth.uid + "_" + get(/databases/$(database)/documents/courses/$(courseId)).data.department)) &&
+          (exists(/databases/$(database)/documents/courses/$(courseId)) &&
+           exists(/databases/$(database)/documents/payments/$( "dept_pay_" + request.auth.uid + "_" + get(/databases/$(database)/documents/courses/$(courseId)).data.department)) &&
            get(/databases/$(database)/documents/payments/$( "dept_pay_" + request.auth.uid + "_" + get(/databases/$(database)/documents/courses/$(courseId)).data.department)).data.status == "success")
         ));
         allow write: if isAdmin();

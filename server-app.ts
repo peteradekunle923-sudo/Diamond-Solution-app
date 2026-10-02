@@ -24,7 +24,7 @@ const AFFILIATE_COMMISSION_RATE = 0.25;
 // claimed "amount". Custom faculties (admin-added, priced via the `faculties` collection)
 // override the static DEPARTMENT_PRICES map, mirroring the merge logic the client uses to
 // display prices in CourseList.tsx.
-async function getDepartmentPrice(db: any, department: string): Promise<{ ngn: number; usd: number } | null> {
+async function getDepartmentPrice(db: any, department: string): Promise<{ ngn: number; usd: number }> {
   try {
     const facultySnap = await db.collection("faculties").where("name", "==", department).limit(1).get();
     if (!facultySnap.empty) {
@@ -38,7 +38,7 @@ async function getDepartmentPrice(db: any, department: string): Promise<{ ngn: n
   } catch (err: any) {
     console.error("[getDepartmentPrice] Faculty lookup failed:", err.message);
   }
-  return DEPARTMENT_PRICES[department] || null;
+  return DEPARTMENT_PRICES[department] || { ngn: 10000, usd: 7 };
 }
 
 function computeCommission(price: number, userCurrency: string, referrerCurrency: string): number {
@@ -999,40 +999,47 @@ export async function createApp() {
       const parsedBody = z.object({
         reference: z.string().min(1, "Reference is required"),
         userData: z.object({
-          uid: z.string().min(1),
-          email: z.string().email(),
+          uid: z.string().optional(),
+          email: z.string().optional(),
           displayName: z.string().optional(),
           username: z.string().optional()
-        }),
+        }).optional(),
         department: z.string().min(1, "Department is required"),
-        currency: z.enum(["NGN", "USD"]),
+        currency: z.enum(["NGN", "USD"]).optional().default("NGN"),
         referrerId: z.string().optional().nullable()
       }).parse(req.body);
 
-      const { reference, userData, department, currency, referrerId } = parsedBody;
+      const { reference, department, currency, referrerId } = parsedBody;
       const secretKey = process.env.PAYSTACK_SECRET_KEY;
-      const uid = (req as any).uid;
+      const callerUid = (req as any).uid;
+      let targetUid = callerUid;
 
-      if (userData.uid !== uid) {
-        const isAdminUser = await checkIsAdmin(uid);
+      if (parsedBody.userData?.uid && parsedBody.userData.uid !== callerUid) {
+        const isAdminUser = await checkIsAdmin(callerUid);
         if (!isAdminUser) {
           return res.status(403).json({ error: "Forbidden: You can only verify payments for your own account." });
         }
+        targetUid = parsedBody.userData.uid;
       }
 
       const db = await getFirestore();
-      const paymentId = `dept_pay_${userData.uid}_${department}`;
+      const userDocRef = db.collection("users").doc(targetUid);
+      const userDocSnap = await userDocRef.get();
+      const existingUserData = userDocSnap.exists ? userDocSnap.data() || {} : {};
+
+      const userEmail = parsedBody.userData?.email || existingUserData.email || (req as any).email || '';
+      const userDisplayName = parsedBody.userData?.displayName || parsedBody.userData?.username || existingUserData.displayName || existingUserData.username || 'Scholar';
+
+      const paymentId = `dept_pay_${targetUid}_${department}`;
       const paymentRef = db.collection("payments").doc(paymentId);
 
       const existingPayment = await paymentRef.get();
       if (existingPayment.exists && existingPayment.data()?.status === 'success') {
+        await userDocRef.set({ hasPaidCourse: true, updatedAt: new Date().toISOString() }, { merge: true });
         return res.json({ success: true, alreadyGranted: true });
       }
 
       const priceInfo = await getDepartmentPrice(db, department);
-      if (!priceInfo) {
-        return res.status(400).json({ error: "Unknown department." });
-      }
       const expectedPrice = currency === 'USD' ? priceInfo.usd : priceInfo.ngn;
 
       // Simulation references are a local-development convenience (see the "DEBUG MODE"
@@ -1098,7 +1105,7 @@ export async function createApp() {
       let referrerCurrency = 'NGN';
       let commissionAmount = 0;
 
-      if (referrerId && referrerId !== userData.uid) {
+      if (referrerId && referrerId !== targetUid) {
         const referrerSnap = await db.collection("users").doc(referrerId).get();
         if (referrerSnap.exists) {
           referrerData = referrerSnap.data();
@@ -1109,7 +1116,7 @@ export async function createApp() {
 
       await paymentRef.set({
         id: paymentId,
-        userId: userData.uid,
+        userId: targetUid,
         amount: expectedPrice,
         currency,
         status: 'success',
@@ -1118,13 +1125,13 @@ export async function createApp() {
         department,
         reference,
         courseId: 'all_dept',
-        studentName: userData.displayName || 'Scholar',
-        email: userData.email,
+        studentName: userDisplayName,
+        email: userEmail,
         paidAt: now,
         createdAt: now
       });
 
-      await db.collection("users").doc(userData.uid).set({ hasPaidCourse: true, updatedAt: now }, { merge: true });
+      await userDocRef.set({ hasPaidCourse: true, updatedAt: now }, { merge: true });
 
       if (referrerData) {
         const commissionId = `comm_${paymentId}`;
@@ -1132,8 +1139,8 @@ export async function createApp() {
           id: commissionId,
           referrerUid: referrerId,
           referrerName: referrerData.displayName || 'Affiliate',
-          referredUid: userData.uid,
-          referredName: userData.displayName || 'Scholar',
+          referredUid: targetUid,
+          referredName: userDisplayName,
           paymentAmount: expectedPrice,
           paymentCurrency: currency,
           commissionAmount,
@@ -1154,15 +1161,15 @@ export async function createApp() {
           brevoClient.transactionalEmails.sendTransacEmail({
             sender: { email: senderEmail, name: 'Diamond Solution' },
             to: [{ email: adminEmail }],
-            subject: `Course Purchase Alert: ${userData?.displayName || "A user"} bought a course`,
+            subject: `Course Purchase Alert: ${userDisplayName || "A user"} bought a course`,
             htmlContent: `
               <div style="font-family: sans-serif; padding: 25px; color: #0a0c10; max-width: 600px; margin: auto; border: 1px solid #C9930A; border-radius: 12px; background-color: #ffffff;">
                 <h2 style="color: #C9930A; border-bottom: 2px solid #C9930A; padding-bottom: 10px; margin-top: 0;">Course Purchase Notification</h2>
                 <p>Hello Administrator,</p>
                 <p>A student has successfully completed a course purchase on the platform. Here are the details:</p>
                 <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #C9930A;">
-                  <p style="margin: 0 0 10px 0;"><strong>Student Name:</strong> ${userData?.displayName || "Scholar"}</p>
-                  <p style="margin: 0 0 10px 0;"><strong>Student Email:</strong> ${userData?.email || "No email"}</p>
+                  <p style="margin: 0 0 10px 0;"><strong>Student Name:</strong> ${userDisplayName || "Scholar"}</p>
+                  <p style="margin: 0 0 10px 0;"><strong>Student Email:</strong> ${userEmail || "No email"}</p>
                   <p style="margin: 0 0 10px 0;"><strong>Department:</strong> ${department || "N/A"}</p>
                   <p style="margin: 0 0 10px 0;"><strong>Amount Paid:</strong> ${currency === "USD" ? "$" : "₦"}${expectedPrice.toLocaleString()}</p>
                   <p style="margin: 0 0 10px 0;"><strong>Reference ID:</strong> ${reference || "N/A"}</p>
@@ -1184,7 +1191,7 @@ export async function createApp() {
                 <div style="font-family: sans-serif; padding: 25px; color: #0a0c10; max-width: 600px; margin: auto; border: 1px solid #10b981; border-radius: 12px; background-color: #ffffff;">
                   <h2 style="color: #10b981; border-bottom: 2px solid #10b981; padding-bottom: 10px; margin-top: 0;">New Reward Commission! 🎁</h2>
                   <p>Dear ${referrerData.displayName || 'Affiliate'},</p>
-                  <p>We are excited to inform you that a student you referred (<strong>${userData?.displayName || "Scholar"}</strong>) has purchased a course in <strong>${department || "Department"}</strong>.</p>
+                  <p>We are excited to inform you that a student you referred (<strong>${userDisplayName || "Scholar"}</strong>) has purchased a course in <strong>${department || "Department"}</strong>.</p>
                   <p>As part of the Diamond Solution referral program, your 25% commission has been calculated and successfully credited to your affiliate wallet.</p>
                   <div style="background-color: #f0fdf4; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #10b981; text-align: center;">
                     <span style="font-size: 13px; color: #15803d; text-transform: uppercase; font-weight: bold; letter-spacing: 1px; display: block; margin-bottom: 5px;">Your Net Reward</span>

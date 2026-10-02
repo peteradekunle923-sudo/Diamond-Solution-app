@@ -277,58 +277,65 @@ export default function StudyPage() {
           setCourse(courseData);
           console.log("Course data found:", courseData);
 
-          // If admin or has global course access, bypass payment verification
-          if (isAdmin) {
-            console.log("User is admin or has global payment access, bypassing payment checkout");
+          // If admin, moderator, or has global course access, bypass payment verification
+          if (isAdmin || profile?.role === 'admin' || profile?.role === 'moderator' || profile?.hasPaidCourse === true) {
+            console.log("User is admin, moderator, or has confirmed course payment, granting access");
             setPaymentVerified(true);
             setupQuestionsListener(courseData);
             return;
           }
 
-          // Check if user has paid for this department
-          let hasDeptPayment = false;
-          if (courseData.department) {
-            try {
-              console.log("Checking department payment for:", courseData.department);
-              const pq = query(
-                collection(db, 'payments'),
-                where('userId', '==', user.uid),
-                where('dept_name', '==', courseData.department),
-                where('status', '==', 'success')
-              );
-              const pd = await getDocs(pq);
-              hasDeptPayment = !pd.empty;
-              console.log("Dept payment query result:", hasDeptPayment);
-            } catch (pErr) {
-              console.warn("Department payment query failed (possibly no index or permissions):", pErr);
-            }
-          }
-          
-          // Also check for specific course payment (legacy or edge case)
-          console.log("Checking specific payments...");
-          let hasSpecificPayment = false;
-          let hasDeptDocPayment = false;
+          let hasAccessGranted = false;
 
-          try {
-            const specificPd = await getDoc(doc(db, 'payments', `${user.uid}_${id}`));
-            hasSpecificPayment = specificPd.exists() && specificPd.data().status === 'success';
-          } catch (sErr) {
-            console.warn("Specific payment check failed:", sErr);
-          }
-
+          // Check 1: Deterministic department payment doc
           if (courseData.department) {
             try {
               const deptPayId = `dept_pay_${user.uid}_${courseData.department}`;
               const deptPd = await getDoc(doc(db, 'payments', deptPayId));
-              hasDeptDocPayment = deptPd.exists() && deptPd.data().status === 'success';
+              if (deptPd.exists() && deptPd.data().status === 'success') {
+                hasAccessGranted = true;
+              }
             } catch (dErr) {
               console.warn("Dept doc payment check failed:", dErr);
             }
           }
 
-          console.log("Final payment status:", { hasSpecificPayment, hasDeptDocPayment, hasDeptPayment });
+          // Check 2: Legacy course payment doc
+          if (!hasAccessGranted) {
+            try {
+              const specificPd = await getDoc(doc(db, 'payments', `${user.uid}_${id}`));
+              if (specificPd.exists() && specificPd.data().status === 'success') {
+                hasAccessGranted = true;
+              }
+            } catch (sErr) {
+              console.warn("Specific payment check failed:", sErr);
+            }
+          }
 
-          if (hasSpecificPayment || hasDeptPayment || hasDeptDocPayment) {
+          // Check 3: Query user payments for matching department or courseId
+          if (!hasAccessGranted) {
+            try {
+              const pq = query(
+                collection(db, 'payments'),
+                where('userId', '==', user.uid),
+                where('status', '==', 'success')
+              );
+              const pd = await getDocs(pq);
+              const targetDept = (courseData.department || '').trim().toLowerCase();
+              hasAccessGranted = pd.docs.some(docSnap => {
+                const data = docSnap.data();
+                const dDept = (data.dept_name || data.department || '').trim().toLowerCase();
+                return (targetDept && (dDept === targetDept || dDept.includes(targetDept) || targetDept.includes(dDept))) ||
+                       data.courseId === id ||
+                       data.courseId === 'all_dept' ||
+                       data.type === 'department_access';
+              });
+            } catch (pErr) {
+              console.warn("Payments query check failed:", pErr);
+            }
+          }
+
+          if (hasAccessGranted) {
             setPaymentVerified(true);
             setupQuestionsListener(courseData);
           } else {

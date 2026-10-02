@@ -139,8 +139,16 @@ export default function CourseList() {
         const access: Record<string, boolean> = {};
         snap.docs.forEach(d => {
           const data = d.data();
-          if (data.type === 'department_access' || data.dept_name) {
-            access[data.dept_name] = true;
+          const dept = data.dept_name || data.department;
+          if (dept) {
+            access[dept] = true;
+            access[dept.trim().toLowerCase()] = true;
+          }
+          if (data.type === 'department_access' || data.courseId === 'all_dept') {
+            if (dept) {
+              access[dept] = true;
+              access[dept.trim().toLowerCase()] = true;
+            }
           }
         });
         setDeptAccess(access);
@@ -229,13 +237,23 @@ export default function CourseList() {
         reference: finalRef,
         department: selectedDeptWithPrice.name,
         currency: userCurrency,
-        userData: profile,
+        userData: {
+          uid: user.uid,
+          email: user.email || '',
+          displayName: profile?.displayName || '',
+          username: profile?.username || ''
+        },
         referrerId: referrerUid
       }, {
         headers: { Authorization: `Bearer ${idToken}` }
       });
 
       if (response.data.success) {
+        setDeptAccess(prev => ({
+          ...prev,
+          [selectedDeptWithPrice.name]: true,
+          [selectedDeptWithPrice.name.trim().toLowerCase()]: true
+        }));
         alert('Institutional Access Granted! You can now access your courses.');
       } else {
         alert('Payment verification failed.');
@@ -288,7 +306,10 @@ export default function CourseList() {
     }
   }, [selectedDeptWithPrice, paying]);
 
-  const hasAccess = isAdmin || deptAccess[deptFilter];
+  const hasAccess = isAdmin || 
+    deptAccess[deptFilter] || 
+    (deptFilter && deptAccess[deptFilter.trim().toLowerCase()]) || 
+    (deptFilter && Object.keys(deptAccess).some(k => k.trim().toLowerCase() === deptFilter.trim().toLowerCase() && deptAccess[k]));
   const matchedCustomDept = allFaculties.find(f => f.name === deptFilter);
   const originalLevels = matchedCustomDept?.levels || DEPARTMENT_STRUCTURE[deptFilter]?.levels || ['100L', '200L', '300L', '400L', '500L'];
   const levels = hasAccess 

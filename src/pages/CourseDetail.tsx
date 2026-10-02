@@ -84,10 +84,10 @@ export default function CourseDetail() {
         // Check if user has paid for this course/department
         let userHasPaidLocal = false;
         if (user) {
-          if (isAdmin) {
+          if (isAdmin || profile?.role === 'admin' || profile?.role === 'moderator') {
             userHasPaidLocal = true;
           } else {
-            // Check if user has paid for THIS specific department using deterministic ID
+            // Check 1: Deterministic department payment doc
             const paymentId = `dept_pay_${user.uid}_${courseData.department}`;
             const pd = await getDoc(doc(db, 'payments', paymentId));
             const legacyPaymentId = `${user.uid}_${id}`;
@@ -95,6 +95,31 @@ export default function CourseDetail() {
             
             if ((pd.exists() && pd.data()?.status === 'success') || (legacyPd.exists() && legacyPd.data()?.status === 'success')) {
                userHasPaidLocal = true;
+            } else {
+              // Check 2: Query payments collection for user's successful payments
+              try {
+                const pq = query(
+                  collection(db, 'payments'),
+                  where('userId', '==', user.uid),
+                  where('status', '==', 'success')
+                );
+                const pSnap = await getDocs(pq);
+                const targetDept = (courseData.department || '').trim().toLowerCase();
+                userHasPaidLocal = pSnap.docs.some(doc => {
+                  const data = doc.data();
+                  const dDept = (data.dept_name || data.department || '').trim().toLowerCase();
+                  return (targetDept && (dDept === targetDept || dDept.includes(targetDept) || targetDept.includes(dDept))) ||
+                         data.courseId === id ||
+                         data.courseId === 'all_dept' ||
+                         data.type === 'department_access';
+                });
+              } catch (qErr) {
+                console.warn("CourseDetail payments query fallback:", qErr);
+              }
+
+              if (!userHasPaidLocal && profile?.hasPaidCourse) {
+                userHasPaidLocal = true;
+              }
             }
           }
         }
